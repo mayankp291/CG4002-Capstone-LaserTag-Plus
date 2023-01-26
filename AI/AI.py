@@ -22,7 +22,7 @@ def get_model():
     
     i = 1
     while (i < len(NEURONS_HIDDEN_LAYER)):
-        model.add(tf.keras.layers.Dense(NEURONS_HIDDEN_LAYER[0], activation="relu"))
+        model.add(tf.keras.layers.Dense(NEURONS_HIDDEN_LAYER[i], activation="relu"))
         model.add(tf.keras.layers.Dropout(0.3))
         i += 1
     
