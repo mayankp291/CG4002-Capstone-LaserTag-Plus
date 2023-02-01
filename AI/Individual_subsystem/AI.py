@@ -212,6 +212,8 @@ def main():
                 xticklabels=DATA_LABELS, yticklabels=DATA_LABELS)
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
+    
+    # Comment/Uncomment out to remove/restore the heat map 
     # plt.show()
 
     # Extract weights and biases to text file
