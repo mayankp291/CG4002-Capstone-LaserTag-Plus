@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-import time
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 NEURONS_HIDDEN_LAYER = [192, 256]
-DROPOUT = 0.45
-INPUTS = 792 # 128 sensor readings * 6 sensor reading types + 4 extracted features * 6 sensor reading types
-READING_TYPES = 7
-OUTPUTS = 6
-EPOCHS = 30
+DROPOUT = 0.40
+INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
 DATA_LABELS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
+OUTPUTS = len(DATA_LABELS)
+EPOCHS = 30
+
 
 def read_raw_data(path_to_dataset):
     array = []
@@ -141,6 +141,41 @@ def get_model():
 
     return model
 
+def save_raw_to_file(model, file_name):
+    
+    if os.path.exists(file_name):
+        os.remove(file_name)
+    
+    with open(file_name, "a") as hyperparams_file:
+        for index, layer in enumerate(model.layers):
+            if len(layer.get_weights()) > 0:
+                print(f"layer {index}\n", layer.get_weights())
+                for count, ele in enumerate(["weights", "biases"]):
+                    hyperparams_file.write(f"\n\n\nlayer {index} - {ele}\n\n")
+                    np.savetxt(hyperparams_file, np.transpose(layer.get_weights()[count], fmt="%.10f", delimiter=", ")
+                    print(layer.get_weights()[count].shape)
+
+
+def convert_to_c(file_name):
+
+    converted_content = ""
+    with open(file_name, 'r') as hyperparams_file:
+        lines = hyperparams_file.readlines()
+        for index, line in enumerate(lines):
+            if not line or line.isspace() or line.startswith("layer"):
+                converted_content += (line + "\n")
+                continue
+            converted_content += ("{" + line.strip() + "},\n") if (index < (len(lines) - 1)) else ("{" + line.strip() + "}\n")
+
+    with open(file_name, "w") as hyperparams_file:
+        hyperparams_file.write(converted_content)
+
+
+def extract_params(model, file_name):
+
+    save_raw_to_file(model, file_name)
+    convert_to_c(file_name)
+    
 
 def main():
 
@@ -151,6 +186,7 @@ def main():
     testing_data_paths = get_data_paths("test")
     training_dataset, training_data_labels = load_data(training_data_paths, "train")
     testing_dataset, testing_data_labels = load_data(testing_data_paths, "test")
+    print(testing_dataset.shape, testing_data_labels.shape)
 
     # Train the neural network model
     model.fit(training_dataset, training_data_labels, epochs=EPOCHS)
@@ -176,7 +212,11 @@ def main():
                 xticklabels=DATA_LABELS, yticklabels=DATA_LABELS)
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.show()
+    # plt.show()
+
+    # Extract weights and biases to text file
+    extract_params(model, "hyperparams.txt")
+
 
 
 if __name__ == "__main__":
