@@ -1,0 +1,25 @@
+{
+    "p1":
+    {
+        "hp": 4,
+        "action": "none",
+        "bullets": 10,
+        "grenades": 13,
+        "shield_time": 3,
+        "shield_health": 2,
+        "num_deaths": 10,
+        "num_shield": 11
+    },
+    "p2":
+    {
+        "hp": 6,
+        "action": "shoot",
+        "bullets": 8,
+        "grenades": 11,
+        "shield_time": 2,
+        "shield_health": 2,
+        "num_deaths": 12,
+        "num_shield": 9
+    }
+}
+
