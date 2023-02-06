@@ -7,9 +7,11 @@ from sklearn import metrics
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-NEURONS_HIDDEN_LAYER = [192, 256]
+# INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
+
+NEURONS_HIDDEN_LAYER = [45, 25]
 DROPOUT = 0.40
-INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
+INPUTS = 24 #  4 extracted features * 6 sensor reading types 
 DATA_LABELS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 30
@@ -103,12 +105,11 @@ def load_data(data_paths, data_type):
 
     print(f"{data_type.capitalize()}ing labels loaded!\nExtracting features...")
 
-    extracted_features = extract_features(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z)
+    extracted_features = extract_features(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z) 
 
     print(f"Extracted features!\n{data_type.capitalize()}ing data is ready to be used!\n")
 
-
-    return np.column_stack((body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, extracted_features)), np.array(labels).astype(np.float32)
+    return extracted_features, np.array(labels).astype(np.float32)
 
 
 def get_data_paths(path_type):
@@ -141,7 +142,7 @@ def get_model():
 
     return model
 
-def save_raw_to_file(model, file_name):
+def save_raw_weights_to_file(model, file_name):
     
     if os.path.exists(file_name):
         os.remove(file_name)
@@ -152,20 +153,51 @@ def save_raw_to_file(model, file_name):
                 print(f"layer {index}\n", layer.get_weights())
                 for count, ele in enumerate(["weights", "biases"]):
                     params_file.write(f"\n\n\nlayer {index} - {ele}\n\n")
-                    np.savetxt(params_file, np.transpose(layer.get_weights()[count]), fmt="%.10f", delimiter=", ")
+                    weights_content = np.transpose(layer.get_weights()[count])
+                    params_file.write(str(weights_content.shape) + "\n\n")
+                    np.savetxt(params_file, weights_content, fmt="%.10f", delimiter=", ")
                     print(layer.get_weights()[count].shape)
 
+
+def is_array_correct(array_content, indexes):
+    total_length = 0
+    if not indexes[0]:
+        total_length = int(indexes[1])
+    elif not indexes[1]:
+        total_length = int(indexes[0])
+    else:
+        total_length = int(indexes[0]) * int(indexes[1])
+    
+    return total_length == len(array_content.split(","))
 
 def convert_to_c(file_name):
 
     converted_content = ""
     with open(file_name, 'r') as params_file:
         lines = params_file.readlines()
-        for index, line in enumerate(lines):
+        curr_array_len = actual_array_len = 0
+        array_content  = ""
+        for line in lines:
             if not line or line.isspace() or line.startswith("layer"):
-                converted_content += (line + "\n")
+                converted_content += line
                 continue
-            converted_content += ("{" + line.strip() + "},\n") if (index < (len(lines) - 1)) else ("{" + line.strip() + "}\n")
+            if line.startswith("("):
+                indexes = line.replace("(", "").replace(")", "").strip().split(",")
+                actual_array_len = int(indexes[0].strip())
+                curr_array_len = 0
+                array_content = ""
+                continue
+            
+            if curr_array_len == 0:
+                array_content += ("{" + line.strip() + ", \n")
+            elif curr_array_len == (actual_array_len - 1):
+                array_content += (line.strip() + "}\n")
+                assert is_array_correct(array_content, indexes)
+                converted_content += array_content
+            else:
+                array_content += (line.strip() + ", ")
+
+            curr_array_len += 1
 
     with open(file_name, "w") as params_file:
         params_file.write(converted_content)
@@ -173,9 +205,31 @@ def convert_to_c(file_name):
 
 def extract_params(model, file_name):
 
-    save_raw_to_file(model, file_name)
+    save_raw_weights_to_file(model, file_name)
     convert_to_c(file_name)
     
+
+def save_raw_test_data_to_file(testing_dataset, testing_data_labels, file_name):
+    
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
+    with open(file_name, "a") as test_file:
+        print("\n\nTesting Data params:\n\n" +
+              f"{testing_dataset.shape} {testing_data_labels.shape}")
+        test_file.write(f"{testing_dataset.shape}\n")
+        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, 8)), fmt="%d", delimiter=", ")
+        test_file.write("\n\n\n\n\n")
+
+        test_file.write(f"{testing_data_labels.shape}\n")
+        np.savetxt(test_file, testing_data_labels, fmt="%d", delimiter=", ")
+
+
+def save_testing_data(testing_dataset, testing_data_labels, file_name):
+    
+    save_raw_test_data_to_file(testing_dataset, testing_data_labels, file_name)
+    convert_to_c(file_name)
+
 
 def main():
 
@@ -219,6 +273,8 @@ def main():
     # Extract weights and biases to text file
     extract_params(model, "params.txt")
 
+    # Print testing dataset to text file
+    save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
 
 if __name__ == "__main__":
