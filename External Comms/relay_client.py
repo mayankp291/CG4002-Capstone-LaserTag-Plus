@@ -1,79 +1,85 @@
 from socket import *
 import sshtunnel
 from paramiko import SSHClient
+import os
+from dotenv import load_dotenv
+import time
+import threading
 
-SUNFIRE_USERNAME ="mayankp"
-SUNFIRE_PASSWORD = "Sanchit@012345"
-XILINX_USERNAME = "xilinx"
-XILINX_PASSWORD = "plsdonthackus"
-SIZE = 1024
-FORMAT = "utf-8"
-dataa="HELLO WORLD"
+# load environment variables
+load_dotenv()
 
-SUNFIRE = "stu.comp.nus.edu.sg"
-XILINX = "192.168.95.219"
-LOCAL_HOST = 'localhost'
-# LOCAL_HOST = "127.0.0.1"
-SSH_PORT = 22
-PORT = 11000 #listening port of Ultra96 and relay laptop
+SOC_USERNAME = os.getenv("SOC_USERNAME")
+SOC_PASSWORD = os.getenv("SOC_PASSWORD")
+SOC_IP = os.getenv("SOC_IP")
+PORT_BIND = int(os.getenv("PORT"))
+
+ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
+ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
+ULTRA96_IP = os.getenv("ULTRA96_IP")
 
 
-
-class Relay_Client():
+class Relay_Client(threading.Thread):
     def __init__(self, ip, port) -> None:
+        super().__init__()
         self.relay_ip = gethostbyname(ip)
         self.relay_port = port
         self.relaySocket = socket(AF_INET, SOCK_STREAM)
         self.relaySocket.connect((self.relay_ip, self.relay_port))
         print('Connected to Relay Server', self.relay_ip, self.relay_port)
+        
 
+    def run(self):
+        while True:
+            self.send('Hello World')
+            time.sleep(1)
+            self.recv()
+    
     @staticmethod
     def tunnel_ultra96():
-        tunnel1 = sshtunnel.open_tunnel(
-            ssh_address_or_host = (SUNFIRE, SSH_PORT),
-            remote_bind_address = (XILINX, SSH_PORT),
-            ssh_username = SUNFIRE_USERNAME,
-            ssh_password = SUNFIRE_PASSWORD,
+    # open tunnel to soc.comp.nus.edu.sg server
+        tunnel_soc = sshtunnel.open_tunnel(
+            ssh_address_or_host = (SOC_IP, 22),
+            remote_bind_address = (ULTRA96_IP, 22),
+            ssh_username = SOC_USERNAME,
+            ssh_password = SOC_PASSWORD,
             block_on_close = False
-        )
-        tunnel1.start() 
-        #laptop to stu
-        print(f'Connection to tunnel1 {SUNFIRE}:{SSH_PORT} established')
-        print("LOCAL PORT:", tunnel1.local_bind_port)
+            )
+        tunnel_soc.start()
+        
+        print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
 
-        tunnel2 = sshtunnel.open_tunnel(
-            ssh_address_or_host = (LOCAL_HOST, tunnel1.local_bind_port),
-            remote_bind_address = (LOCAL_HOST, PORT),
-            ssh_username = XILINX_USERNAME,
-            ssh_password = XILINX_PASSWORD,
-            local_bind_address = (LOCAL_HOST, PORT),
+        # open tunnel from soc.comp.nus.edu.sg server to ultra96
+        tunnel_ultra96 = sshtunnel.open_tunnel(
+            ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
+            # bind port from localhost to ultra96
+            remote_bind_address=('localhost', PORT_BIND),
+            ssh_username = ULTRA96_USERNAME,
+            ssh_password = ULTRA96_PASSWORD,
+            local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
             block_on_close = False
-        )
-        tunnel2.start()
-        print(f'Connection to tunnel2 {XILINX}:{PORT} established')
-        print("LOCAL PORT:", tunnel2.local_bind_port)
-
-        ADDR = (XILINX, tunnel2.local_bind_port)
-        print(ADDR)
+            )
+        tunnel_ultra96.start()
+        print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
 
 # serverName = gethostbyname('192.168.95.219')
     def send(self, message):
-        self.relaySocket.send(message)
+        self.relaySocket.send(message.encode('utf-8'))
         print('Sent message to Relay Server', message)
     
     def recv(self):
-        message = self.relaySocket.recv(SIZE)
+        message = self.relaySocket.recv(1024).decode('utf-8')
         print('Received message from Relay Server', message)
 
 
 def main():
-    # Relay_Client.tunnel_ultra96()
-    relay_client = Relay_Client('localhost', 11000)
+    relay_thread = Relay_Client('localhost', 11000)
+    relay_thread.start()
+    relay_thread2 = Relay_Client('localhost', 11000)
+    relay_thread2.start()
 
-    while(True):
-        relay_client.send('Hello World'.encode())
-        relay_client.recv()
+    time.sleep(100)
     
 if __name__ == "__main__":
     main()

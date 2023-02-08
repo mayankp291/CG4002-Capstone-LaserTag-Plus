@@ -1,5 +1,6 @@
 # Ultra96 Server
 from socket import *
+import socketserver
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -9,37 +10,30 @@ from multiprocessing import Process, Queue
 import json
 import paho.mqtt.client as mqtt
 import time
+import threading
 
-ai_queue = Queue()
 client_queue = Queue()
 viz_queue = Queue()
 
 
-
-class Relay_Server(Process):
-    def __init__(self, ip, port, group) -> None:
-        self.relay_ip = gethostbyname(ip)
-        self.relay_port = port
-        self.group = group
-        self.relaySocket = socket(AF_INET, SOCK_STREAM)
-        self.relaySocket.bind((self.relay_ip, self.relay_port))
-        self.relaySocket.listen(5)
-        print('Relay Server started on', self.relay_ip, self.relay_port)
-    
-    def run(self):
+# TCP Server to receive data from the Relay Laptops
+class Relay_Server(socketserver.BaseRequestHandler):
+    def handle(self):
+        cur_thread = threading.current_thread()
         while True:
-            connectionSocket, addr = self.relaySocket.accept()
-            print('Connected to', addr)
-            message = connectionSocket.recv(1024)
-            print(message)
-            connectionSocket.close()
-    
-    def send(self, message):
-        pass
+            data = self.request.recv(1024).decode('utf-8')
+            print("{} wrote:".format(self.client_address), data)
+            # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
+            response = "{}: {}".format(cur_thread.name, data)
+            # q.put(data)
+            self.request.sendall(response.encode('utf-8'))
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
 
     
 # MQTT Client to send data to AWS IOT Core
-class MQTT_Client(Process):
+class MQTT_Client(threading.Thread):
     def __init__(self, topic, client_id, group) -> None:
         self.topic = topic
         self.client_id = client_id
@@ -55,17 +49,15 @@ class MQTT_Client(Process):
     
     def receive(self, client, userdata, message):
         print("Received message from", message.topic, message.payload)
-        def on_message(client, userdata, message):
-            print("Received message from", message.topic, message.payload)
         
-
-
-class Evaluation_Client(Process):
+# Client to send data to the Evaluation Server
+class Evaluation_Client(threading.Thread):
     
     IV = b'PLSPLSPLSPLSWORK'
     KEY = b'PLSPLSPLSPLSWORK'
 
     def __init__(self, ip, port, group) -> None:
+        super().__init__()
         self.eval_ip = gethostbyname(ip)
         self.eval_port = port
         self.group = group
@@ -78,6 +70,16 @@ class Evaluation_Client(Process):
             print('Failed to connect to Evaluation Server', self.eval_ip, self.eval_port)
             self.clientSocket = None
     
+
+    def run(self):
+        f = open('test.json')
+        j = json.load(f)
+        for _ in range(10):
+            self.send(json.dumps(j))
+            self.receive()   
+        self.close()
+
+
     @staticmethod
     def AES_Cipher():
         return AES.new(Evaluation_Client.KEY, AES.MODE_CBC, Evaluation_Client.IV)
@@ -117,15 +119,21 @@ class Evaluation_Client(Process):
 
 
 def main():
-    eval_client = Evaluation_Client('localhost', 11000, 2)
-    f = open('test.json')
-    j = json.load(f)
-    # for _ in range(10):
-    #     eval_client.send(json.dumps(j))
-    #     eval_client.receive()
+    eval_client = Evaluation_Client('localhost', 11001, 2)
+    eval_client.daemon = True
+    eval_client.start()
+
+    HOST, PORT = "localhost", 11000
+    server = ThreadedTCPServer((HOST, PORT), Relay_Server)
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+    print("Server loop running in thread:", server_thread.name)
 
     mqtt = MQTT_Client('test/cg4002', 'testpc', 2)
     mqtt.client.on_message = mqtt.receive
+    f = open('test.json')
+    j = json.load(f)
     for _ in range(3):
         mqtt.publish(json.dumps(j))
         time.sleep(1)
