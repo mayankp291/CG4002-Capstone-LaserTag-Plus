@@ -1,10 +1,40 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include "CRC.h"
+#include "CRC8.h"
 
 Adafruit_MPU6050 mpu;
+
+byte dataPacket[20];
+bool hasHandshake;
+byte sequenceNo;
+byte packetCount;
+
+float accX, accY, accZ;
+float gyrX, gyrY, gyrZ;
+
+// Calculate CRC to identify errors in transmission
+uint8_t calculateCRC8(uint8_t *data, int len) {
+    return crc8(data, len);
+}
+
+struct AcknowledgementPacket {
+    byte typeOfPacket = "A";
+    byte padding[18];
+    byte checkSum = 'A'
+}
+
+void sendDataPacket() {
+    Serial.write()
+}
+
 void setup(void) {
   Serial.begin(115200);
+  hasHandshake = false;
+  sequenceNo = 0;
+  packetCount = 0;
+
   while(!Serial) {
     delay(10);
     Serial.println("Adafruit MPU6050 start test:");
