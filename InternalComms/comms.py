@@ -19,6 +19,9 @@ macAddresses = {
 
 DATA_PACKET_SIZE = 20
 
+SYN_FLAGS = [False] * 6
+ACK_FLAGS = [False] * 6
+
 # Device IDs
 IMU_PLAYER_1 = 1
 GUN_PLAYER_1 = 2
@@ -53,6 +56,7 @@ class MyDelegate(DefaultDelegate):
 
     def handleNotification(self,cHandle, data):
         self.buffer +=data
+        pass
 
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
@@ -88,6 +92,15 @@ class BeetleConnectionThread:
         hasHandshake = False
         while not hasHandshake:
             self.dev.waitForNotifications(1.0)
+            if SYN_FLAGS[self.beetleId] and ACK_PACKET[self.beetleId]:
+                self.writetoBeetle("A")
+                hasHandshake = True
+                break
+            else:
+                self.writetoBeetle("S")
+
+        print("HandshakeCompleted")
+        return hasHandshake
 
     def executeCommunications(self):
         # connect to beetle
