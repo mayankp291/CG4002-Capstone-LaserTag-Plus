@@ -7,9 +7,13 @@
 Adafruit_MPU6050 mpu;
 
 byte dataPacket[20];
-bool hasHandshake;
+bool hasHandshake = false;
 byte sequenceNo;
 byte packetCount;
+
+#define SYN_PACKET 'S'
+#define ACK_PACKET 'A'
+#define DATA_PACKET 'D'
 
 float accX, accY, accZ;
 float gyrX, gyrY, gyrZ;
@@ -25,8 +29,16 @@ struct AcknowledgementPacket {
     byte checkSum = 'A'
 }
 
+void sendACKPacket(char packetType) {
+    Serial.write(ACK_PACKET);
+    crc.add(ACK_PACKET);
+    Serial.write(crc.getCRC());
+
+    crc.restart()
+}
+
 void sendDataPacket() {
-    Serial.write()
+    Serial.write(DATA_PACKET)
 }
 
 void setup(void) {
@@ -115,8 +127,20 @@ void setup(void) {
 }
 
 void loop() {
+  byte packetType = Serial.read();
+  if (packetType == SYN_PACKET)
+  {
+        sendACKPacket(ACK_PACKET);
+        break;
+  }
+  else if (packetType == ACK_PACKET)
+  {
+        hasHandshake = true;
+  }
+
+
   // get newsensor readings
-sensors_event_t a, g, temp;
+  sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
   /* Print out the values  m/s^2   */
