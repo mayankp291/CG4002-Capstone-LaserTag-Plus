@@ -1,0 +1,59 @@
+Hey guys, these are some of the common mistakes I found while grading week 3 studio 2. 
+
+1. Button value is checked once the loop finishes. Problem: The for loop can run for a very long time when the value of counter is big, and the color only changes after the for loop has finished. 
+
+Incorrect way: 
+void flashGreen()
+{
+  int counter=1;
+  while(turn==0)
+  {
+    for(int i=0; i<counter; i++)
+    {
+      digitalWrite(GREENPIN, HIGH);
+      delay(LED_DELAY);
+      digitalWrite(GREENPIN, LOW);
+      delay(LED_DELAY);
+    }
+
+    // Poll the switch pin
+    if(digitalRead(SWITCHPIN) == 1)
+        turn = 1;
+
+    counter++;
+    delay(1000);
+  }
+}
+
+Correct way: Poll inside the for loop and return from the function if button is pressed
+
+void flashGreen()
+{
+  int counter=1;
+  while(turn==0)
+  {
+    for(int i=0; i<counter; i++)
+    {
+      digitalWrite(GREENPIN, HIGH);
+      delay(LED_DELAY);
+      digitalWrite(GREENPIN, LOW);
+      delay(LED_DELAY);
+
+      // Poll the switch pin
+      if(digitalRead(SWITCHPIN) == 1)
+        turn = 1;
+        return;
+    }
+
+    counter++;
+    delay(1000);
+  }
+}
+
+2. For question 2b, the led state is not changed in ISR. Also some people are not sure how interrupts are triggered. 
+The program flow is as follows:
+a. The microcontroller (AVR atmega328p in this case) detects an interrupt on a pin.
+b. The control is passed to the ISR function, where the value of the variable is changed.
+c. The control is then passed back to whatever function was executing, when the program reaches main the if statement decides the color.
+
+IMPORTANT: In upcoming labs (and project) we would be using interrupts a lot and its crucial to know how to use them properly. ISRs are used for very short tasks, like changing register or variable values. We do not usually use them for time taking tasks like led sequence (anything with delays). This is because ur program flow stops while an ISR is executed, this can cause a lot of hard to spot issues in ur code (especially in project).
