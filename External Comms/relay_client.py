@@ -5,9 +5,12 @@ import os
 from dotenv import load_dotenv
 import time
 import threading
+import random
 
 # load environment variables
 load_dotenv()
+
+actions = ['reload', 'shoot', 'shield', 'grenade']
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
 SOC_PASSWORD = os.getenv("SOC_PASSWORD")
@@ -31,7 +34,7 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         while True:
-            self.send('Hello World')
+            self.send(random.choice(actions))
             time.sleep(1)
             self.recv()
     
