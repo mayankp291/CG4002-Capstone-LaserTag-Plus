@@ -13,7 +13,7 @@ def extract_features():
 
 def main():
 
-    ol = Overlay('forward_prop.bit')
+    ol = Overlay('design_1_wrapper.bit')
     dma = ol.axi_dma_0
 
     input_buffer = allocate(shape=(NUM_OF_INPUTS,), dtype=np.intc)
