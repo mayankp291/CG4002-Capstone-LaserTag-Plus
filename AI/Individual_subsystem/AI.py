@@ -9,12 +9,14 @@ import seaborn as sns
 
 # INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
 
-NEURONS_HIDDEN_LAYER = [45, 25]
+NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
 INPUTS = 24 #  4 extracted features * 6 sensor reading types 
 DATA_LABELS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 30
+PRECISION_TEST_DATA = 8
+PRECISION_WEIGHTS = 9
 
 
 def read_raw_data(path_to_dataset):
@@ -155,7 +157,7 @@ def save_raw_weights_to_file(model, file_name):
                     params_file.write(f"\n\n\nlayer {index} - {ele}\n\n")
                     weights_content = np.transpose(layer.get_weights()[count])
                     params_file.write(str(weights_content.shape) + "\n\n")
-                    np.savetxt(params_file, weights_content, fmt="%.10f", delimiter=", ")
+                    np.savetxt(params_file, weights_content, fmt=f"%.{PRECISION_WEIGHTS}f", delimiter=", ")
                     print(layer.get_weights()[count].shape)
 
 
@@ -188,8 +190,24 @@ def convert_to_c(file_name):
                 array_content = ""
                 continue
             
+            # if line.count(",") > 1:
+            #     if curr_array_len == (actual_array_len - 1):
+            #         array_content += ("{" + line.strip() + "}\n")
+            #         converted_content += array_content
+            #     else:
+            #         array_content += ("{" + line.strip() + "},\n")
+            # else:
+            #     if curr_array_len == 0:
+            #         array_content += ("{" + line.strip() + ", \n")
+            #     elif curr_array_len == (actual_array_len - 1):
+            #         array_content += (line.strip() + "}\n")
+            #         assert is_array_correct(array_content, indexes)
+            #         converted_content += array_content
+            #     else:
+            #         array_content += (line.strip() + ", ")
+
             if curr_array_len == 0:
-                array_content += ("{" + line.strip() + ", \n")
+                    array_content += ("{" + line.strip() + ", \n")
             elif curr_array_len == (actual_array_len - 1):
                 array_content += (line.strip() + "}\n")
                 assert is_array_correct(array_content, indexes)
@@ -218,7 +236,7 @@ def save_raw_test_data_to_file(testing_dataset, testing_data_labels, file_name):
         print("\n\nTesting Data params:\n\n" +
               f"{testing_dataset.shape} {testing_data_labels.shape}")
         test_file.write(f"{testing_dataset.shape}\n")
-        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, 8)), fmt="%d", delimiter=", ")
+        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, PRECISION_TEST_DATA)), fmt="%d", delimiter=", ")
         test_file.write("\n\n\n\n\n")
 
         test_file.write(f"{testing_data_labels.shape}\n")
