@@ -15,8 +15,8 @@ byte packetCount;
 #define ACK_PACKET 'A'
 #define DATA_PACKET 'D'
 
-float accX, accY, accZ;
-float gyrX, gyrY, gyrZ;
+int16_t accX, accY, accZ;
+int16_t gyrX, gyrY, gyrZ;
 
 // Calculate CRC to identify errors in transmission
 uint8_t calculateCRC8(uint8_t *data, int len) {
@@ -27,7 +27,20 @@ struct AcknowledgementPacket {
     byte typeOfPacket = "A";
     byte padding[18];
     byte checkSum = 'A'
-}
+} ackPacket;
+
+struct DatagramPacket {
+    byte typeOfPacket = 'M', // motion
+    byte deviceID,
+    int16_t accX;
+    int16_t accY;
+    int16_t accZ;
+    int16_t gyrX;
+    int16_t gyrY;
+    int16_t gyrZ;
+    byte padding[6];
+    byte crcCheck;
+} dataPacket;
 
 void sendACKPacket(char packetType) {
     Serial.write(ACK_PACKET);
@@ -38,6 +51,8 @@ void sendACKPacket(char packetType) {
 }
 
 void sendDataPacket() {
+    DatagramPacket gloveDataPacket;
+
     Serial.write(DATA_PACKET)
 }
 
