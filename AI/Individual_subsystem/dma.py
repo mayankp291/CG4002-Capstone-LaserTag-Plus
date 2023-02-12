@@ -98,20 +98,21 @@ def main():
     input_buffer = allocate(shape=(NUM_OF_INPUTS,), dtype=np.intc)
     output_buffer = allocate(shape=(1,), dtype=np.intc)
 
-    i = 0
-    k = 0
+    data_row_index = 0 # Index for one row of readings, which containts {NUM_OF_INPUTS} readings 
+    test_label_index = 0
     correct_test_cases = 0
-    while (i < len(TEST_DATASET)):
-        j = 0
+    action_test_cases = 0
+    while (data_row_index < len(TEST_DATASET)):
+        buffer_index = 0
 
-        if not is_above_threshold(i):
-            i += NUM_OF_INPUTS
-            k += 1
+        if not is_above_threshold(data_row_index):
+            data_row_index += NUM_OF_INPUTS
+            test_label_index += 1
             continue
 
-        while (j < NUM_OF_INPUTS):
-            input_buffer[j] = TEST_DATASET[i + j]
-            j += 1
+        while (buffer_index < NUM_OF_INPUTS):
+            input_buffer[buffer_index] = TEST_DATASET[data_row_index + buffer_index]
+            buffer_index += 1
 
         dma.sendchannel.transfer(input_buffer)
         dma.recvchannel.transfer(output_buffer)
@@ -120,22 +121,21 @@ def main():
 
         action = output_buffer[0]
         if action < len(DATA_LABELS):
-            print(f"Predicted action: {action}, Actual action {TEST_LABELS[k]}")
+            print(f"Predicted action: {action}, Actual action {TEST_LABELS[test_label_index]}")
         else:
             print("Predicted action: none")  
         
-        if action == TEST_LABELS[k]:
+        if action == TEST_LABELS[test_label_index]:
             correct_test_cases += 1
         
-        i += NUM_OF_INPUTS
-        k += 1
+        data_row_index += NUM_OF_INPUTS
+        test_label_index += 1
+        action_test_cases += 1
 
-    num_test_cases = len(TEST_DATASET) / NUM_OF_INPUTS
+    print(f"Test cases considered as an action: {action_test_cases}")
+    print(f"Actual number of test cases: {len(TEST_LABELS)}")
 
-    print(f"Test cases considered as an action: {k}")
-    print(f"Actual number of test cases: {round(num_test_cases)}")
-
-    accuracy = correct_test_cases / num_test_cases
+    accuracy = correct_test_cases / len(TEST_LABELS)
 
     print(f"Accuracy: {accuracy}")
     
