@@ -8,12 +8,20 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 
 # the peripheral class is used to connect and disconnect
 
+Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
+Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
+
+# serialSvc = dev.getServiceByUUID(
+#     "0000dfb0-0000-1000-8000-00805f9b34fb")
+# serialChar = serialSvc.getCharacteristics(
+#     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
+
 macAddresses = {
     1: "D0:39:72:BF:BF:BB", #imu1
     2: "D0:39:72:BF:C6:07", #gun1
     3: "D0:39:72:BF:BF:DD", #vest1
     4: "",
-    5: "",
+    5: "D0:39:72:BF:C8:CF", #gun2
     6: ""
 }
 
@@ -39,13 +47,14 @@ HEALTH_PACKET = 'H'
 
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
-    def __init__(self, playerId, deviceId, dataBuffer, lock):
+    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer):
         DefaultDelegate.__init__(self)
         self.playerId = playerId
         self.deviceId = deviceId
         self.lock = lock
         self.hasHandshaken = False
         self.dataBuffer = dataBuffer
+        self.receivingBuffer = receivingBuffer
 
     def sendAckPacket(self):
         self.serialChar.write(bytes("A", "utf-8"))
@@ -54,16 +63,24 @@ class MyDelegate(DefaultDelegate):
         self.sendAckPacket()
         self.hasHandshaken = True
 
-    def handleNotification(self,cHandle, data):
-        self.buffer +=data
-        pass
+    def handleNotification(self, cHandle, data):
+        self.receivingBuffer += data
+        print("Data received from beetle: ", self.receivingBuffer)
+        if (len(self.receivingBuffer)) == 1 and self.receivingBuffer == b'A':
+            # global beetleAck
+            # beetleAck = True
+            ACK_FLAGS[self.deviceId] = True
+            self.receivingBuffer = b'' # reset the data
+        self.receivingBuffer = b''
+
 
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
         return calcChecksum == self.buffer[length]
 
+
 class BeetleConnectionThread:
-    def __init__(self, playerId, beetleId, macAddress, dataBuffer, lock):
+    def __init__(self, playerId, beetleId, macAddress, dataBuffer, lock, receivingBuffer):
         self.beetleId = beetleId
         self.macAddress = macAddress
         self.dataBuffer = dataBuffer
@@ -71,7 +88,9 @@ class BeetleConnectionThread:
         self.dev = None
         self.deleg = None
         self.lock = lock
-
+        self.serialSvc = None
+        self.serialChar = None
+        self.receivingBuffer = receivingBuffer
 
     def writetoBeetle(self):
         pass
@@ -81,8 +100,10 @@ class BeetleConnectionThread:
             try:
                 self.dev = Peripheral(self.macAddress)
                 print("Connected to Beetle: ", self.macAddress)
-                deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock)
+                deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock, self.receivingBuffer)
                 self.dev.setDelegate(deviceDelegate)
+                self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
+                self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
                 break
             except BTLEDisconnectError:
                 print("Connection failed")
@@ -92,14 +113,16 @@ class BeetleConnectionThread:
         hasHandshake = False
         while not hasHandshake:
             self.dev.waitForNotifications(1.0)
-            if SYN_FLAGS[self.beetleId] and ACK_PACKET[self.beetleId]:
-                self.writetoBeetle("A")
-                hasHandshake = True
-                break
-            else:
-                self.writetoBeetle("S")
 
-        print("HandshakeCompleted")
+            if not SYN_FLAGS[self.beetleId]:
+                print("sending syn to beetle")
+                self.serialChar.write(bytes('S', encoding="utf-8"))
+                SYN_FLAGS[self.beetleId] = True
+            if ACK_FLAGS[self.beetleId]:
+                print("received ack from beetle")
+                self.serialChar.write(bytes('A', encoding="utf-8"))
+                hasHandshake = True
+                print("HandshakeCompleted")
         return hasHandshake
 
     def executeCommunications(self):
@@ -107,9 +130,8 @@ class BeetleConnectionThread:
         self.openBeetleConnection()
         self.startThreeWayHandshake()
 
-        pass
 
-if __name__ == '__main__':
+def executeThreads():
     # create threads
 
     # lock is used to acquire the objects like mutex, so that the dataBuffer is not written in by the other threads
@@ -155,4 +177,11 @@ if __name__ == '__main__':
     # Vest2_Thread.join()
 
 
+if __name__ == '__main__':
+    lock = mp.Lock()
 
+    # using a multiprocessing queue FIFO
+    dataBuffer = mp.Queue()
+    receivingBuffer = b''
+    Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer)
+    Gun2_Beetle.executeCommunications()
