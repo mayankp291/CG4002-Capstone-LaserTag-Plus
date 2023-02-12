@@ -130,9 +130,12 @@ def main():
         i += NUM_OF_INPUTS
         k += 1
 
-    print(k)
+    num_test_cases = len(TEST_DATASET) / NUM_OF_INPUTS
 
-    accuracy = correct_test_cases / (len(TEST_DATASET) / NUM_OF_INPUTS)
+    print(f"Test cases considered as an action: {k}")
+    print(f"Actual number of test cases: {num_test_cases}")
+
+    accuracy = correct_test_cases / num_test_cases
 
     print(f"Accuracy: {accuracy}")
     
