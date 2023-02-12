@@ -100,7 +100,7 @@ def main():
 
     i = 0
     k = 0
-    accuracy = 0
+    correct_test_cases = 0
     while (i < len(TEST_DATASET)):
         j = 0
 
@@ -125,12 +125,14 @@ def main():
             print("Predicted action: none")  
         
         if action == TEST_LABELS[k]:
-            accuracy += 1
+            correct_test_cases += 1
         
         i += NUM_OF_INPUTS
         k += 1
 
     print(k)
+
+    accuracy = correct_test_cases / (len(TEST_DATASET) / NUM_OF_INPUTS)
 
     print(f"Accuracy: {accuracy}")
     
