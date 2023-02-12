@@ -120,7 +120,7 @@ def main():
 
         action = output_buffer[0]
         if action < len(DATA_LABELS):
-            print(f"Predicted action: {DATA_LABELS[action]}, Actual action {TEST_LABELS[k]}")
+            print(f"Predicted action: {action}, Actual action {TEST_LABELS[k]}")
         else:
             print("Predicted action: none")  
         
