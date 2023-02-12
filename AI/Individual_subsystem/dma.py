@@ -61,23 +61,23 @@ def is_above_threshold(current_index):
                      [-0.0000002260, 0.0000000537],
                      [-0.0000000341, 0.0000000104]]
 
-    # max_neg_acc_x = threshold_arr[0]
-    # min_pos_acc_x = threshold_arr[1]
+    # max_neg_acc_x = threshold_arr[0][0]
+    # min_pos_acc_x = threshold_arr[0][1]
 
-    # max_neg_acc_y = threshold_arr[2]
-    # min_pos_acc_y = threshold_arr[3]
+    # max_neg_acc_y = threshold_arr[1][0]
+    # min_pos_acc_y = threshold_arr[1][1]
 
-    # max_neg_acc_z = threshold_arr[4]
-    # min_pos_acc_z = threshold_arr[5]
+    # max_neg_acc_z = threshold_arr[2][0]
+    # min_pos_acc_z = threshold_arr[2][1]
 
-    # max_neg_gyro_x = threshold_arr[6]
-    # min_pos_gyro_x = threshold_arr[7]
+    # max_neg_gyro_x = threshold_arr[3][0]
+    # min_pos_gyro_x = threshold_arr[3][1]
 
-    # max_neg_gyro_y = threshold_arr[8]
-    # min_pos_gyro_y = threshold_arr[9]
+    # max_neg_gyro_y = threshold_arr[4][0]
+    # min_pos_gyro_y = threshold_arr[4][1]
 
-    # max_neg_gyro_z = threshold_arr[10]
-    # min_pos_gyro_z = threshold_arr[11]
+    # max_neg_gyro_z = threshold_arr[5][0]
+    # min_pos_gyro_z = threshold_arr[5][1]
 
     sorted_data = group_data(current_index)
 
