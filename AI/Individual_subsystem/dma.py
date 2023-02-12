@@ -1,6 +1,7 @@
 from pynq import Overlay
 from pynq import allocate
 import numpy as np
+import math
 
 NUM_OF_INPUTS = 24
 NUM_OF_READINGS = 6
@@ -133,7 +134,7 @@ def main():
     num_test_cases = len(TEST_DATASET) / NUM_OF_INPUTS
 
     print(f"Test cases considered as an action: {k}")
-    print(f"Actual number of test cases: {int(num_test_cases)}")
+    print(f"Actual number of test cases: {math.round(num_test_cases)}")
 
     accuracy = correct_test_cases / num_test_cases
 
