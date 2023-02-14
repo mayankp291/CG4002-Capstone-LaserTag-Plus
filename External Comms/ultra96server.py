@@ -5,7 +5,6 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import base64
-import multiprocessing
 from multiprocessing import Process, Queue
 import json
 import paho.mqtt.client as mqtt
@@ -50,29 +49,63 @@ player_state = {
 class Relay_Server(socketserver.BaseRequestHandler):
     def handle(self):
         cur_thread = threading.current_thread()
-        while True:
-            data = self.request.recv(1024).decode('utf-8')
-            # process data from client
-            data = data.strip()
-            data = data.split('_')
-            length = int(data[0])
-            
+        try:
+            while True:
+                # receive data from client
+                # (protocol) len(data)_TYPE_data
+                data = b''
+                while not data.endswith(b'_'):
+                    _d = self.request.recv(1)
+                    if not _d:
+                        data = b''
+                        break
+                    data += _d
+                if len(data) == 0:
+                    print('no more data from the client')
+                    self.stop()
 
-            if length != len(data[2]):
-                print("Error", data)
-                print('Error: packet length does not match, packet dropped')
-            
-            else:
-                print("{} wrote:".format(self.client_address), data[2])
-                # process incoming data
-                imu_queue.put(data[2])
-                # if data[1] == 'action' and data[2] != 'none':
-                #     client_queue.put(data[2])
-                # elif data[1] == 'IMU':
-                #     imu_queue.put(data[2])
-                # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
-                response = "{}: {}".format(cur_thread.name, data[2])
-                # self.request.sendall(response.encode('utf-8'))
+                # Get Length of data
+                data = data.decode("utf-8")
+                length = int(data[:-1])
+
+                # Get TYPE of data
+                data = b''
+                while not data.endswith(b'_'):
+                    _d = self.request.recv(1)
+                    if not _d:
+                        data = b''
+                        break
+                    data += _d 
+
+                data_type = data.decode("utf-8")[:-1]                
+
+                # Get data
+                data = b''
+                while len(data) < length:
+                    _d = self.request.recv(length - len(data))
+                    if not _d:
+                        data = b''
+                        break
+                    data += _d
+                if len(data) == 0:
+                    print('no more data from the client')
+                    self.stop()
+                data = data.decode("utf8")  # Decode raw bytes to UTF-8
+                # format string for length and type
+                print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
+                print("[DATA]", data)                
+                
+                if length != len(data):
+                    print("Error", data)
+                    print('Error: packet length does not match, packet dropped')
+                
+                else:
+                    print("{} wrote:".format(self.client_address), data)
+                    # process incoming data
+                    imu_queue.put(data)
+        except Exception as e:
+            print("Client disconnected")
+            print(e)
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
@@ -191,13 +224,17 @@ class Evaluation_Client(threading.Thread):
     
 
     def run(self):
-        while True:
-            data = eval_queue.get()
-            self.send(json.dumps(data)) 
-            self.receive()
-        self.close()
+        try:
+            while True:
+                data = eval_queue.get()
+                self.send(json.dumps(data)) 
+                self.receive()
+        except:
+            print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port)
+            self.close()
 
 
+    # Initialise AES Cipher
     @staticmethod
     def AES_Cipher():
         return AES.new(Evaluation_Client.KEY, AES.MODE_CBC, Evaluation_Client.IV)
@@ -213,56 +250,42 @@ class Evaluation_Client(threading.Thread):
                 print('Sent message to Evaluation Server', self.eval_ip, self.eval_port, message)
             except:
                 print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port, message)
-                self.clientSocket = None
+                self.close()
     
     def receive(self):
-        # if self.clientSocket is not None:
-        #     try:
-        #         recv_message = self.clientSocket.recv(2048)
-        #         print('Received message from Evaluation Server', self.eval_ip, self.eval_port, recv_message)
-        #     except:
-        #         print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
-        #         self.clientSocket = None
-        # try:
-        #     len_info = self.clientSocket.recv(2048)
-        #     len_info = int(len_info.decode("utf-8").split("_")[0])
-        #     recv_message = self.clientSocket.recv(len_info)
-        #     print('Received message from Evaluation Server', self.eval_ip, self.eval_port, recv_message.decode("utf-8"))
-        # except:
-        #     print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
-        #     self.clientSocket = None
-        try:
-            # recv length followed by '_' followed by cypher
-            data = b''
-            while not data.endswith(b'_'):
-                _d = self.clientSocket.recv(1)
-                if not _d:
-                    data = b''
-                    break
-                data += _d
-            if len(data) == 0:
-                print('no more data from the client')
-                self.stop()
+        if self.clientSocket is not None:
+            try:
+                # recv length followed by '_' followed by cypher
+                data = b''
+                while not data.endswith(b'_'):
+                    _d = self.clientSocket.recv(1)
+                    if not _d:
+                        data = b''
+                        break
+                    data += _d
+                if len(data) == 0:
+                    print('no more data from the client')
+                    self.stop()
 
-            data = data.decode("utf-8")
-            length = int(data[:-1])
+                data = data.decode("utf-8")
+                length = int(data[:-1])
 
-            data = b''
-            while len(data) < length:
-                _d = self.clientSocket.recv(length - len(data))
-                if not _d:
-                    data = b''
-                    break
-                data += _d
-            if len(data) == 0:
-                print('no more data from the client')
-                self.stop()
-            msg = data.decode("utf8")  # Decode raw bytes to UTF-8
-            print("[RECEIVED]", msg)
-        
-        except:
-            print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
-            # self.clientSocket = None
+                data = b''
+                while len(data) < length:
+                    _d = self.clientSocket.recv(length - len(data))
+                    if not _d:
+                        data = b''
+                        break
+                    data += _d
+                if len(data) == 0:
+                    print('no more data from the client')
+                    self.stop()
+                msg = data.decode("utf8")  # Decode raw bytes to UTF-8
+                print("[RECEIVED]", msg)
+            
+            except:
+                print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
+                self.close()
 
 
     def close(self):
