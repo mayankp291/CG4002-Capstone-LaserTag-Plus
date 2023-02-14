@@ -83,13 +83,14 @@ class Relay_Client(threading.Thread):
         sys.stdout.write('\b')
         sys.stdout.flush()        
         
-    
+    # TODO Implement fragmentation
     def recv(self):
         message = self.relaySocket.recv(1024).decode('utf-8')
         print('Received message from Relay Server', message)
 
 
 def main():
+    # Relay_Client.tunnel_ultra96()
     relay_thread = Relay_Client('localhost', 11000)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)

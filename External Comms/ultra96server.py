@@ -17,6 +17,7 @@ import random
 imu_queue = Queue()
 action_queue = Queue()
 viz_queue = Queue()
+eval_queue = Queue()
 
 
 
@@ -71,8 +72,7 @@ class Relay_Server(socketserver.BaseRequestHandler):
                 #     imu_queue.put(data[2])
                 # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
                 response = "{}: {}".format(cur_thread.name, data[2])
-                # todo add function to change json
-                self.request.sendall(response.encode('utf-8'))
+                # self.request.sendall(response.encode('utf-8'))
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
@@ -126,11 +126,13 @@ class Game_Engine(threading.Thread):
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
                 viz_queue.put(player_state) 
+                eval_queue.put(player_state)
 
 
     def AI_random(self, imu_data):
         print(imu_data)
-        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
+        # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
+        AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
         action_queue.put(action)
 
@@ -189,11 +191,10 @@ class Evaluation_Client(threading.Thread):
     
 
     def run(self):
-        f = open('test.json')
-        j = json.load(f)
-        for _ in range(10):
-            self.send(json.dumps(j))
-            self.receive()   
+        while True:
+            data = eval_queue.get()
+            self.send(json.dumps(data)) 
+            self.receive()
         self.close()
 
 
@@ -215,13 +216,54 @@ class Evaluation_Client(threading.Thread):
                 self.clientSocket = None
     
     def receive(self):
-        if self.clientSocket is not None:
-            try:
-                recv_message = self.clientSocket.recv(2048).decode("utf-8")
-                print('Received message from Evaluation Server', self.eval_ip, self.eval_port, recv_message)
-            except:
-                print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
-                self.clientSocket = None
+        # if self.clientSocket is not None:
+        #     try:
+        #         recv_message = self.clientSocket.recv(2048)
+        #         print('Received message from Evaluation Server', self.eval_ip, self.eval_port, recv_message)
+        #     except:
+        #         print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
+        #         self.clientSocket = None
+        # try:
+        #     len_info = self.clientSocket.recv(2048)
+        #     len_info = int(len_info.decode("utf-8").split("_")[0])
+        #     recv_message = self.clientSocket.recv(len_info)
+        #     print('Received message from Evaluation Server', self.eval_ip, self.eval_port, recv_message.decode("utf-8"))
+        # except:
+        #     print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
+        #     self.clientSocket = None
+        try:
+            # recv length followed by '_' followed by cypher
+            data = b''
+            while not data.endswith(b'_'):
+                _d = self.clientSocket.recv(1)
+                if not _d:
+                    data = b''
+                    break
+                data += _d
+            if len(data) == 0:
+                print('no more data from the client')
+                self.stop()
+
+            data = data.decode("utf-8")
+            length = int(data[:-1])
+
+            data = b''
+            while len(data) < length:
+                _d = self.clientSocket.recv(length - len(data))
+                if not _d:
+                    data = b''
+                    break
+                data += _d
+            if len(data) == 0:
+                print('no more data from the client')
+                self.stop()
+            msg = data.decode("utf8")  # Decode raw bytes to UTF-8
+            print("[RECEIVED]", msg)
+        
+        except:
+            print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
+            # self.clientSocket = None
+
 
     def close(self):
         if self.clientSocket is not None:
