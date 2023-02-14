@@ -1,16 +1,15 @@
 # Ultra96 Server
 from socket import *
-import socketserver
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import base64
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Lock
 import json
 import paho.mqtt.client as mqtt
-import time
 import threading
 import random
+import traceback
 
 
 imu_queue = Queue()
@@ -45,24 +44,109 @@ player_state = {
     }
 }
 
+# # TCP Server to receive data from the Relay Laptops
+# class Relay_Server(socketserver.BaseRequestHandler):
+#     def handle(self):
+#         cur_thread = threading.current_thread()
+#         try:
+#             while True:
+#                 # receive data from client
+#                 # (protocol) len(data)_TYPE_data
+#                 data = b''
+#                 while not data.endswith(b'_'):
+#                     _d = self.request.recv(1)
+#                     if not _d:
+#                         data = b''
+#                         break
+#                     data += _d
+#                 if len(data) == 0:
+#                     print('no more data from the client')
+#                     self.stop()
+
+#                 # Get Length of data
+#                 data = data.decode("utf-8")
+#                 length = int(data[:-1])
+
+#                 # Get TYPE of data
+#                 data = b''
+#                 while not data.endswith(b'_'):
+#                     _d = self.request.recv(1)
+#                     if not _d:
+#                         data = b''
+#                         break
+#                     data += _d 
+
+#                 data_type = data.decode("utf-8")[:-1]                
+
+#                 # Get data
+#                 data = b''
+#                 while len(data) < length:
+#                     _d = self.request.recv(length - len(data))
+#                     if not _d:
+#                         data = b''
+#                         break
+#                     data += _d
+#                 if len(data) == 0:
+#                     print('no more data from the client')
+#                     self.stop()
+#                 data = data.decode("utf8")  # Decode raw bytes to UTF-8
+#                 # format string for length and type
+#                 print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
+#                 print("[DATA]", data)                
+                
+#                 if length != len(data):
+#                     print("Error", data)
+#                     print('Error: packet length does not match, packet dropped')
+                
+#                 else:
+#                     print("{} wrote:".format(self.client_address), data)
+#                     # process incoming data
+#                     imu_queue.put(data)
+#         except Exception as e:
+#             print("Client disconnected")
+#             print(e)
+
+# class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+#     pass
+
 # TCP Server to receive data from the Relay Laptops
-class Relay_Server(socketserver.BaseRequestHandler):
-    def handle(self):
-        cur_thread = threading.current_thread()
+class Relay_Server(threading.Thread):
+    def __init__(self, host, port):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.server = socket(AF_INET, SOCK_STREAM)
+        self.server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.server.bind((self.host, self.port))
+
+    def run(self):
+        self.server.listen(5)
+        print("[RELAY SERVER] Listening for connections on host {} port {}".format(self.host, self.port))
+        while True:
+            client, address = self.server.accept()
+            # TODO Add client to where it connected to
+            print("[RELAY SERVER] Client connected from {}".format(address))
+            client_handler = threading.Thread(
+                target=self.handle_client,
+                args=(client, address)
+            )
+            client_handler.start()
+
+    def handle_client(self, request, client_address):
         try:
             while True:
                 # receive data from client
                 # (protocol) len(data)_TYPE_data
                 data = b''
                 while not data.endswith(b'_'):
-                    _d = self.request.recv(1)
+                    _d = request.recv(1)
                     if not _d:
                         data = b''
                         break
                     data += _d
                 if len(data) == 0:
                     print('no more data from the client')
-                    self.stop()
+                    request.close()
 
                 # Get Length of data
                 data = data.decode("utf-8")
@@ -71,7 +155,7 @@ class Relay_Server(socketserver.BaseRequestHandler):
                 # Get TYPE of data
                 data = b''
                 while not data.endswith(b'_'):
-                    _d = self.request.recv(1)
+                    _d = request.recv(1)
                     if not _d:
                         data = b''
                         break
@@ -82,16 +166,17 @@ class Relay_Server(socketserver.BaseRequestHandler):
                 # Get data
                 data = b''
                 while len(data) < length:
-                    _d = self.request.recv(length - len(data))
+                    _d = request.recv(length - len(data))
                     if not _d:
                         data = b''
                         break
                     data += _d
                 if len(data) == 0:
                     print('no more data from the client')
-                    self.stop()
+
                 data = data.decode("utf8")  # Decode raw bytes to UTF-8
                 # format string for length and type
+                print("Received data from client:", client_address)
                 print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
                 print("[DATA]", data)                
                 
@@ -100,15 +185,15 @@ class Relay_Server(socketserver.BaseRequestHandler):
                     print('Error: packet length does not match, packet dropped')
                 
                 else:
-                    print("{} wrote:".format(self.client_address), data)
+                    print("{} wrote:".format(client_address), data)
                     # process incoming data
                     imu_queue.put(data)
+
         except Exception as e:
             print("Client disconnected")
+            request.close()
             print(e)
-
-class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
+            traceback.print_exc()
 
 
 class Game_Engine(threading.Thread):
@@ -134,9 +219,10 @@ class Game_Engine(threading.Thread):
                     # update grenade for player 1
                     player_state['p1']['grenades'] -= 1
                     # send check for player 2
-                    viz_queue.put('check_grenade')
+                    viz_queue.put(('CHECK', 'grenadeInSight'))
                 elif action == 'grenade_p2_hits':
                     player_state['p2']['hp'] -= 30
+                    
                 elif action == 'shield':
                     player_state['p1']['num_shield'] -= 1
                     player_state['p1']['shield_time'] = 10
@@ -149,7 +235,7 @@ class Game_Engine(threading.Thread):
                 # rebirth for player 2
                 if player_state['p2']['hp'] <= 0:
                     # reset player 2 stats
-                    player_state['p2']['hp'] = 0
+                    player_state['p2']['hp'] = 100
                     player_state['p2']['num_deaths'] += 1
                     player_state['p2']['bullets'] = 6
                     player_state['p2']['grenades'] = 2
@@ -158,14 +244,15 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['shield_health'] = 0
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
-                viz_queue.put(player_state) 
-                eval_queue.put(player_state)
+                if not action == 'grenade': 
+                    viz_queue.put(('STATE', player_state)) 
+                    eval_queue.put(player_state)
 
 
     def AI_random(self, imu_data):
         print(imu_data)
-        # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
-        AI_actions = ['reload', 'shield', 'shoot']
+        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
+        # AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
         action_queue.put(action)
 
@@ -188,19 +275,28 @@ class MQTT_Client(threading.Thread):
     
     def run(self):
         while True:
-            data = viz_queue.get()
+            type, data = viz_queue.get()
             # print("[PUBLISH]", data)
-            self.publish(str(data))
+            self.publish(type, data)
 
-    def publish(self, message):
-        self.client.publish(self.pub_topic, message)
-        print('Published message to', self.pub_topic, message)
-    
+    def publish(self, type, data):
+        try:
+            data = str(data)
+            message = str(len(data)) + '_' + type + '_' + data
+            self.client.publish(self.pub_topic, message)
+            print('Published message to', self.pub_topic, message)
+        except:
+            print("Error: could not publish message")
     def receive(self, client, userdata, message):
-        print("Received message from", message.topic, message.payload)
-        if message.payload == b'grenade':
-            # to update grenade damage for player 2
-            action_queue.put('grenade_p2_hits') 
+        try:
+            check  = message.payload.decode("utf-8")
+            check = check.split('_')[2]
+            print("Received message from", message.topic, message.payload)
+            if check == 'grenade':
+                # to update grenade damage for player 2
+                action_queue.put('grenade_p2_hits') 
+        except:
+            print('Error: message not in correct format')
         
 # Client to send data to the Evaluation Server
 class Evaluation_Client(threading.Thread):
@@ -314,11 +410,14 @@ def main():
     mqtt.start()
 
     HOST, PORT = "localhost", 11000
-    server = ThreadedTCPServer((HOST, PORT), Relay_Server)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
-    print("Server loop running in thread:", server_thread.name)
+    # server = ThreadedTCPServer((HOST, PORT), Relay_Server)
+    # server_thread = threading.Thread(target=server.serve_forever)
+    # server_thread.daemon = True
+    # server_thread.start()
+    # print("Server loop running in thread:", server_thread.name)
+    server = Relay_Server(HOST, PORT)
+    server.daemon = True
+    server.start()
 
     mqtt.client.loop_forever()
 
