@@ -222,7 +222,8 @@ class Game_Engine(threading.Thread):
                     viz_queue.put(('CHECK', 'grenadeInSight'))
                 elif action == 'grenade_p2_hits':
                     player_state['p2']['hp'] -= 30
-                    
+                elif action == 'grenade_p2_misses':
+                    pass    
                 elif action == 'shield':
                     player_state['p1']['num_shield'] -= 1
                     player_state['p1']['shield_time'] = 10
@@ -290,11 +291,16 @@ class MQTT_Client(threading.Thread):
     def receive(self, client, userdata, message):
         try:
             check  = message.payload.decode("utf-8")
-            check = check.split('_')[2]
+            length = int(check.split('_')[0])
+            check = check.split('_')[1]
+            data = check.split('_')[2]
             print("Received message from", message.topic, message.payload)
-            if check == 'grenade':
+            if check == 'CHECK':
                 # to update grenade damage for player 2
-                action_queue.put('grenade_p2_hits') 
+                if data == 'Visble':
+                    action_queue.put('grenade_p2_hits')
+                else: 
+                    action_queue.put('grenade_p2_misses')
         except:
             print('Error: message not in correct format')
         
