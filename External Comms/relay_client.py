@@ -6,11 +6,15 @@ from dotenv import load_dotenv
 import time
 import threading
 import random
+import sys
 
 # load environment variables
 load_dotenv()
 
-actions = ['reload', 'shoot', 'shield', 'grenade']
+
+actions = ['shoot', 'none']
+IMU = {'x': 0, 'y': 0, 'z': 0}
+
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
 SOC_PASSWORD = os.getenv("SOC_PASSWORD")
@@ -34,9 +38,15 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         while True:
-            self.send(random.choice(actions))
-            time.sleep(1)
-            self.recv()
+            # encode message to format len + _ + message
+            # msg = random.choice(actions)
+            # msg = str(len(msg)) + '_' + 'action' + '_' + msg
+            # self.send(msg)
+            input("Press any button to send data")
+            msg = str(IMU)
+            msg = str(len(msg)) + '_' + 'imu' + '_' + msg
+            self.send(msg)
+            # self.recv()
     
     @staticmethod
     def tunnel_ultra96():
@@ -70,6 +80,9 @@ class Relay_Client(threading.Thread):
     def send(self, message):
         self.relaySocket.send(message.encode('utf-8'))
         print('Sent message to Relay Server', message)
+        sys.stdout.write('\b')
+        sys.stdout.flush()        
+        
     
     def recv(self):
         message = self.relaySocket.recv(1024).decode('utf-8')
@@ -79,8 +92,8 @@ class Relay_Client(threading.Thread):
 def main():
     relay_thread = Relay_Client('localhost', 11000)
     relay_thread.start()
-    relay_thread2 = Relay_Client('localhost', 11000)
-    relay_thread2.start()
+    # relay_thread2 = Relay_Client('localhost', 11000)
+    # relay_thread2.start()
 
     time.sleep(100)
     

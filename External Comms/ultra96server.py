@@ -11,10 +11,25 @@ import json
 import paho.mqtt.client as mqtt
 import time
 import threading
+import random
 
-client_queue = Queue()
+
+imu_queue = Queue()
+action_queue = Queue()
 viz_queue = Queue()
 
+player_state = {
+    "p1": {
+        "hp": 100,
+        "action": 'none',
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_shield": 3,
+        "num_deaths": 0
+        }
+}
 
 # TCP Server to receive data from the Relay Laptops
 class Relay_Server(socketserver.BaseRequestHandler):
@@ -22,19 +37,84 @@ class Relay_Server(socketserver.BaseRequestHandler):
         cur_thread = threading.current_thread()
         while True:
             data = self.request.recv(1024).decode('utf-8')
-            print("{} wrote:".format(self.client_address), data)
-            # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
-            response = "{}: {}".format(cur_thread.name, data)
-            # q.put(data)
-            self.request.sendall(response.encode('utf-8'))
+            # process data from client
+            data = data.strip()
+            data = data.split('_')
+            length = int(data[0])
+            
+
+            if length != len(data[2]):
+                print("Error", data)
+                print('Error: packet length does not match, packet dropped')
+            
+            else:
+                print("{} wrote:".format(self.client_address), data[2])
+                # process incoming data
+                imu_queue.put(data[2])
+                # if data[1] == 'action' and data[2] != 'none':
+                #     client_queue.put(data[2])
+                # elif data[1] == 'IMU':
+                #     imu_queue.put(data[2])
+                # response = bytes("{}: {}".format(cur_thread.name, data), 'ascii')
+                response = "{}: {}".format(cur_thread.name, data[2])
+                # todo add function to change json
+                self.request.sendall(response.encode('utf-8'))
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
+
+class Game_Engine(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        # imu_queue.put("test")
+        # action_queue.put("test")
+        # viz_queue.put("test")
     
+    def run(self):
+        while True:
+            if not imu_queue.empty():
+                imu_data = imu_queue.get()
+                self.AI_random(imu_data)
+
+            if not action_queue.empty():
+                action = action_queue.get()
+                print("[ACTION]", action)
+                if action == 'reload':
+                    player_state['p1']['bullets'] = 6
+                elif action == 'grenade':
+                    player_state['p1']['grenades'] -= 1
+                elif action == 'shield':
+                    player_state['p1']['num_shield'] -= 1
+                    player_state['p1']['shield_time'] = 10
+                    player_state['p1']['shield_health'] = 30
+                elif action == 'shoot':
+                    player_state['p1']['bullets'] -= 1
+                # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
+                viz_queue.put(player_state) 
+            # if not viz_queue.empty():
+            #     viz_data = viz_queue.get()
+            #     print("viz data", viz_data)
+
+
+    def AI_random(self, imu_data):
+        print(imu_data)
+        AI_actions = ['reload', 'check_grenade', 'shield', 'shoot']
+        action = random.choice(AI_actions)
+        if action == 'check_grenade':
+            # pass to MQTT to check if player is visible
+            viz_queue.put('check_grenade')
+            # action_queue.put(action)
+        else:
+            action_queue.put(action)
+
+    def eval_check(self, player_State):
+        pass
+
 # MQTT Client to send data to AWS IOT Core
 class MQTT_Client(threading.Thread):
     def __init__(self, topic, client_id, group) -> None:
+        super().__init__()
         self.topic = topic
         self.client_id = client_id
         self.group = group
@@ -42,13 +122,24 @@ class MQTT_Client(threading.Thread):
         self.client.connect("test.mosquitto.org", 1883, 60)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.topic)
+        self.client.on_message = self.receive
     
+    def run(self):
+        # while not viz_queue.empty():
+        while True:
+            data = viz_queue.get()
+            print("[PUBLISH]", data)
+            self.publish(str(data))
+        # self.client.loop_forever()
+
     def publish(self, message):
         self.client.publish(self.topic, message)
         print('Published message to', self.topic, message)
     
     def receive(self, client, userdata, message):
         print("Received message from", message.topic, message.payload)
+        if message.payload == b'grenade':
+            action_queue.put('grenade') 
         
 # Client to send data to the Evaluation Server
 class Evaluation_Client(threading.Thread):
@@ -123,6 +214,14 @@ def main():
     eval_client.daemon = True
     eval_client.start()
 
+    game_engine = Game_Engine()
+    game_engine.daemon = True
+    game_engine.start()
+
+    mqtt = MQTT_Client('test/cg4002', 'testpc', 2)
+    mqtt.daemon = True
+    mqtt.start()
+
     HOST, PORT = "localhost", 11000
     server = ThreadedTCPServer((HOST, PORT), Relay_Server)
     server_thread = threading.Thread(target=server.serve_forever)
@@ -130,13 +229,13 @@ def main():
     server_thread.start()
     print("Server loop running in thread:", server_thread.name)
 
-    mqtt = MQTT_Client('test/cg4002', 'testpc', 2)
-    mqtt.client.on_message = mqtt.receive
-    f = open('test.json')
-    j = json.load(f)
-    for _ in range(3):
-        mqtt.publish(json.dumps(j))
-        time.sleep(1)
+
+    # mqtt.client.on_message = mqtt.receive
+    # f = open('test.json')
+    # j = json.load(f)
+    # for _ in range(3):
+    #     mqtt.publish(json.dumps(j))
+    #     time.sleep(1)
     mqtt.client.loop_forever()
 
 if __name__ == "__main__":
