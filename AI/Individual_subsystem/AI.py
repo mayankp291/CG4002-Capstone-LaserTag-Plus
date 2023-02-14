@@ -63,35 +63,6 @@ def extract_features(*argsv):
     min_gyro_y = np.amin(argsv[4], axis=1).reshape(-1,1)
     min_gyro_z = np.amin(argsv[5], axis=1).reshape(-1,1)
 
-    if argsv[6] == "train":
-        # Obtain thresholds of acc and gyro readings for training data
-        max_neg_acc_x = np.max(argsv[0][argsv[0] < 0])
-        min_pos_acc_x = np.min(argsv[0][argsv[0] > 0])
-
-        max_neg_acc_y = np.max(argsv[1][argsv[1] < 0])
-        min_pos_acc_y = np.min(argsv[1][argsv[1] > 0])
-
-        max_neg_acc_z = np.max(argsv[2][argsv[2] < 0])
-        min_pos_acc_z = np.min(argsv[2][argsv[2] > 0])
-
-        max_neg_gyro_x = np.max(argsv[3][argsv[3] < 0])
-        min_pos_gyro_x = np.min(argsv[3][argsv[3] > 0])
-
-        max_neg_gyro_y = np.max(argsv[4][argsv[4] < 0])
-        min_pos_gyro_y = np.min(argsv[4][argsv[4] > 0])
-
-        max_neg_gyro_z = np.max(argsv[5][argsv[5] < 0])
-        min_pos_gyro_z = np.min(argsv[5][argsv[5] > 0])
-
-        thresholds = np.array([max_neg_acc_x, min_pos_acc_x, 
-                            max_neg_acc_y, min_pos_acc_y, 
-                            max_neg_acc_z, min_pos_acc_z,
-                            max_neg_gyro_x, min_pos_gyro_x,
-                            max_neg_gyro_y, min_pos_gyro_y,
-                            max_neg_gyro_z, min_pos_gyro_z])
-    
-        np.savetxt("threshold.txt", [thresholds], fmt=f"%.{PRECISION_TRAIN_DATA}f", delimiter=", ")
-
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
     # axis = 0 implies row-wise operation, e.g. [1, 1] with [3, 5] gives [[1, 1],
@@ -123,6 +94,38 @@ def get_data_labels(data_type):
     return labels
 
 
+def get_thresholds(*argsv):
+    
+    if argsv[6] == "train":
+        # Obtain thresholds of acc and gyro readings for training data
+        max_neg_acc_x = np.max(argsv[0][argsv[0] < 0])
+        min_pos_acc_x = np.min(argsv[0][argsv[0] > 0])
+
+        max_neg_acc_y = np.max(argsv[1][argsv[1] < 0])
+        min_pos_acc_y = np.min(argsv[1][argsv[1] > 0])
+
+        max_neg_acc_z = np.max(argsv[2][argsv[2] < 0])
+        min_pos_acc_z = np.min(argsv[2][argsv[2] > 0])
+
+        max_neg_gyro_x = np.max(argsv[3][argsv[3] < 0])
+        min_pos_gyro_x = np.min(argsv[3][argsv[3] > 0])
+
+        max_neg_gyro_y = np.max(argsv[4][argsv[4] < 0])
+        min_pos_gyro_y = np.min(argsv[4][argsv[4] > 0])
+
+        max_neg_gyro_z = np.max(argsv[5][argsv[5] < 0])
+        min_pos_gyro_z = np.min(argsv[5][argsv[5] > 0])
+
+        thresholds = np.array([max_neg_acc_x, min_pos_acc_x, 
+                            max_neg_acc_y, min_pos_acc_y, 
+                            max_neg_acc_z, min_pos_acc_z,
+                            max_neg_gyro_x, min_pos_gyro_x,
+                            max_neg_gyro_y, min_pos_gyro_y,
+                            max_neg_gyro_z, min_pos_gyro_z])
+    
+        np.savetxt("threshold.txt", [thresholds], fmt=f"%.{PRECISION_TRAIN_DATA}f", delimiter=", ")
+
+
 def load_data(data_paths, data_type):
     
     print(f"\nLoading raw {data_type}ing data...")
@@ -135,6 +138,8 @@ def load_data(data_paths, data_type):
     labels = get_data_labels(data_type)
 
     print(f"{data_type.capitalize()}ing labels loaded!\nExtracting features...")
+
+    get_thresholds(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, data_type)
 
     extracted_features = extract_features(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, data_type) 
 
@@ -315,7 +320,7 @@ def main():
     plt.ylabel("Actual")
     
     # Comment/Uncomment out to remove/restore the heat map 
-    # plt.show()
+    plt.show()
 
     # Extract weights and biases to text file
     extract_params(model, "params.txt")
