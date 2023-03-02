@@ -146,7 +146,31 @@ def main(dma):
     del input_buffer, output_buffer
     
 
+def dynamic_thresholding():
+    arr = [-1, 2, 3, 7, 9, 2, -3, -5, 5, 4, 10, 15, 25, 6]
+    window_size = 6
+    precision = 8
+    
+    i = 0
+    
+    average = 0
+    while i < len(arr) - window_size + 1:
+    
+        window_average = round(np.sum(arr[i:i+window_size]) / window_size, precision)
+
+        if i == 0:
+            average = window_average
+            continue
+        
+        if window_average > average or window_average < -average:
+            send_data_via_dma(arr[i:i+window_size])
+        
+        i += 1
+
+
 if __name__ == "__main__":
+
+    dynamic_thresholding()
     
     ol = Overlay('design_1_wrapper.bit')
     dma = ol.axi_dma_0
