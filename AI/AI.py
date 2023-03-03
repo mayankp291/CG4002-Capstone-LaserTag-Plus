@@ -107,7 +107,7 @@ def extract_features(*argsv):
     phase_gyro_x = np.amax(np.angle(signal_gyro_x), axis=1) * phase_precision
     phase_gryo_y = np.amax(np.angle(signal_gyro_y), axis=1) * phase_precision
     phase_gyro_z = np.amax(np.angle(signal_gyro_z), axis=1) * phase_precision
-    
+
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
     # axis = 0 implies row-wise operation, e.g. [1, 1] with [3, 5] gives [[1, 1],
@@ -124,7 +124,7 @@ def extract_features(*argsv):
 def get_data_labels(data_type):
     labels = []
 
-    with open(f"Dataset/{data_type}/y_{data_type}.txt", "r") as text_file:
+    with open(f"Dataset/{data_type}/label_{data_type}.txt", "r") as text_file:
         lines = text_file.readlines()
         for line in lines:
             label = int(line.strip())
