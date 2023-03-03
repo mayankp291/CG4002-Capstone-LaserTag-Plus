@@ -121,26 +121,24 @@ def extract_features(*argsv):
     phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z), axis=1)
 
 
-def get_data_labels(data_type):
+def get_data_labels():
     labels = []
 
-    with open(f"Dataset/{data_type}/label_{data_type}.txt", "r") as text_file:
+    with open(f"Dataset/label.txt", "r") as text_file:
         lines = text_file.readlines()
         for line in lines:
             label = int(line.strip())
 
-            if label == 1:
-                labels.append([1, 0, 0, 0, 0, 0])
+            if label == 0:
+                labels.append([1, 0, 0, 0, 0])
+            elif label == 1:
+                labels.append([0, 1, 0, 0, 0])
             elif label == 2:
-                labels.append([0, 1, 0, 0, 0, 0])
+                labels.append([0, 0, 1, 0, 0])
             elif label == 3:
-                labels.append([0, 0, 1, 0, 0, 0])
-            elif label == 4:
-                labels.append([0, 0, 0, 1, 0, 0])
-            elif label == 5:
-                labels.append([0, 0, 0, 0, 1, 0])
+                labels.append([0, 0, 0, 1, 0])
             else:
-                labels.append([0, 0, 0, 0, 0, 1])
+                labels.append([0, 0, 0, 0, 1])
 
     return labels
 
@@ -177,16 +175,13 @@ def get_thresholds(*argsv):
         np.savetxt("threshold.txt", [thresholds], fmt=f"%.{THRESHOLD_PRECISION_TRAIN_DATA}f", delimiter=", ")
 
 
-def load_data(data_paths, data_type):
+def load_data(data_type, *argsv):
     
     print(f"\nLoading raw {data_type}ing data...")
     
-    body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z = (
-        np.array(read_raw_data(data_paths[i])).astype(np.float32) for i in range(len(data_paths)))
+    body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z = (argsv[i] for i in range(len(argsv)))
 
     print(f"Raw {data_type}ing data loaded! \nLoading {data_type}ing labels...")
-
-    labels = get_data_labels(data_type)
 
     print(f"{data_type.capitalize()}ing labels loaded!\nExtracting features...")
 
@@ -196,14 +191,32 @@ def load_data(data_paths, data_type):
 
     print(f"Extracted features!\n{data_type.capitalize()}ing data is ready to be used!\n")
 
-    return extracted_features.astype(np.int32), np.array(labels).astype(np.int32)
+    return extracted_features.astype(np.int32)
 
 
-def get_data_paths(path_type):
-        base_path = f"Dataset/{path_type}/"
-        return [f"{base_path}body_acc_x_{path_type}.txt", f"{base_path}body_acc_y_{path_type}.txt", 
-                f"{base_path}body_acc_z_{path_type}.txt", f"{base_path}body_gyro_x_{path_type}.txt", 
-                f"{base_path}body_gyro_y_{path_type}.txt", f"{base_path}body_gyro_z_{path_type}.txt"]
+def get_data_paths():
+        base_path = f"Dataset/"
+        return [f"{base_path}body_acc_x.txt", f"{base_path}body_acc_y.txt", 
+                f"{base_path}body_acc_z.txt", f"{base_path}body_gyro_x.txt", 
+                f"{base_path}body_gyro_y.txt", f"{base_path}body_gyro_z.txt"]
+
+
+def get_raw_data(data_paths):
+    
+    raw_data = []
+    temp_array = []
+    for data_path in data_paths:
+        with open(data_path, 'r') as text_file:
+        lines = text_file.readlines()
+        for line in lines:
+            temp_array.append(line.strip().split(", "))
+        
+        raw_data.append(temp_array)
+        temp_array.clear()
+    
+    return np.array(raw_data[0]).astype(np.float32), np.array(raw_data[1]).astype(np.float32),
+    np.array(raw_data[2]).astype(np.float32), np.array(raw_data[3]).astype(np.float32), 
+    np.array(raw_data[4]).astype(np.float32), np.array(raw_data[5])
 
 
 def get_model():
@@ -339,10 +352,12 @@ def main():
     model = get_model()
     print(model.summary())
 
-    training_data_paths = get_data_paths("train")
-    testing_data_paths = get_data_paths("test")
-    training_dataset, training_data_labels = load_data(training_data_paths, "train")
-    testing_dataset, testing_data_labels = load_data(testing_data_paths, "test")
+    data_paths = get_data_paths()
+    raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z = get_raw_data(data_paths)
+    labels = get_data_labels()
+    train_acc_x, test_acc_x, train_acc_y, test_acc_y, train_acc_z, test_acc_z, train_gyro_x, test_gyro_x, train_gyro_y, test_gyro_y, train_gyro_z, test_gyro_z, training_data_labels, testing_data_labels = train_test_split(raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z, labels, test_size=0.30)
+    training_dataset = load_data("train", train_acc_x, train_acc_y, train_acc_z, train_gyro_x, train_gyro_y,  train_gyro_z)
+    testing_dataset = load_data("test", test_acc_x, test_acc_y, test_acc_z, test_gyro_x, test_gyro_y, test_gyro_z)
     print(testing_dataset.shape, testing_data_labels.shape)
 
     # Train the neural network model
