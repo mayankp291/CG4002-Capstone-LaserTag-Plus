@@ -2,3 +2,6 @@ AI/cspell.json
 AI/Individual_subsystem/Dataset/
 AI/Individual_subsystem/cspell.json
 AI/Individual_subsystem/.vs/
+AI/Individual_subsystem/top.cpp
+AI/Individual_subsystem/HLS template files/myip_v1_0_HLS.cpp
+AI/Individual_subsystem/HLS template files/test_myip_v1_0_HLS.cpp

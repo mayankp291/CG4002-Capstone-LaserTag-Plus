@@ -6,18 +6,21 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import skew
+from scipy.fftpack import fft
 
 # INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
 
 NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
 INPUTS = 24 #  4 extracted features * 6 sensor reading types 
-DATA_LABELS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
+DATA_LABELS = ["logout", "shield", "reload", "grenade", "none"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 30
-PRECISION_TRAIN_DATA = 10
-PRECISION_TEST_DATA = 8
-PRECISION_WEIGHTS = 9
+THRESHOLD_PRECISION_TRAIN_DATA = 10
+PRINT_PRECISION_TEST_DATA = 8
+PRINT_PRECISION_WEIGHTS = 9
+ACTUAL_PRECISION_TRAIN_DATA = 6
 
 
 def read_raw_data(path_to_dataset):
@@ -42,12 +45,14 @@ def extract_features(*argsv):
     mean_gyro_y = np.mean(argsv[4], axis=1).reshape(-1,1)
     mean_gyro_z = np.mean(argsv[5], axis=1).reshape(-1,1)
 
-    sd_acc_x = np.std(argsv[0], axis=1).reshape(-1,1)
-    sd_acc_y = np.std(argsv[1], axis=1).reshape(-1,1)
-    sd_acc_z = np.std(argsv[2], axis=1).reshape(-1,1)
-    sd_gyro_x = np.std(argsv[3], axis=1).reshape(-1,1)
-    sd_gyro_y = np.std(argsv[4], axis=1).reshape(-1,1)
-    sd_gyro_z = np.std(argsv[5], axis=1).reshape(-1,1)
+
+    sd_precision = 100000
+    sd_acc_x = np.std(argsv[0], axis=1).reshape(-1,1) * sd_precision
+    sd_acc_y = np.std(argsv[1], axis=1).reshape(-1,1) * sd_precision
+    sd_acc_z = np.std(argsv[2], axis=1).reshape(-1,1) * sd_precision
+    sd_gyro_x = np.std(argsv[3], axis=1).reshape(-1,1) * sd_precision
+    sd_gyro_y = np.std(argsv[4], axis=1).reshape(-1,1) * sd_precision
+    sd_gyro_z = np.std(argsv[5], axis=1).reshape(-1,1) * sd_precision
 
     max_acc_x = np.amax(argsv[0], axis=1).reshape(-1,1)
     max_acc_y = np.amax(argsv[1], axis=1).reshape(-1,1)
@@ -63,11 +68,57 @@ def extract_features(*argsv):
     min_gyro_y = np.amin(argsv[4], axis=1).reshape(-1,1)
     min_gyro_z = np.amin(argsv[5], axis=1).reshape(-1,1)
 
+    rms_precision = 100000
+    rms_acc_x = np.sqrt(np.mean(argsv[0]**2, axis=1), axis=1) * rms_precision
+    rms_acc_y = np.sqrt(np.mean(argsv[1]**2, axis=1), axis=1) * rms_precision
+    rms_acc_z = np.sqrt(np.mean(argsv[2]**2, axis=1), axis=1) * rms_precision
+    rms_gyro_x = np.sqrt(np.mean(argsv[3]**2, axis=1), axis=1) * rms_precision
+    rms_gyro_y = np.sqrt(np.mean(argsv[4]**2, axis=1), axis=1) * rms_precision
+    rms_gyro_z = np.sqrt(np.mean(argsv[5]**2, axis=1), axis=1) * rms_precision
+
+    skew_acc_x = skew(argsv[0], axis=1)
+    skew_acc_y = skew(argsv[1], axis=1)
+    skew_acc_z = skew(argsv[2], axis=1)
+    skew_gyro_x = skew(argsv[3], axis=1)
+    skew_gyro_y = skew(argsv[4], axis=1)
+    skew_gyro_z = skew(argsv[5], axis=1)
+
+    # Convert to frequency domain
+    signal_acc_x = fft(argsv[0], axis=1)
+    signal_acc_y = fft(argsv[1], axis=1)
+    signal_acc_z = fft(argsv[2], axis=1)
+    signal_gyro_x = fft(argsv[3], axis=1)
+    signal_gyro_y = fft(argsv[4], axis=1)
+    signal_gyro_z = fft(argsv[5], axis=1)
+
+    mag_precision = 10000
+    mag_acc_x = np.amax(np.abs(signal_acc_x), axis=1) * mag_precision
+    mag_acc_y = np.amax(np.abs(signal_acc_y), axis=1) * mag_precision
+    mag_acc_z = np.amax(np.abs(signal_acc_z), axis=1) * mag_precision
+    mag_gyro_x = np.amax(np.abs(signal_gyro_x), axis=1) * mag_precision
+    mag_gyro_y = np.amax(np.abs(signal_gyro_y), axis=1) * mag_precision
+    mag_gyro_z = np.amax(np.abs(signal_gyro_z), axis=1) * mag_precision
+
+
+    phase_precision = 10000
+    phase_acc_x = np.amax(np.angle(signal_acc_x), axis=1) * phase_precision
+    phase_acc_y = np.amax(np.angle(signal_acc_y), axis=1) * phase_precision
+    phase_acc_z = np.amax(np.angle(signal_acc_z), axis=1) * phase_precision
+    phase_gyro_x = np.amax(np.angle(signal_gyro_x), axis=1) * phase_precision
+    phase_gryo_y = np.amax(np.angle(signal_gyro_y), axis=1) * phase_precision
+    phase_gyro_z = np.amax(np.angle(signal_gyro_z), axis=1) * phase_precision
+    
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
     # axis = 0 implies row-wise operation, e.g. [1, 1] with [3, 5] gives [[1, 1],
     #                                                                     [3, 5]]
-    return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x, sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z, max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z, min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z), axis=1)
+    return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z,         sd_acc_x, sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z, 
+    max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
+    min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z, 
+    rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z, 
+    skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+    mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+    phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z), axis=1)
 
 
 def get_data_labels(data_type):
@@ -123,7 +174,7 @@ def get_thresholds(*argsv):
                             max_neg_gyro_y, min_pos_gyro_y,
                             max_neg_gyro_z, min_pos_gyro_z])
     
-        np.savetxt("threshold.txt", [thresholds], fmt=f"%.{PRECISION_TRAIN_DATA}f", delimiter=", ")
+        np.savetxt("threshold.txt", [thresholds], fmt=f"%.{THRESHOLD_PRECISION_TRAIN_DATA}f", delimiter=", ")
 
 
 def load_data(data_paths, data_type):
@@ -139,17 +190,17 @@ def load_data(data_paths, data_type):
 
     print(f"{data_type.capitalize()}ing labels loaded!\nExtracting features...")
 
-    get_thresholds(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, data_type)
+    # get_thresholds(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, data_type)
 
-    extracted_features = extract_features(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z, data_type) 
+    extracted_features = extract_features(body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z) 
 
     print(f"Extracted features!\n{data_type.capitalize()}ing data is ready to be used!\n")
 
-    return extracted_features, np.array(labels).astype(np.float32)
+    return extracted_features.astype(np.int32), np.array(labels).astype(np.int32)
 
 
 def get_data_paths(path_type):
-        base_path = f"Dataset/{path_type}/Inertial Signals/"
+        base_path = f"Dataset/{path_type}/"
         return [f"{base_path}body_acc_x_{path_type}.txt", f"{base_path}body_acc_y_{path_type}.txt", 
                 f"{base_path}body_acc_z_{path_type}.txt", f"{base_path}body_gyro_x_{path_type}.txt", 
                 f"{base_path}body_gyro_y_{path_type}.txt", f"{base_path}body_gyro_z_{path_type}.txt"]
@@ -191,7 +242,7 @@ def save_raw_weights_to_file(model, file_name):
                     params_file.write(f"\n\n\nlayer {index} - {ele}\n\n")
                     weights_content = np.transpose(layer.get_weights()[count])
                     params_file.write(str(weights_content.shape) + "\n\n")
-                    np.savetxt(params_file, weights_content, fmt=f"%.{PRECISION_WEIGHTS}f", delimiter=", ")
+                    np.savetxt(params_file, weights_content, fmt=f"%.{PRINT_PRECISION_WEIGHTS}f", delimiter=", ")
                     print(layer.get_weights()[count].shape)
 
 
@@ -270,7 +321,7 @@ def save_raw_test_data_to_file(testing_dataset, testing_data_labels, file_name):
         print("\n\nTesting Data params:\n\n" +
               f"{testing_dataset.shape} {testing_data_labels.shape}")
         test_file.write(f"{testing_dataset.shape}\n")
-        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, PRECISION_TEST_DATA)), fmt="%d", delimiter=", ")
+        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, PRINT_PRECISION_TEST_DATA)), fmt="%d", delimiter=", ")
         test_file.write("\n\n\n\n\n")
 
         test_file.write(f"{testing_data_labels.shape}\n")
@@ -303,7 +354,7 @@ def main():
     # Create confusion matrix
     predicted_labels = model.predict(testing_dataset)
     predicted_labels = tf.argmax(predicted_labels, axis=1)
-    testing_data_labels = tf.argmax(testing_data_labels, axis=1 )
+    testing_data_labels = tf.argmax(testing_data_labels, axis=1)
     confusion_matrix = metrics.confusion_matrix(testing_data_labels, predicted_labels)
     
     # Print confusion matrix in terminal
