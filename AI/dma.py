@@ -95,10 +95,10 @@ def dma(input):
 
     run = True
 
-    input_buffer = allocate(shape=(features.len(),), dtype=np.int16)
+    input_buffer = allocate(shape=(len(features),), dtype=np.int16)
     output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int16)
 
-    for i in range(features.len()):
+    for i in range(len(features)):
         input_buffer[i] = features[i]
 
     print("Initial config:\n", dma.register_map)
