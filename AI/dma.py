@@ -111,15 +111,15 @@ def dma(input):
 
             action = output_buffer[0]
 
-            if action == 1:
+            if action == 0:
                 return "logout"
-            elif action == 2:
+            elif action == 1:
                 return "shield"
-            elif action == 3:
+            elif action == 2:
                 return "reload"
-            elif action == 4:
+            elif action == 3:
                 return "grenade" 
-            elif action == 5:
+            elif action == 4:
                 return "none"
             
             run = False
