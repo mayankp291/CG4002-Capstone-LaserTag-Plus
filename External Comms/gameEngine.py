@@ -1,14 +1,16 @@
-# Ultra96 Server
 from multiprocessing import Process, Queue
 import json
 import paho.mqtt.client as mqtt
 import threading
 import random
+import time
+import keyboard
 
 imu_queue = Queue()
 action_queue = Queue()
 viz_queue = Queue()
-
+startTimeOne = 0
+startTimeTwo = 0
 
 player_state = {
     "p1":
@@ -35,14 +37,29 @@ player_state = {
     }
 }
 
-
-
 class Game_Engine(threading.Thread):
     def __init__(self):
         super().__init__()
     
     def run(self):
+        isPlayerOneShieldActivated = False
+        isPlayerTwoShieldActivated = False
         while True:
+            if isPlayerOneShieldActivated:
+                player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
+                if player_state['p1']['shield_time'] <= 0:
+                    player_state['p1']['shield_time'] = 0
+                    player_state['p1']['shield_health'] = 0
+                    isPlayerOneShieldActivated = False
+
+            if isPlayerTwoShieldActivated:
+                player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
+                if player_state['p2']['shield_time'] <= 0:
+                    player_state['p2']['shield_time'] = 0
+                    player_state['p2']['shield_health'] = 0
+                    isPlayerTwoShieldActivated = False
+
+            
             if not imu_queue.empty():
                 imu_data = imu_queue.get()
                 self.AI_random(imu_data)
@@ -55,27 +72,44 @@ class Game_Engine(threading.Thread):
                     player_state['p1']['action'] = action
                 # Update player 1 state (active player) and player 2 state (passive player)
                 if action == 'reload':
-                    player_state['p1']['bullets'] = 6
+                    if player_state['p1']['bullets'] <= 0:
+                        player_state['p1']['bullets'] = 6
                 elif action == 'grenade':
                     # update grenade for player 1
-                    player_state['p1']['grenades'] -= 1
+                    if player_state['p1']['grenades'] > 0:
+                        player_state['p1']['grenades'] -= 1
                     # send check for player 2
-                    viz_queue.put('check_grenade')
                 elif action == 'grenade_p2_hits':
-                    player_state['p2']['hp'] -= 30
+                    if isPlayerTwoShieldActivated:
+                        player_state['p2']['shield_health'] -= 30
+                    else:
+                        player_state['p2']['hp'] -= 30
+
                 elif action == 'shield':
-                    player_state['p1']['num_shield'] -= 1
-                    player_state['p1']['shield_time'] = 10
-                    player_state['p1']['shield_health'] = 30
+                    if player_state['p1']['num_shield'] > 0:
+                        player_state['p1']['num_shield'] -= 1
+                        player_state['p1']['shield_time'] = 10
+                        player_state['p1']['shield_health'] = 30
+                        isPlayerOneShieldActivated = True
+                        startTimeOne = time.time()
                 elif action == 'shoot':
-                    player_state['p1']['bullets'] -= 1
-                    # TODO check if player 2 is in shield
-                    player_state['p2']['hp'] -= 10
-                
+                    if player_state['p1']['bullets'] > 0:
+                        player_state['p1']['bullets'] -= 1
+                        if isPlayerTwoShieldActivated:
+                            player_state['p2']['shield_health'] -= 10
+                        else:
+                            player_state['p2']['hp'] -= 10
+
+                if player_state['p2']['shield_health'] <= 0:
+                    isPlayerTwoShieldActivated = False
+                    player_state['p2']['hp'] += player_state['p2']['shield_health']
+                    player_state['p2']['shield_health'] = 0
+                    player_state['p2']['shield_time'] = 0
+            
                 # rebirth for player 2
                 if player_state['p2']['hp'] <= 0:
                     # reset player 2 stats
-                    player_state['p2']['hp'] = 0
+                    player_state['p2']['hp'] = 100
                     player_state['p2']['num_deaths'] += 1
                     player_state['p2']['bullets'] = 6
                     player_state['p2']['grenades'] = 2
@@ -132,8 +166,8 @@ def main():
     game_engine = Game_Engine()
     game_engine.daemon = True
     game_engine.start()
-
-    mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualiser', 'testpc', 2)
+    imu_queue.put(1)
+    mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'gameeng', 2)
     mqtt.daemon = True
     mqtt.start()
 
