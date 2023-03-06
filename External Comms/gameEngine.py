@@ -118,7 +118,9 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['shield_health'] = 0
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
-                viz_queue.put(player_state) 
+                if not action == 'grenade': 
+                    viz_queue.put(('STATE', player_state)) 
+                    # eval_queue.put(player_state) 
 
 
     def AI_random(self, imu_data):

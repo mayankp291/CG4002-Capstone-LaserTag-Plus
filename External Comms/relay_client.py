@@ -13,7 +13,7 @@ load_dotenv()
 
 
 # IMU = {'x': 0, 'y': 0, 'z': 0}
-IMU = {'playerID': 2, 'beetleID': 4, 'motionData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
+IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
 
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
@@ -41,7 +41,7 @@ class Relay_Client(threading.Thread):
             while True:
                 input("Press any button to send data")
                 msg = str(IMU)
-                msg = str(len(msg)) + '_' + 'imu' + '_' + msg
+                msg = str(len(msg)) + '_' + msg
                 self.send(msg)
                 # self.recv()
         except:
@@ -85,7 +85,7 @@ class Relay_Client(threading.Thread):
 
 
 def main():
-    Relay_Client.tunnel_ultra96()
+    # Relay_Client.tunnel_ultra96()
     relay_thread = Relay_Client('localhost', 11000)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)

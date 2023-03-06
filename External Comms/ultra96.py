@@ -7,12 +7,23 @@ import base64
 from multiprocessing import Process, Queue, Lock
 import json
 import paho.mqtt.client as mqtt
+from ast import literal_eval
 import threading
 import random
 import traceback
 
 
+# data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
+# len_data
 
+beetleID_mapping = {
+    1: "IMU", #imu1
+    2: "VEST", #VEST1
+    3: "GUN", #GUN1
+    4: "IMU", #IMU2
+    5: "VEST", #vest2
+    6: "GUN" #gun2
+}
 
 imu_queue = Queue()
 action_queue = Queue()
@@ -69,11 +80,14 @@ class Relay_Server(threading.Thread):
             )
             client_handler.start()
 
+    ###
+    # Data flow: get len, get msg, check len == len(msg), convert msg to dict
+    ###
     def handle_client(self, request, client_address):
         try:
             while True:
                 # receive data from client
-                # (protocol) len(data)_TYPE_data
+                # (protocol) len(data)_data
                 data = b''
                 while not data.endswith(b'_'):
                     _d = request.recv(1)
@@ -87,20 +101,7 @@ class Relay_Server(threading.Thread):
 
                 # Get Length of data
                 data = data.decode("utf-8")
-                length = int(data[:-1])
-
-                # Get TYPE of data
-                data = b''
-                while not data.endswith(b'_'):
-                    _d = request.recv(1)
-                    if not _d:
-                        data = b''
-                        break
-                    data += _d 
-                # TODO
-                # ir_sent bullet -= 1
-                # ir_recv health -= 10 and give 1 point to other player
-                data_type = data.decode("utf-8")[:-1]                
+                length = int(data[:-1])               
 
                 # Get data
                 data = b''
@@ -119,17 +120,36 @@ class Relay_Server(threading.Thread):
                 # print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
                 # print("[DATA]", data)                
                 
+                # check length of data
                 if length != len(data):
                     print("Error", data)
                     print('Error: packet length does not match, packet dropped')
                 
                 else:
+                    # convert data to dict {'playerID':, 'beetleID':, 'sensorData':}
+                    data = literal_eval(data)
                     print("====================================")
                     print("[RELAY SERVER] {} wrote:".format(client_address), data)
                     print("====================================\n")
-                    # process incoming data
+                    ### process incoming data
                     # playerid, data
-                    imu_queue.put(data)
+                    beetleID = data["beetleID"]
+                    data_device = beetleID_mapping[beetleID]
+
+                    if data_device == "IMU":
+                        # add an IMU PACKET to the queue (playerID, sensorData)
+                        imu_packet = (data["playerID"], data["sensorData"])
+                        imu_queue.put(imu_packet)
+                    elif data_device == "VEST":
+                        # got shot damage
+                        action_packet = (data["playerID"], "damage")
+                        action_queue.put(action_packet)
+                    elif data_device == "GUN":
+                        # shot by player
+                        action_packet = (data["playerID"], "shoot")
+                        action_queue.put(action_packet)
+
+                    # imu_queue.put(data)
 
         except Exception as e:
             print("Client disconnected")
@@ -142,8 +162,74 @@ class Game_Engine(threading.Thread):
     def __init__(self):
         super().__init__()
     
+    # def run(self):
+    #     while True:
+    #         if not imu_queue.empty():
+    #             imu_data = imu_queue.get()
+    #             self.AI_random(imu_data)
+
+    #         if not action_queue.empty():
+    #             action = action_queue.get()
+    #             print("[ACTION]", action)
+    #             # Update action for player 1
+    #             if action != 'grenade_p2_hits':
+    #                 player_state['p1']['action'] = action
+    #             # Update player 1 state (active player) and player 2 state (passive player)
+    #             if action == 'reload':
+    #                 player_state['p1']['bullets'] = 6
+    #             elif action == 'grenade':
+    #                 # update grenade for player 1
+    #                 player_state['p1']['grenades'] -= 1
+    #                 # send check for player 2
+    #                 viz_queue.put(('CHECK', 'grenadeInSight'))
+    #             elif action == 'grenade_p2_hits':
+    #                 player_state['p2']['hp'] -= 30
+    #             elif action == 'grenade_p2_misses':
+    #                 pass    
+    #             elif action == 'shield':
+    #                 player_state['p1']['num_shield'] -= 1
+    #                 player_state['p1']['shield_time'] = 10
+    #                 player_state['p1']['shield_health'] = 30
+    #             elif action == 'shoot':
+    #                 player_state['p1']['bullets'] -= 1
+    #                 # TODO check if player 2 is in shield
+    #                 player_state['p2']['hp'] -= 10
+                
+    #             # rebirth for player 2
+    #             if player_state['p2']['hp'] <= 0:
+    #                 # reset player 2 stats
+    #                 player_state['p2']['hp'] = 100
+    #                 player_state['p2']['num_deaths'] += 1
+    #                 player_state['p2']['bullets'] = 6
+    #                 player_state['p2']['grenades'] = 2
+    #                 player_state['p2']['num_shield'] = 3
+    #                 player_state['p2']['shield_time'] = 0
+    #                 player_state['p2']['shield_health'] = 0
+                
+    #             # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
+    #             if not action == 'grenade': 
+    #                 viz_queue.put(('STATE', player_state)) 
+    #                 eval_queue.put(player_state)
+
     def run(self):
+        isPlayerOneShieldActivated = False
+        isPlayerTwoShieldActivated = False
         while True:
+            if isPlayerOneShieldActivated:
+                player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
+                if player_state['p1']['shield_time'] <= 0:
+                    player_state['p1']['shield_time'] = 0
+                    player_state['p1']['shield_health'] = 0
+                    isPlayerOneShieldActivated = False
+
+            if isPlayerTwoShieldActivated:
+                player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
+                if player_state['p2']['shield_time'] <= 0:
+                    player_state['p2']['shield_time'] = 0
+                    player_state['p2']['shield_health'] = 0
+                    isPlayerTwoShieldActivated = False
+
+            
             if not imu_queue.empty():
                 imu_data = imu_queue.get()
                 self.AI_random(imu_data)
@@ -156,25 +242,40 @@ class Game_Engine(threading.Thread):
                     player_state['p1']['action'] = action
                 # Update player 1 state (active player) and player 2 state (passive player)
                 if action == 'reload':
-                    player_state['p1']['bullets'] = 6
+                    if player_state['p1']['bullets'] <= 0:
+                        player_state['p1']['bullets'] = 6
                 elif action == 'grenade':
                     # update grenade for player 1
-                    player_state['p1']['grenades'] -= 1
+                    if player_state['p1']['grenades'] > 0:
+                        player_state['p1']['grenades'] -= 1
                     # send check for player 2
-                    viz_queue.put(('CHECK', 'grenadeInSight'))
                 elif action == 'grenade_p2_hits':
-                    player_state['p2']['hp'] -= 30
-                elif action == 'grenade_p2_misses':
-                    pass    
+                    if isPlayerTwoShieldActivated:
+                        player_state['p2']['shield_health'] -= 30
+                    else:
+                        player_state['p2']['hp'] -= 30
+
                 elif action == 'shield':
-                    player_state['p1']['num_shield'] -= 1
-                    player_state['p1']['shield_time'] = 10
-                    player_state['p1']['shield_health'] = 30
+                    if player_state['p1']['num_shield'] > 0:
+                        player_state['p1']['num_shield'] -= 1
+                        player_state['p1']['shield_time'] = 10
+                        player_state['p1']['shield_health'] = 30
+                        isPlayerOneShieldActivated = True
+                        startTimeOne = time.time()
                 elif action == 'shoot':
-                    player_state['p1']['bullets'] -= 1
-                    # TODO check if player 2 is in shield
-                    player_state['p2']['hp'] -= 10
-                
+                    if player_state['p1']['bullets'] > 0:
+                        player_state['p1']['bullets'] -= 1
+                        if isPlayerTwoShieldActivated:
+                            player_state['p2']['shield_health'] -= 10
+                        else:
+                            player_state['p2']['hp'] -= 10
+
+                if player_state['p2']['shield_health'] <= 0:
+                    isPlayerTwoShieldActivated = False
+                    player_state['p2']['hp'] += player_state['p2']['shield_health']
+                    player_state['p2']['shield_health'] = 0
+                    player_state['p2']['shield_time'] = 0
+            
                 # rebirth for player 2
                 if player_state['p2']['hp'] <= 0:
                     # reset player 2 stats
@@ -189,13 +290,14 @@ class Game_Engine(threading.Thread):
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
                 if not action == 'grenade': 
                     viz_queue.put(('STATE', player_state)) 
-                    eval_queue.put(player_state)
+                    eval_queue.put(player_state) 
 
 
     def AI_random(self, imu_data):
         # TODO send through DMA
         # print(imu_data)
-        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
+        AI_actions = ['reload', 'shield', 'shoot']
+        # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
         # AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
         action_queue.put(action)
