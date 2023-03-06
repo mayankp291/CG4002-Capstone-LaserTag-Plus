@@ -6,11 +6,15 @@ from dotenv import load_dotenv
 import time
 import threading
 import random
+import sys
 
 # load environment variables
 load_dotenv()
 
-actions = ['reload', 'shoot', 'shield', 'grenade']
+
+# IMU = {'x': 0, 'y': 0, 'z': 0}
+IMU = {'playerID': 2, 'beetleID': 4, 'motionData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
+
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
 SOC_PASSWORD = os.getenv("SOC_PASSWORD")
@@ -33,10 +37,17 @@ class Relay_Client(threading.Thread):
         
 
     def run(self):
-        while True:
-            self.send(random.choice(actions))
-            time.sleep(1)
-            self.recv()
+        try: 
+            while True:
+                input("Press any button to send data")
+                msg = str(IMU)
+                msg = str(len(msg)) + '_' + 'imu' + '_' + msg
+                self.send(msg)
+                # self.recv()
+        except:
+            print('Connection to Relay Server lost')
+            self.relaySocket.close()
+            sys.exit()
     
     @staticmethod
     def tunnel_ultra96():
@@ -66,23 +77,19 @@ class Relay_Client(threading.Thread):
         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
 
-# serverName = gethostbyname('192.168.95.219')
     def send(self, message):
         self.relaySocket.send(message.encode('utf-8'))
-        print('Sent message to Relay Server', message)
-    
-    def recv(self):
-        message = self.relaySocket.recv(1024).decode('utf-8')
-        print('Received message from Relay Server', message)
+        # print('Sent message to Relay Server', message)
+        print('Sent packet to Relay Server', end='\r')       
+        
 
 
 def main():
+    Relay_Client.tunnel_ultra96()
     relay_thread = Relay_Client('localhost', 11000)
     relay_thread.start()
-    relay_thread2 = Relay_Client('localhost', 11000)
-    relay_thread2.start()
-
-    time.sleep(100)
+    # relay_thread2 = Relay_Client('localhost', 11000)
+    # relay_thread2.start()
     
 if __name__ == "__main__":
     main()
