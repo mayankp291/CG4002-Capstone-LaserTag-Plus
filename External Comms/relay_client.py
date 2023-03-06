@@ -12,8 +12,8 @@ import sys
 load_dotenv()
 
 
-actions = ['shoot', 'none']
-IMU = {'x': 0, 'y': 0, 'z': 0}
+# IMU = {'x': 0, 'y': 0, 'z': 0}
+IMU = {'playerID': 2, 'beetleID': 4, 'motionData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
 
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
@@ -39,10 +39,6 @@ class Relay_Client(threading.Thread):
     def run(self):
         try: 
             while True:
-                # encode message to format len + _ + message
-                # msg = random.choice(actions)
-                # msg = str(len(msg)) + '_' + 'action' + '_' + msg
-                # self.send(msg)
                 input("Press any button to send data")
                 msg = str(IMU)
                 msg = str(len(msg)) + '_' + 'imu' + '_' + msg
@@ -83,18 +79,13 @@ class Relay_Client(threading.Thread):
 
     def send(self, message):
         self.relaySocket.send(message.encode('utf-8'))
-        print('Sent message to Relay Server', message)
-        sys.stdout.write('\b')
-        sys.stdout.flush()        
+        # print('Sent message to Relay Server', message)
+        print('Sent packet to Relay Server', end='\r')       
         
-    # TODO Implement fragmentation
-    def recv(self):
-        message = self.relaySocket.recv(1024).decode('utf-8')
-        print('Received message from Relay Server', message)
 
 
 def main():
-    # Relay_Client.tunnel_ultra96()
+    Relay_Client.tunnel_ultra96()
     relay_thread = Relay_Client('localhost', 11000)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)
