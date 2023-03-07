@@ -6,7 +6,8 @@ import sys
 import struct
 import threading
 from crccheck.crc import Crc8
-
+import time
+import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
 
 # the peripheral class is used to connect and disconnect
@@ -66,6 +67,9 @@ class MyDelegate(DefaultDelegate):
         self.motionPacketsCount = 0
         self.gunPacketsCount = 0
         self.fragPacketsCount = 0
+        self.startTime = None
+        self.endTime = None
+        self.transmissionSpeed = 0
 
     def sendAckPacket(self):
         self.serialChar.write(bytes("A", "utf-8"))
@@ -77,11 +81,19 @@ class MyDelegate(DefaultDelegate):
         print("HandshakeCompleted")
         self.sendAckPacket()
         self.hasHandshaken = True
+        # self.startTime = time.time()
+        # self.startTime = datetime.now()
 
     def handleNotification(self, cHandle, data):
         self.receivingBuffer += data
         if len(self.receivingBuffer) >=20:
             # print("Data received from beetle: ", self.receivingBuffer)
+            # self.endTime = time.time()
+            # self.endTime = datetime.now()
+            # self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / (1000 * (self.endTime - self.startTime).total_seconds())
+            # if self.endTime - self.startTime > 10:
+            #     self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / 10
+
             dataPacket = self.receivingBuffer[0:20]
             unpackedPacket = ()
             expectedPacketFormat = ("bb6h5xb")
@@ -89,7 +101,10 @@ class MyDelegate(DefaultDelegate):
             # dataPacket = dataPacket[::-1]
             # print(unpackedPacket)
             packetType = chr(unpackedPacket[0])
-            print("packetType, deviceId, length: ", packetType , "," ,self.deviceId, ",", len(self.receivingBuffer))
+            print("packetType, deviceId, length ", packetType , "," , self.deviceId,
+                  ",", len(self.receivingBuffer) )
+            # , ",", self.transmissionSpeed, "kbps"
+            print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
             if packetType == 'A':
                 self.handleAckPacket()
             if packetType == 'M':
@@ -133,7 +148,7 @@ class MyDelegate(DefaultDelegate):
             if len(self.receivingBuffer) == 20:
                 self.handleNotification(None, self.receivingBuffer)
             self.receivingBuffer = b''
-            print("Fragmented Packets Count:", self.fragPacketsCount)
+
 
 
 
