@@ -45,7 +45,7 @@ uint8_t calculateCRC8(uint8_t *data, int len) {
 struct AcknowledgementPacket {
     byte typeOfPacket;
     byte padding[18];
-    byte crcCheck;
+    byte checkSum;
 } ackPacket;
 
 struct DatagramPacket {
@@ -53,19 +53,27 @@ struct DatagramPacket {
     byte deviceID;
     bool isGunShot;
     byte padding[16];
-    byte crcCheck;
+    byte checkSum;
 } ;
 
+uint8_t findCheckSum(uint8_t *inputPacket) {
+    uint8_t checkSum = 0;
+    for (int i = 0; i < 19; i++) {
+        checkSum ^= inputPacket[i];
+    }
+    return checkSum;
+}
 
 void sendACKPacket() {
     AcknowledgementPacket ackPacket;
     ackPacket.typeOfPacket = (byte) 'A';
-    Serial.write((byte *)&ackPacket, sizeof(ackPacket));
+
 //    Serial.write(ACK_PACKET);
 //    crc.add(ACK_PACKET);
 //    Serial.write(crc.getCRC());
     ackPacket.padding[18] = {0};
-    ackPacket.crcCheck = 1;
+    ackPacket.checkSum = findCheckSum((uint8_t *)&ackPacket);
+    Serial.write((byte *)&ackPacket, sizeof(ackPacket));
 //    crc.restart();
 }
 
@@ -118,7 +126,7 @@ void sendSensorReading() {
     gunPacket.isGunShot = dummy_shot;
 
     gunPacket.padding[16] = {0};
-    gunPacket.crcCheck = 1;
+    gunPacket.checkSum = findCheckSum((uint8_t *)&gunPacket);
 
     Serial.write((byte *)&gunPacket, sizeof(gunPacket));
 }
@@ -138,9 +146,9 @@ void loop(void) {
       lastDebounceTime = millis(); //set the current time
 
       IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent 
-      Serial.println("Triggered!!!");
+//       Serial.println("Triggered!!!");
       dummy_shot = true;
-      Serial.println(bullets);
+//       Serial.println(bullets);
       digitalWrite(ledPin, HIGH);  // turn LED OFF
       playTone(bullets);
       bullets = bullets - 1;

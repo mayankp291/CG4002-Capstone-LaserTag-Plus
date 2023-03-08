@@ -44,7 +44,7 @@ uint8_t calculateCRC8(uint8_t *data, int len) {
 struct AcknowledgementPacket {
     byte typeOfPacket;
     byte padding[18];
-    byte crcCheck;
+    byte checkSum;
 } ackPacket;
 
 struct DatagramPacket {
@@ -52,19 +52,27 @@ struct DatagramPacket {
     byte deviceID;
     bool isShotReceived;
     byte padding[16];
-    byte crcCheck;
+    byte checkSum;
 } ;
 
+uint8_t findCheckSum(uint8_t *inputPacket) {
+    uint8_t checkSum = 0;
+    for (int i = 0; i < 19; i++) {
+        checkSum ^= inputPacket[i];
+    }
+    return checkSum;
+}
 
 void sendACKPacket() {
     AcknowledgementPacket ackPacket;
     ackPacket.typeOfPacket = (byte) 'A';
-    Serial.write((byte *)&ackPacket, sizeof(ackPacket));
+
 //    Serial.write(ACK_PACKET);
 //    crc.add(ACK_PACKET);
 //    Serial.write(crc.getCRC());
     ackPacket.padding[18] = {0};
-    ackPacket.crcCheck = 1;
+    ackPacket.checkSum = findCheckSum((uint8_t *)&ackPacket);
+    Serial.write((byte *)&ackPacket, sizeof(ackPacket));
 //    crc.restart();
 }
 
@@ -84,7 +92,7 @@ void setup(void) {
   pinMode(ledPin, OUTPUT);      // declare LED as output
   pinMode(buzzer, OUTPUT);
   // generating random numbers
-  randomNumber = random(500);
+//   randomNumber = random(500);
 }
 
 void clearLEDs() {
@@ -129,15 +137,15 @@ void doHandshake() {
 
 
 void sendSensorReading() {
-    DatagramPacket gunPacket;
-    gunPacket.typeOfPacket = (byte) 'B';
-    gunPacket.deviceID = 5;
-    gunPacket.isShotReceived = dummy_is_shot;
+    DatagramPacket vestPacket;
+    vestPacket.typeOfPacket = (byte) 'H';
+    vestPacket.deviceID = 5;
+    vestPacket.isShotReceived = dummy_is_shot;
 
-    gunPacket.padding[16] = {0};
-    gunPacket.crcCheck = 1;
+    vestPacket.padding[16] = {0};
+    vestPacket.checkSum = findCheckSum((uint8_t *)&vestPacket);
 
-    Serial.write((byte *)&gunPacket, sizeof(gunPacket));
+    Serial.write((byte *)&vestPacket, sizeof(vestPacket));
 }
 
 boolean hasSent = false;
@@ -150,9 +158,9 @@ void loop(void) {
       healthPoint = 100;
   }
   if (IrReceiver.decode()) {
-    Serial.println("Received something...");
+//     Serial.println("Received something...");
     if(IrReceiver.decodedIRData.address == 0x0102) {
-        Serial.println("Shotted!");
+//         Serial.println("Shotted!");
         healthPoint = healthPoint - 10;
         led();
         // tone(buzzer, 1000); // Send 1KHz sound signal...
@@ -164,7 +172,7 @@ void loop(void) {
       dummy_is_shot = false;
     }
     IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
-    Serial.println();
+//     Serial.println();
     IrReceiver.begin(PIN_RECV); // Important, enables to receive the next IR signal
   }
 
