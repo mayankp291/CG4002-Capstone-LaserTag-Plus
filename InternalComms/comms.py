@@ -51,6 +51,8 @@ MOTION_PACKET = 'M'
 AMMO_PACKET = 'B'
 HEALTH_PACKET = 'H'
 
+class CheckSumFailedError(Exception):
+    pass
 
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
@@ -84,70 +86,95 @@ class MyDelegate(DefaultDelegate):
         # self.startTime = time.time()
         # self.startTime = datetime.now()
 
-    def handleNotification(self, cHandle, data):
-        self.receivingBuffer += data
-        if len(self.receivingBuffer) >=20:
-            # print("Data received from beetle: ", self.receivingBuffer)
-            # self.endTime = time.time()
-            # self.endTime = datetime.now()
-            # self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / (1000 * (self.endTime - self.startTime).total_seconds())
-            # if self.endTime - self.startTime > 10:
-            #     self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / 10
+    def checkSum(self, data):
+        packet = struct.unpack('<20b', data)
+        checksum = 0
 
-            dataPacket = self.receivingBuffer[0:20]
-            unpackedPacket = ()
-            expectedPacketFormat = ("bb6h5xb")
-            unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-            # dataPacket = dataPacket[::-1]
-            # print(unpackedPacket)
-            packetType = chr(unpackedPacket[0])
-            print("packetType, deviceId, length ", packetType , "," , self.deviceId,
-                  ",", len(self.receivingBuffer) )
-            # , ",", self.transmissionSpeed, "kbps"
-            print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
-            if packetType == 'A':
-                self.handleAckPacket()
-            if packetType == 'M':
-                sendData = {
-                    "playerID": self.playerId,
-                    "beetleID": self.deviceId,
-                    "motionData": {
-                        "aX": unpackedPacket[2],
-                        "aY": unpackedPacket[3],
-                        "aZ": unpackedPacket[4],
-                        "gX": unpackedPacket[5],
-                        "gY": unpackedPacket[6],
-                        "gZ": unpackedPacket[7]
-                    }
-                }
-                self.motionPacketsCount += 1
-                print("MotionPacketsCount: ", self.motionPacketsCount)
-                print(sendData)
-                self.lock.acquire()
-                self.dataBuffer.put(sendData)
-                self.lock.release()
-            if packetType == 'B' or packetType == 'H':
-                expectedPacketFormat = ("bb?16xb")
-                self.gunPacketsCount += 1
-                print("GunPacketsCount: ", self.gunPacketsCount)
-                unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-                sendData = {
-                    "playerID": self.playerId,
-                    "beetleID": self.deviceId,
-                    "hit": unpackedPacket[2],
-                }
-                print(sendData)
-                self.lock.acquire()
-                self.dataBuffer.put(sendData)
-                self.lock.release()
-                self.sendAckPacket()
-            self.receivingBuffer = b''
+        for i in range(19):
+            checksum = (checksum ^ packet[i])
+
+        if checksum == packet[19]:
+            return True
         else:
-            self.fragPacketsCount += 1
-            self.receivingBuffer = self.receivingBuffer + data
-            if len(self.receivingBuffer) == 20:
-                self.handleNotification(None, self.receivingBuffer)
-            self.receivingBuffer = b''
+            return False
+    def handleCheckSumError(self, data):
+        # If there is a problem, then drop
+        self.receivingBuffer = b''
+        print("Checksum failed for device", self.deviceId ,", packet dropped")
+
+
+
+
+    def handleNotification(self, cHandle, data):
+        try:
+            self.receivingBuffer += data
+            if len(self.receivingBuffer) >=20:
+                # print("Data received from beetle: ", self.receivingBuffer)
+                # self.endTime = time.time()
+                # self.endTime = datetime.now()
+                # self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / (1000 * (self.endTime - self.startTime).total_seconds())
+                # if self.endTime - self.startTime > 10:
+                #     self.transmissionSpeed = (self.motionPacketsCount + self.gunPacketsCount + self.fragPacketsCount) * 8 / 10
+
+                dataPacket = self.receivingBuffer[0:20]
+                if not self.checkSum(dataPacket):
+                    raise CheckSumFailedError("Checksum failed")
+                unpackedPacket = ()
+                expectedPacketFormat = ("bb6h5xb")
+                unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
+                # dataPacket = dataPacket[::-1]
+                # print(unpackedPacket)
+                packetType = chr(unpackedPacket[0])
+                print("packetType, deviceId, length ", packetType , "," , self.deviceId,
+                      ",", len(self.receivingBuffer) )
+                # , ",", self.transmissionSpeed, "kbps"
+                print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
+                if packetType == 'A':
+                    self.handleAckPacket()
+                if packetType == 'M':
+                    sendData = {
+                        "playerID": self.playerId,
+                        "beetleID": self.deviceId,
+                        "motionData": {
+                            "aX": unpackedPacket[2],
+                            "aY": unpackedPacket[3],
+                            "aZ": unpackedPacket[4],
+                            "gX": unpackedPacket[5],
+                            "gY": unpackedPacket[6],
+                            "gZ": unpackedPacket[7]
+                        }
+                    }
+                    self.motionPacketsCount += 1
+                    print("MotionPacketsCount: ", self.motionPacketsCount)
+                    print(sendData)
+                    self.lock.acquire()
+                    self.dataBuffer.put(sendData)
+                    self.lock.release()
+                if packetType == 'B' or packetType == 'H':
+                    expectedPacketFormat = ("bb?16xb")
+                    self.gunPacketsCount += 1
+                    print("GunPacketsCount: ", self.gunPacketsCount)
+                    unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
+                    sendData = {
+                        "playerID": self.playerId,
+                        "beetleID": self.deviceId,
+                        "hit": unpackedPacket[2],
+                    }
+                    print(sendData)
+                    self.lock.acquire()
+                    self.dataBuffer.put(sendData)
+                    self.lock.release()
+                    self.sendAckPacket()
+                self.receivingBuffer = b''
+            else:
+                self.fragPacketsCount += 1
+                self.receivingBuffer = self.receivingBuffer + data
+                if len(self.receivingBuffer) == 20:
+                    self.handleNotification(None, self.receivingBuffer)
+                self.receivingBuffer = b''
+
+        except CheckSumFailedError:
+            self.handleCheckSumError(data)
 
 
 
