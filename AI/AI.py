@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import skew
 from scipy.fftpack import fft
+from sklearn.preprocessing import minmax_scale
 
 # INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
 
 NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
-INPUTS = 24 #  4 extracted features * 6 sensor reading types 
+NUM_FEATURES = 8
+INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types 
 DATA_LABELS = ["logout", "shield", "reload", "grenade", "none"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 30
@@ -69,44 +71,44 @@ def extract_features(*argsv):
     min_gyro_z = np.amin(argsv[5], axis=1).reshape(-1,1)
 
     rms_precision = 100000
-    rms_acc_x = np.sqrt(np.mean(argsv[0]**2, axis=1), axis=1) * rms_precision
-    rms_acc_y = np.sqrt(np.mean(argsv[1]**2, axis=1), axis=1) * rms_precision
-    rms_acc_z = np.sqrt(np.mean(argsv[2]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_x = np.sqrt(np.mean(argsv[3]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_y = np.sqrt(np.mean(argsv[4]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_z = np.sqrt(np.mean(argsv[5]**2, axis=1), axis=1) * rms_precision
+    rms_acc_x = np.reshape((np.sqrt(np.mean(argsv[0]**2, axis=1)) * rms_precision), (-1, 1))
+    rms_acc_y = np.reshape((np.sqrt(np.mean(argsv[1]**2, axis=1)) * rms_precision), (-1, 1))
+    rms_acc_z = np.reshape((np.sqrt(np.mean(argsv[2]**2, axis=1)) * rms_precision), (-1, 1))
+    rms_gyro_x = np.reshape((np.sqrt(np.mean(argsv[3]**2, axis=1)) * rms_precision), (-1, 1))
+    rms_gyro_y = np.reshape((np.sqrt(np.mean(argsv[4]**2, axis=1)) * rms_precision), (-1, 1))
+    rms_gyro_z = np.reshape((np.sqrt(np.mean(argsv[5]**2, axis=1)) * rms_precision), (-1, 1))
 
-    skew_acc_x = skew(argsv[0], axis=1)
-    skew_acc_y = skew(argsv[1], axis=1)
-    skew_acc_z = skew(argsv[2], axis=1)
-    skew_gyro_x = skew(argsv[3], axis=1)
-    skew_gyro_y = skew(argsv[4], axis=1)
-    skew_gyro_z = skew(argsv[5], axis=1)
+    skew_acc_x = np.reshape(skew(argsv[0], axis=1), (-1, 1))
+    skew_acc_y = np.reshape(skew(argsv[1], axis=1), (-1, 1))
+    skew_acc_z = np.reshape(skew(argsv[2], axis=1), (-1, 1))
+    skew_gyro_x = np.reshape(skew(argsv[3], axis=1), (-1, 1))
+    skew_gyro_y = np.reshape(skew(argsv[4], axis=1), (-1, 1))
+    skew_gyro_z = np.reshape(skew(argsv[5], axis=1), (-1, 1))
 
     # Convert to frequency domain
-    signal_acc_x = fft(argsv[0], axis=1)
-    signal_acc_y = fft(argsv[1], axis=1)
-    signal_acc_z = fft(argsv[2], axis=1)
-    signal_gyro_x = fft(argsv[3], axis=1)
-    signal_gyro_y = fft(argsv[4], axis=1)
-    signal_gyro_z = fft(argsv[5], axis=1)
+    # signal_acc_x = fft(argsv[0], axis=1)
+    # signal_acc_y = fft(argsv[1], axis=1)
+    # signal_acc_z = fft(argsv[2], axis=1)
+    # signal_gyro_x = fft(argsv[3], axis=1)
+    # signal_gyro_y = fft(argsv[4], axis=1)
+    # signal_gyro_z = fft(argsv[5], axis=1)
 
     mag_precision = 10000
-    mag_acc_x = np.amax(np.abs(signal_acc_x), axis=1) * mag_precision
-    mag_acc_y = np.amax(np.abs(signal_acc_y), axis=1) * mag_precision
-    mag_acc_z = np.amax(np.abs(signal_acc_z), axis=1) * mag_precision
-    mag_gyro_x = np.amax(np.abs(signal_gyro_x), axis=1) * mag_precision
-    mag_gyro_y = np.amax(np.abs(signal_gyro_y), axis=1) * mag_precision
-    mag_gyro_z = np.amax(np.abs(signal_gyro_z), axis=1) * mag_precision
+    mag_acc_x = np.reshape((np.amax(np.abs(fft(argsv[0], axis=1)), axis=1) * mag_precision), (-1, 1))
+    mag_acc_y = np.reshape((np.amax(np.abs(fft(argsv[1], axis=1)), axis=1) * mag_precision), (-1, 1))
+    mag_acc_z = np.reshape((np.amax(np.abs(fft(argsv[2], axis=1)), axis=1) * mag_precision), (-1, 1))
+    mag_gyro_x = np.reshape((np.amax(np.abs(fft(argsv[3], axis=1)), axis=1) * mag_precision), (-1, 1))
+    mag_gyro_y = np.reshape((np.amax(np.abs(fft(argsv[4], axis=1)), axis=1) * mag_precision), (-1, 1))
+    mag_gyro_z = np.reshape((np.amax(np.abs(fft(argsv[5], axis=1)), axis=1) * mag_precision), (-1, 1))
 
 
     phase_precision = 10000
-    phase_acc_x = np.amax(np.angle(signal_acc_x), axis=1) * phase_precision
-    phase_acc_y = np.amax(np.angle(signal_acc_y), axis=1) * phase_precision
-    phase_acc_z = np.amax(np.angle(signal_acc_z), axis=1) * phase_precision
-    phase_gyro_x = np.amax(np.angle(signal_gyro_x), axis=1) * phase_precision
-    phase_gryo_y = np.amax(np.angle(signal_gyro_y), axis=1) * phase_precision
-    phase_gyro_z = np.amax(np.angle(signal_gyro_z), axis=1) * phase_precision
+    phase_acc_x = np.reshape((np.amax(np.angle(fft(argsv[0], axis=1)), axis=1) * phase_precision), (-1, 1))
+    phase_acc_y = np.reshape((np.amax(np.angle(fft(argsv[1], axis=1)), axis=1) * phase_precision), (-1, 1))
+    phase_acc_z = np.reshape((np.amax(np.angle(fft(argsv[2], axis=1)), axis=1) * phase_precision), (-1, 1))
+    phase_gyro_x = np.reshape((np.amax(np.angle(fft(argsv[3], axis=1)), axis=1) * phase_precision), (-1, 1))
+    phase_gyro_y = np.reshape((np.amax(np.angle(fft(argsv[4], axis=1)), axis=1) * phase_precision), (-1, 1))
+    phase_gyro_z = np.reshape((np.amax(np.angle(fft(argsv[5], axis=1)), axis=1) * phase_precision), (-1, 1))
 
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
