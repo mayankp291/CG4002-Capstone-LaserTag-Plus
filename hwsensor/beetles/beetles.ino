@@ -15,6 +15,7 @@ int randomNumber;
 
 CRC8 crc;
 
+#define factor 10000
 #define SYN_PACKET 'S'
 #define ACK_PACKET 'A'
 #define DATA_PACKET 'D'
@@ -228,12 +229,12 @@ void getSensorReading() {
   mpu.getEvent(&a, &g, &temp);
 
   /* Print out the values  m/s^2   */
-  accX = a.acceleration.x - a_x_err;
-  accY = a.acceleration.y - a_y_err;
-  accZ = a.acceleration.z - a_z_err;
-  gyrX = a.gyro.x - g_x_err;
-  gyrY = a.gyro.y - g_y_err;
-  gyrZ = a.gyro.z - g_z_err;
+accX = (a.acceleration.x - a_x_err) * factor;
+  accY = (a.acceleration.y - a_y_err) * factor;
+  accZ = (a.acceleration.z - a_z_err) * factor;
+  gyrX = (g.gyro.x - g_x_err) * factor;
+  gyrY = (g.gyro.y - g_y_err) * factor;
+  gyrZ = (g.gyro.z - g_z_err) * factor;
 //  Serial.print("Acceleration X: ");
 //  Serial.print(accX);
 //  Serial.print(", Y: ");
