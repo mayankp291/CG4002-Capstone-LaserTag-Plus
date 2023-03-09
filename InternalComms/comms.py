@@ -9,6 +9,7 @@ from crccheck.crc import Crc8
 import time
 import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
+import csv
 
 # the peripheral class is used to connect and disconnect
 
@@ -102,7 +103,29 @@ class MyDelegate(DefaultDelegate):
         self.receivingBuffer = b''
         print("Checksum failed for device", self.deviceId ,", packet dropped")
 
+    def savedata(self, data):
 
+        motiondata = data['motionData']
+        row = list(motiondata.values())
+        # define CSV filename
+        filename = 'data.csv'
+
+        # open file in write mode
+        with open(filename, mode='a', newline='') as file:
+            
+            # create a writer object
+            writer = csv.writer(file)
+            
+            # write header row
+            # writer.writerow(['First Name', 'Last Name', 'Age'])
+            
+            # write data rows
+            # for row in data
+                # writer.writerow(row)
+            writer.writerow(row)
+                
+        # print(f"Data saved to {filename} successfully.")
+        print("DATA SAVED:", row)
 
 
     def handleNotification(self, cHandle, data):
@@ -147,6 +170,7 @@ class MyDelegate(DefaultDelegate):
                     self.motionPacketsCount += 1
                     print("MotionPacketsCount: ", self.motionPacketsCount)
                     print(sendData)
+                    self.savedata(sendData)
                     self.lock.acquire()
                     self.dataBuffer.put(sendData)
                     self.lock.release()
