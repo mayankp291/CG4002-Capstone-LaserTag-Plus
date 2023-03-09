@@ -68,6 +68,10 @@ arr55 =[]
 arr66 =[]
 
 keyPress = False
+key_input = ""
+counter = 0
+
+NUM_OF_DATA_POINTS = 128
 
 class CheckSumFailedError(Exception):
     pass
@@ -126,10 +130,15 @@ class MyDelegate(DefaultDelegate):
         # if keyboard.is_pressed("a"):
         # print(self.isKeyPressed)
         # if self.isKeyPressed:
-        print(keyPress)
-        if keyboard.is_pressed("a"):
+        if not key_input:
+            key_input = input("Get Data? y/n")
+            print("okay, collecting data...")
+        
+        if key_input != "y":
+            return
+        
+        if counter <= NUM_OF_DATA_POINTS:
 
-        # if keyPress:
             motiondata = data['motionData']
             row = list(motiondata.values())
             arr1.append(row[0])
@@ -139,12 +148,15 @@ class MyDelegate(DefaultDelegate):
             arr5.append(row[4])
             arr6.append(row[5])
             print("WORKS", row)
+
+            counter += 1
             
         else:
             # put line
             # newline
             # empty arr
             # Open the six files in append mode
+            print("Data collected! Saving to textfile...")
             file1 = open("aX.txt", "a")
             file2 = open("aY.txt", "a")
             file3 = open("aZ.txt", "a")
@@ -186,7 +198,8 @@ class MyDelegate(DefaultDelegate):
             arr5.clear()
             arr6.clear()
 
-            
+            key_input = ""
+            counter = 0
 
 
     def handleNotification(self, cHandle, data):
