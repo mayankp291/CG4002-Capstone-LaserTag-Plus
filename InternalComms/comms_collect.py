@@ -67,13 +67,14 @@ arr44 = []
 arr55 =[]
 arr66 =[]
 
+keyPress = False
 
 class CheckSumFailedError(Exception):
     pass
 
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
-    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar):
+    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar, isKeyPressed):
         DefaultDelegate.__init__(self)
         self.playerId = playerId
         self.deviceId = deviceId
@@ -89,6 +90,7 @@ class MyDelegate(DefaultDelegate):
         self.startTime = None
         self.endTime = None
         self.transmissionSpeed = 0
+        self.isKeyPressed = isKeyPressed
 
     def sendAckPacket(self):
         self.serialChar.write(bytes("A", "utf-8"))
@@ -121,7 +123,13 @@ class MyDelegate(DefaultDelegate):
 
     def savedata(self, data):
         
+        # if keyboard.is_pressed("a"):
+        # print(self.isKeyPressed)
+        # if self.isKeyPressed:
+        print(keyPress)
         if keyboard.is_pressed("a"):
+
+        # if keyPress:
             motiondata = data['motionData']
             row = list(motiondata.values())
             arr1.append(row[0])
@@ -130,6 +138,8 @@ class MyDelegate(DefaultDelegate):
             arr4.append(row[3])
             arr5.append(row[4])
             arr6.append(row[5])
+            print("WORKS", row)
+            
         else:
             # put line
             # newline
@@ -181,6 +191,7 @@ class MyDelegate(DefaultDelegate):
 
     def handleNotification(self, cHandle, data):
         try:
+
             self.receivingBuffer += data
             if len(self.receivingBuffer) >=20:
                 # print("Data received from beetle: ", self.receivingBuffer)
@@ -199,10 +210,10 @@ class MyDelegate(DefaultDelegate):
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
                 packetType = chr(unpackedPacket[0])
-                print("packetType, deviceId, length ", packetType , "," , self.deviceId,
-                      ",", len(self.receivingBuffer) )
-                # , ",", self.transmissionSpeed, "kbps"
-                print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
+                # print("packetType, deviceId, length ", packetType , "," , self.deviceId,
+                #       ",", len(self.receivingBuffer) )
+                # # , ",", self.transmissionSpeed, "kbps"
+                # print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
                 if packetType == 'A':
                     self.handleAckPacket()
                 if packetType == 'M':
@@ -219,8 +230,8 @@ class MyDelegate(DefaultDelegate):
                         }
                     }
                     self.motionPacketsCount += 1
-                    print("MotionPacketsCount: ", self.motionPacketsCount)
-                    print(sendData)
+                    # print("MotionPacketsCount: ", self.motionPacketsCount)
+                    # print(sendData)
                     self.savedata(sendData)
                     self.lock.acquire()
                     self.dataBuffer.put(sendData)
@@ -309,6 +320,7 @@ class BeetleConnectionThread:
         self.serialChar = None
         self.receivingBuffer = receivingBuffer
         self.hasHandshaken = False
+        self.isKeyPressed = False
 
     def writetoBeetle(self):
         pass
@@ -321,7 +333,7 @@ class BeetleConnectionThread:
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
-                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar)
+                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar, self.isKeyPressed)
             self.dev.withDelegate(deviceDelegate)
             return True
             # break
@@ -373,6 +385,10 @@ class BeetleConnectionThread:
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
                     # continue
+                # if keyboard.is_pressed("a"):
+                #     self.isKeyPressed = True
+                #     global keyPress
+                #     keyPress = True
             except KeyboardInterrupt:
                 self.dev.disconnect()
                 self.hasHandshaken = False
@@ -438,6 +454,15 @@ def executeThreads():
     # Vest2_Thread.join()
 
 
+# class Check_Thread():
+#     def __init__(self) -> None:
+#         super().__init__()
+#     def run(self):
+#         while True:
+#             if keyboard.is_pressed("a"):
+                
+
+
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
@@ -464,7 +489,8 @@ if __name__ == '__main__':
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-
+        # check_thread = Check_Thread()
+        # check_thread.start()
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
