@@ -156,40 +156,47 @@ class MyDelegate(DefaultDelegate):
             # newline
             # empty arr
             # Open the six files in append mode
-            print("Data collected! Saving to textfile...")
-            file1 = open("aX.txt", "a")
-            file2 = open("aY.txt", "a")
-            file3 = open("aZ.txt", "a")
-            file4 = open("gX.txt", "a")
-            file5 = open("gY.txt", "a")
-            file6 = open("gZ.txt", "a")
-            file7 = open("action.txt", "a")
+            print("Data collected!")
+            key_input = input("Do you want to save the data? y/n")
 
-            # convert list to comma-separated string
-            data_str1 = ','.join(str(item) for item in arr1)
-            data_str2 = ','.join(str(item) for item in arr2)
-            data_str3 = ','.join(str(item) for item in arr3)
-            data_str4 = ','.join(str(item) for item in arr4)
-            data_str5 = ','.join(str(item) for item in arr5)
-            data_str6 = ','.join(str(item) for item in arr6)
-            
-            # Write some data to each file
-            file1.write(data_str1 + "\n")
-            file2.write(data_str2 + "\n")
-            file3.write(data_str3 + "\n")
-            file4.write(data_str4 + "\n")
-            file5.write(data_str5 + "\n")
-            file6.write(data_str6 + "\n")
-            # 3 GRENADE
-            file7.write("3\n")
+            if key_input == "n":
+                print("Okay, ignoring current take...")
+            elif key_input == "y":
+                print("Okay, Saving to textfile...")
+                
+                file1 = open("aX.txt", "a")
+                file2 = open("aY.txt", "a")
+                file3 = open("aZ.txt", "a")
+                file4 = open("gX.txt", "a")
+                file5 = open("gY.txt", "a")
+                file6 = open("gZ.txt", "a")
+                file7 = open("action.txt", "a")
 
-            # Close all the files
-            file1.close()
-            file2.close()
-            file3.close()
-            file4.close()
-            file5.close()
-            file6.close()
+                # convert list to comma-separated string
+                data_str1 = ','.join(str(item) for item in arr1)
+                data_str2 = ','.join(str(item) for item in arr2)
+                data_str3 = ','.join(str(item) for item in arr3)
+                data_str4 = ','.join(str(item) for item in arr4)
+                data_str5 = ','.join(str(item) for item in arr5)
+                data_str6 = ','.join(str(item) for item in arr6)
+                
+                # Write some data to each file
+                file1.write(data_str1 + "\n")
+                file2.write(data_str2 + "\n")
+                file3.write(data_str3 + "\n")
+                file4.write(data_str4 + "\n")
+                file5.write(data_str5 + "\n")
+                file6.write(data_str6 + "\n")
+                # 3 GRENADE
+                file7.write("3\n")
+
+                # Close all the files
+                file1.close()
+                file2.close()
+                file3.close()
+                file4.close()
+                file5.close()
+                file6.close()
 
             arr1.clear()
             arr2.clear()
