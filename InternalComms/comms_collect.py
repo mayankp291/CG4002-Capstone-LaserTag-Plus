@@ -159,11 +159,9 @@ class MyDelegate(DefaultDelegate):
             print("Data collected!")
             key_input = input("Do you want to save the data? y/n")
 
-            if key_input == "n":
-                print("Okay, ignoring current take...")
-            elif key_input == "y":
+            if key_input == "y":
                 print("Okay, Saving to textfile...")
-                
+
                 file1 = open("aX.txt", "a")
                 file2 = open("aY.txt", "a")
                 file3 = open("aZ.txt", "a")
@@ -197,6 +195,8 @@ class MyDelegate(DefaultDelegate):
                 file4.close()
                 file5.close()
                 file6.close()
+            else:
+                print("Okay, ignoring current take...")
 
             arr1.clear()
             arr2.clear()
