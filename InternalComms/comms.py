@@ -348,28 +348,35 @@ if __name__ == '__main__':
         # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer)
         # IMU2_Beetle.executeCommunications()
 
-        # Devices 234
-        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
-        Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
+        # # Devices 234
+        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
+        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
 
-        Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
+        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
+        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
 
-        # Player 2
-        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
+        # # Player 2
+        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
+
+        # Player 1 (IMU)
+        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
 
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
 
-        Gun1_Thread.start()
-        Vest1_Thread.start()
-        IMU2_Thread.start()
+        # Gun1_Thread.start()
+        # Vest1_Thread.start()
+        # IMU2_Thread.start()
 
-        Gun1_Thread.join()
-        Vest1_Thread.join()
-        IMU2_Thread.join()
+        # Gun1_Thread.join()
+        # Vest1_Thread.join()
+        # IMU2_Thread.join()
+
+        IMU1_Thread.start()
+        IMU1_Thread.join()
 
         # while True: time.sleep(100)
 

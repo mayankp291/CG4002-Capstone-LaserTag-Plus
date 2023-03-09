@@ -1,6 +1,4 @@
 aes==1.2.0
-awscrt==0.16.8
-awsiotsdk==1.0.0.dev0
 bcrypt==4.0.1
 blessings==1.7
 cffi==1.15.0
