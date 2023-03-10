@@ -424,6 +424,7 @@ def executeThreads():
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
+        
 
         # using a multiprocessing queue FIFO
         # dataBuffer = mp.Queue()
@@ -447,8 +448,8 @@ if __name__ == '__main__':
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-        relay_thread = Relay_Client('localhost', 11000)
-        relay_thread.start()
+        relay_thread = Relay_Client('172.20.10.2', 11000)
+        
         
 
         # Gun1_Thread.daemon = True
@@ -463,8 +464,9 @@ if __name__ == '__main__':
         # Vest1_Thread.join()
         # IMU2_Thread.join()
 
-        IMU1_Thread.start()
-        IMU1_Thread.join()
+        # IMU1_Thread.start()
+        relay_thread.start()
+        # IMU1_Thread.join()
         relay_thread.join()
 
         # while True: time.sleep(100)
