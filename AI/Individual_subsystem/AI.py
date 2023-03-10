@@ -14,7 +14,7 @@ from sklearn.preprocessing import minmax_scale
 
 NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
-NUM_FEATURES = 4
+NUM_FEATURES = 8
 INPUTS = NUM_FEATURES * 6 #  4 extracted features * 6 sensor reading types 
 DATA_LABELS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
 OUTPUTS = len(DATA_LABELS)
@@ -67,19 +67,19 @@ def extract_features(*argsv):
     min_gyro_y = np.amin(argsv[4], axis=1).reshape(-1,1)
     min_gyro_z = np.amin(argsv[5], axis=1).reshape(-1,1)
 
-    # rms_acc_x = np.reshape((np.sqrt(np.mean(argsv[0]**2, axis=1))), (-1, 1))
-    # rms_acc_y = np.reshape((np.sqrt(np.mean(argsv[1]**2, axis=1))), (-1, 1))
-    # rms_acc_z = np.reshape((np.sqrt(np.mean(argsv[2]**2, axis=1))), (-1, 1))
-    # rms_gyro_x = np.reshape((np.sqrt(np.mean(argsv[3]**2, axis=1))), (-1, 1))
-    # rms_gyro_y = np.reshape((np.sqrt(np.mean(argsv[4]**2, axis=1))), (-1, 1))
-    # rms_gyro_z = np.reshape((np.sqrt(np.mean(argsv[5]**2, axis=1))), (-1, 1))
+    rms_acc_x = np.reshape((np.sqrt(np.mean(argsv[0]**2, axis=1))), (-1, 1))
+    rms_acc_y = np.reshape((np.sqrt(np.mean(argsv[1]**2, axis=1))), (-1, 1))
+    rms_acc_z = np.reshape((np.sqrt(np.mean(argsv[2]**2, axis=1))), (-1, 1))
+    rms_gyro_x = np.reshape((np.sqrt(np.mean(argsv[3]**2, axis=1))), (-1, 1))
+    rms_gyro_y = np.reshape((np.sqrt(np.mean(argsv[4]**2, axis=1))), (-1, 1))
+    rms_gyro_z = np.reshape((np.sqrt(np.mean(argsv[5]**2, axis=1))), (-1, 1))
 
-    # skew_acc_x = np.reshape(skew(argsv[0], axis=1), (-1, 1))
-    # skew_acc_y = np.reshape(skew(argsv[1], axis=1), (-1, 1))
-    # skew_acc_z = np.reshape(skew(argsv[2], axis=1), (-1, 1))
-    # skew_gyro_x = np.reshape(skew(argsv[3], axis=1), (-1, 1))
-    # skew_gyro_y = np.reshape(skew(argsv[4], axis=1), (-1, 1))
-    # skew_gyro_z = np.reshape(skew(argsv[5], axis=1), (-1, 1))
+    skew_acc_x = np.reshape(skew(argsv[0], axis=1), (-1, 1))
+    skew_acc_y = np.reshape(skew(argsv[1], axis=1), (-1, 1))
+    skew_acc_z = np.reshape(skew(argsv[2], axis=1), (-1, 1))
+    skew_gyro_x = np.reshape(skew(argsv[3], axis=1), (-1, 1))
+    skew_gyro_y = np.reshape(skew(argsv[4], axis=1), (-1, 1))
+    skew_gyro_z = np.reshape(skew(argsv[5], axis=1), (-1, 1))
 
     # Convert to frequency domain
     # signal_acc_x = fft(argsv[0], axis=1)
@@ -89,20 +89,20 @@ def extract_features(*argsv):
     # signal_gyro_y = fft(argsv[4], axis=1)
     # signal_gyro_z = fft(argsv[5], axis=1)
 
-    # mag_acc_x = np.reshape((np.amax(np.abs(fft(argsv[0], axis=1)), axis=1)), (-1, 1))
-    # mag_acc_y = np.reshape((np.amax(np.abs(fft(argsv[1], axis=1)), axis=1)), (-1, 1))
-    # mag_acc_z = np.reshape((np.amax(np.abs(fft(argsv[2], axis=1)), axis=1)), (-1, 1))
-    # mag_gyro_x = np.reshape((np.amax(np.abs(fft(argsv[3], axis=1)), axis=1)), (-1, 1))
-    # mag_gyro_y = np.reshape((np.amax(np.abs(fft(argsv[4], axis=1)), axis=1)), (-1, 1))
-    # mag_gyro_z = np.reshape((np.amax(np.abs(fft(argsv[5], axis=1)), axis=1)), (-1, 1))
+    mag_acc_x = np.reshape((np.amax(np.abs(fft(argsv[0], axis=1)), axis=1)), (-1, 1))
+    mag_acc_y = np.reshape((np.amax(np.abs(fft(argsv[1], axis=1)), axis=1)), (-1, 1))
+    mag_acc_z = np.reshape((np.amax(np.abs(fft(argsv[2], axis=1)), axis=1)), (-1, 1))
+    mag_gyro_x = np.reshape((np.amax(np.abs(fft(argsv[3], axis=1)), axis=1)), (-1, 1))
+    mag_gyro_y = np.reshape((np.amax(np.abs(fft(argsv[4], axis=1)), axis=1)), (-1, 1))
+    mag_gyro_z = np.reshape((np.amax(np.abs(fft(argsv[5], axis=1)), axis=1)), (-1, 1))
 
 
-    # phase_acc_x = np.reshape((np.amax(np.angle(fft(argsv[0], axis=1)), axis=1)), (-1, 1))
-    # phase_acc_y = np.reshape((np.amax(np.angle(fft(argsv[1], axis=1)), axis=1)), (-1, 1))
-    # phase_acc_z = np.reshape((np.amax(np.angle(fft(argsv[2], axis=1)), axis=1)), (-1, 1))
-    # phase_gyro_x = np.reshape((np.amax(np.angle(fft(argsv[3], axis=1)), axis=1)), (-1, 1))
-    # phase_gyro_y = np.reshape((np.amax(np.angle(fft(argsv[4], axis=1)), axis=1)), (-1, 1))
-    # phase_gyro_z = np.reshape((np.amax(np.angle(fft(argsv[5], axis=1)), axis=1)), (-1, 1))
+    phase_acc_x = np.reshape((np.amax(np.angle(fft(argsv[0], axis=1)), axis=1)), (-1, 1))
+    phase_acc_y = np.reshape((np.amax(np.angle(fft(argsv[1], axis=1)), axis=1)), (-1, 1))
+    phase_acc_z = np.reshape((np.amax(np.angle(fft(argsv[2], axis=1)), axis=1)), (-1, 1))
+    phase_gyro_x = np.reshape((np.amax(np.angle(fft(argsv[3], axis=1)), axis=1)), (-1, 1))
+    phase_gyro_y = np.reshape((np.amax(np.angle(fft(argsv[4], axis=1)), axis=1)), (-1, 1))
+    phase_gyro_z = np.reshape((np.amax(np.angle(fft(argsv[5], axis=1)), axis=1)), (-1, 1))
 
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
@@ -110,7 +110,11 @@ def extract_features(*argsv):
     #                                                                     [3, 5]]
     return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z,         sd_acc_x, sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z, 
     max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
-    min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z), axis=1)
+    min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
+    rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z, 
+    skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+    mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+    phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z), axis=1)
 
 
 def get_data_labels(data_type):
@@ -184,7 +188,7 @@ def load_data(data_paths, data_type):
     print(f"\nLoading raw {data_type}ing data...")
     
     body_acc_x, body_acc_y, body_acc_z, body_gyro_x, body_gyro_y, body_gyro_z = (
-        normalise(np.array(read_raw_data(data_paths[i])).astype(np.float32)) for i in range(len(data_paths)))
+        np.array(read_raw_data(data_paths[i])).astype(np.float32) for i in range(len(data_paths)))
 
     print(f"Raw {data_type}ing data loaded! \nLoading {data_type}ing labels...")
 
