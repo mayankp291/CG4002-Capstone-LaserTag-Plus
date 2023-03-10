@@ -21,17 +21,6 @@ CONNECTION_TIMEOUT = 3
 Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 
-# serialSvc = dev.getServiceByUUID(
-#     "0000dfb0-0000-1000-8000-00805f9b34fb")
-# serialChar = serialSvc.getCharacteristics(
-#     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
-
-
-# 'GRENADE': 3
-# 'LOGOUT' : 0
-# 'SHIELD' : 1
-# 'RELOAD' : 2
-# 'IDLE' : 4
 
 macAddresses = {
     1: "D0:39:72:BF:BF:BB", #imu1
@@ -78,7 +67,7 @@ arr66 =[]
 keyPress = False
 key_input = ""
 counter = 1
-ACTION  = 'RELOAD'
+ACTION  = 'SHIELD'
 
 NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
@@ -89,7 +78,7 @@ class CheckSumFailedError(Exception):
 
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
-    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar, isKeyPressed):
+    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar):
         DefaultDelegate.__init__(self)
         self.playerId = playerId
         self.deviceId = deviceId
@@ -105,7 +94,6 @@ class MyDelegate(DefaultDelegate):
         self.startTime = None
         self.endTime = None
         self.transmissionSpeed = 0
-        self.isKeyPressed = isKeyPressed
 
     def sendAckPacket(self):
         self.serialChar.write(bytes("A", "utf-8"))
@@ -131,6 +119,7 @@ class MyDelegate(DefaultDelegate):
             return True
         else:
             return False
+        
     def handleCheckSumError(self, data):
         # If there is a problem, then drop
         self.receivingBuffer = b''
@@ -138,86 +127,7 @@ class MyDelegate(DefaultDelegate):
 
     def savedata(self, data):
         
-        # if keyboard.is_pressed("a"):
-        # print(self.isKeyPressed)
-        # if self.isKeyPressed:
-        # if not key_input:
-        #     key_input = input("Get Data? y/n")
-        #     print("okay, collecting data...")
-        
-        # if key_input != "y":
-        #     return
-        
-        # if counter <= NUM_OF_DATA_POINTS:
 
-        #     motiondata = data['motionData']
-        #     row = list(motiondata.values())
-        #     arr1.append(row[0])
-        #     arr2.append(row[1])
-        #     arr3.append(row[2])
-        #     arr4.append(row[3])
-        #     arr5.append(row[4])
-        #     arr6.append(row[5])
-        #     print("WORKS", row)
-
-        #     counter += 1
-            
-        # else:
-        #     # put line
-        #     # newline
-        #     # empty arr
-        #     # Open the six files in append mode
-        #     print("Data collected!")
-        #     key_input = input("Do you want to save the data? y/n")
-
-        #     if key_input == "y":
-        #         print("Okay, Saving to textfile...")
-
-        #         file1 = open("aX.txt", "a")
-        #         file2 = open("aY.txt", "a")
-        #         file3 = open("aZ.txt", "a")
-        #         file4 = open("gX.txt", "a")
-        #         file5 = open("gY.txt", "a")
-        #         file6 = open("gZ.txt", "a")
-        #         file7 = open("action.txt", "a")
-
-        #         # convert list to comma-separated string
-        #         data_str1 = ','.join(str(item) for item in arr1)
-        #         data_str2 = ','.join(str(item) for item in arr2)
-        #         data_str3 = ','.join(str(item) for item in arr3)
-        #         data_str4 = ','.join(str(item) for item in arr4)
-        #         data_str5 = ','.join(str(item) for item in arr5)
-        #         data_str6 = ','.join(str(item) for item in arr6)
-                
-        #         # Write some data to each file
-        #         file1.write(data_str1 + "\n")
-        #         file2.write(data_str2 + "\n")
-        #         file3.write(data_str3 + "\n")
-        #         file4.write(data_str4 + "\n")
-        #         file5.write(data_str5 + "\n")
-        #         file6.write(data_str6 + "\n")
-        #         # 3 GRENADE
-        #         file7.write("3\n")
-
-        #         # Close all the files
-        #         file1.close()
-        #         file2.close()
-        #         file3.close()
-        #         file4.close()
-        #         file5.close()
-        #         file6.close()
-        #     else:
-        #         print("Okay, ignoring current take...")
-
-        #     arr1.clear()
-        #     arr2.clear()
-        #     arr3.clear()
-        #     arr4.clear()
-        #     arr5.clear()
-        #     arr6.clear()
-
-        #     key_input = ""
-        #     counter = 0
         global counter
         if flag.is_set():
             motiondata = data['motionData']
@@ -263,7 +173,7 @@ class MyDelegate(DefaultDelegate):
                 file5.write(data_str5 + "\n")
                 file6.write(data_str6 + "\n")
                 # 3 GRENADE
-                file7.write("4\n")
+                file7.write("1\n")
 
                 # Close all the files
                 file1.close()
@@ -329,27 +239,12 @@ class MyDelegate(DefaultDelegate):
                     }
                     self.motionPacketsCount += 1
                     # print("MotionPacketsCount: ", self.motionPacketsCount)
-                    # print(sendData)
+                    print(sendData)
                     self.savedata(sendData)
                     # self.lock.acquire()
                     # self.dataBuffer.put(sendData)
                     # self.lock.release()
-                if packetType == 'B' or packetType == 'H':
-                    expectedPacketFormat = ("bb?16xb")
-                    self.gunPacketsCount += 1
-                    print("GunPacketsCount: ", self.gunPacketsCount)
-                    unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-                    sendData = {
-                        "playerID": self.playerId,
-                        "beetleID": self.deviceId,
-                        "hit": unpackedPacket[2],
-                    }
-                    print(sendData)
-                    self.lock.acquire()
-                    self.dataBuffer.put(sendData)
-                    self.lock.release()
-                    self.sendAckPacket()
-                self.receivingBuffer = b''
+
             else:
                 self.fragPacketsCount += 1
                 self.receivingBuffer = self.receivingBuffer + data
@@ -360,49 +255,6 @@ class MyDelegate(DefaultDelegate):
         except CheckSumFailedError:
             self.handleCheckSumError(data)
 
-
-
-
-
-    def ohandleNotification(self, cHandle, data):
-        self.receivingBuffer += data
-        print("Data received from beetle: ", self.receivingBuffer)
-        if (len(self.receivingBuffer)) == 1 and self.receivingBuffer == b'A' and not ACK_FLAGS[self.deviceId]:
-            # global beetleAck
-            # beetleAck = True
-            ACK_FLAGS[self.deviceId] = True
-            self.receivingBuffer = b'' # reset the data
-
-        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) >1:
-            dataPacket = self.receivingBuffer[0:20]
-            unpackedPacket = ()
-            # expectedPacketFormat = (
-            #     'b'
-            #     'b'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'x'
-            #     'b'
-            # )
-            expectedPacketFormat = ("bb6hxb")
-            unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-            # dataPacket = dataPacket[::-1]
-            print(unpackedPacket)
-            # packetType = struct.unpack('b', dataPacket[0])
-            # deviceId = struct.unpack('i', dataPacket[1])
-            # print(self.receivingBuffer)
-            # print(packetType, deviceId)
-            self.receivingBuffer = b''
-        self.receivingBuffer = b''
-
-
-    def checkCRC(self, length):
-        calcChecksum = Crc8.calc(self.buffer[0: length])
-        return calcChecksum == self.buffer[length]
 
 
 class BeetleConnectionThread:
@@ -418,7 +270,6 @@ class BeetleConnectionThread:
         self.serialChar = None
         self.receivingBuffer = receivingBuffer
         self.hasHandshaken = False
-        self.isKeyPressed = False
 
     def writetoBeetle(self):
         pass
@@ -431,7 +282,7 @@ class BeetleConnectionThread:
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
-                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar, self.isKeyPressed)
+                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar)
             self.dev.withDelegate(deviceDelegate)
             return True
             # break
@@ -506,50 +357,6 @@ class BeetleConnectionThread:
                 pass
 
 
-def executeThreads():
-    # create threads
-
-    # lock is used to acquire the objects like mutex, so that the dataBuffer is not written in by the other threads
-    lock = mp.lock()
-
-    # using a multiprocessing queue FIFO
-    dataBuffer = mp.Queue()
-
-    # Player 1
-    IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock)
-    IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications())
-
-    Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock)
-    Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications())
-
-    Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock)
-    Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications())
-
-    # Player 2
-    IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock)
-    IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications())
-
-    Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock)
-    Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
-
-    Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock)
-    Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications())
-
-    IMU1_Thread.start()
-    Gun1_Thread.start()
-    Vest1_Thread.start()
-
-    # IMU2_Thread.start()
-    # Gun2_Thread.start()
-    # Vest2_Thread.start()
-
-    IMU1_Thread.join()
-    Gun1_Thread.join()
-    Vest1_Thread.join()
-
-    # IMU2_Thread.join()
-    # Gun2_Thread.join()
-    # Vest2_Thread.join()
 
 
 class Check_Thread(threading.Thread):
@@ -579,38 +386,14 @@ if __name__ == '__main__':
         receivingBuffer1 = b''
         receivingBuffer2 = b''
         receivingBuffer3 = b''
-        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer)
-        # IMU2_Beetle.executeCommunications()
 
-        # # Devices 234
-        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
-        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
-
-        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
-
-        # # Player 2
-        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
-        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
         
         check_thread = Check_Thread()
         check_thread.start()
-        # Gun1_Thread.daemon = True
-        # Vest1_Thread.daemon = True
-        # IMU2_Thread.daemon = True
-
-        # Gun1_Thread.start()
-        # Vest1_Thread.start()
-        # IMU2_Thread.start()
-
-        # Gun1_Thread.join()
-        # Vest1_Thread.join()
-        # IMU2_Thread.join()
 
         IMU1_Thread.start()
         IMU1_Thread.join()
