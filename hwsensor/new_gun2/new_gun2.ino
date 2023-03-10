@@ -17,6 +17,8 @@ long debounceDelay = 50;    // the debounce time; increase if the output flicker
 int bullets = 6;
 bool dummy_shot = false;
 
+bool isReloading = false;
+
 Adafruit_MPU6050 mpu;
 
 byte dataPacket[20];
@@ -131,17 +133,32 @@ void sendSensorReading() {
     Serial.write((byte *)&gunPacket, sizeof(gunPacket));
 }
 
+void playReloadTone() {
+    tone(buzzer, 7 * 200); // Send 1KHz sound signal...
+    delay(1500);        // ...for 1 sec
+    noTone(buzzer);     // Stop sound...
+    //delay(500);        // ...for 1sec     
+}
+
 boolean hasSent = false;
 boolean hasAcknowledged = false;
 
 int count = 0;
 
 void loop(void) {
-  if(bullets <= 0) {
-      bullets = 6;
+  // if(bullets <= 0) {
+  //     bullets = 6;
+  //     playReloadTone();
+  // }
+
+  if(isReloading) {
+    bullets = 6;
+    playReloadTone();
+    isReloading = false;
   }
+
   buttonState = digitalRead(inputPin);
-  if( (millis() - lastDebounceTime) > debounceDelay) {
+  if((millis() - lastDebounceTime) > debounceDelay) {
     if (buttonState == HIGH) {            // check if the input is HIGH
       lastDebounceTime = millis(); //set the current time
 
