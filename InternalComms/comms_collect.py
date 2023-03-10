@@ -221,7 +221,7 @@ class MyDelegate(DefaultDelegate):
             arr4.append(row[3])
             arr5.append(row[4])
             arr6.append(row[5])
-            # print("", row)
+            print("DATA RECV", row)
             
         else:
             # put line
@@ -557,7 +557,7 @@ class Check_Thread(threading.Thread):
                 else:
                     flag.set()
                     print("FLAG IS SET")
-                time.sleep(1)
+                time.sleep(0.5)
 
                 
                 
