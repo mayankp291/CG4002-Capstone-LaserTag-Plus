@@ -325,7 +325,7 @@ void loop(void) {
     }
   }
 
-getSensorReading();
-sendSensorReading();
+//getSensorReading();
+//sendSensorReading();
 
 }
