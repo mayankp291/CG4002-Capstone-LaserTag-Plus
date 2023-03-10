@@ -26,6 +26,13 @@ Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 # serialChar = serialSvc.getCharacteristics(
 #     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
 
+
+# 'GRENADE': 3
+# 'LOGOUT' : 0
+# 'SHIELD' : 1
+# 'RELOAD' : 2
+# 'IDLE' : 4
+
 macAddresses = {
     1: "D0:39:72:BF:BF:BB", #imu1
     2: "D0:39:72:BF:C6:07", #VEST1
@@ -71,7 +78,7 @@ arr66 =[]
 keyPress = False
 key_input = ""
 counter = 1
-ACTION  = 'SHIELD'
+ACTION  = 'RELOAD'
 
 NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
@@ -256,7 +263,7 @@ class MyDelegate(DefaultDelegate):
                 file5.write(data_str5 + "\n")
                 file6.write(data_str6 + "\n")
                 # 3 GRENADE
-                file7.write("0\n")
+                file7.write("4\n")
 
                 # Close all the files
                 file1.close()
@@ -322,7 +329,7 @@ class MyDelegate(DefaultDelegate):
                     }
                     self.motionPacketsCount += 1
                     # print("MotionPacketsCount: ", self.motionPacketsCount)
-                    print(sendData)
+                    # print(sendData)
                     self.savedata(sendData)
                     # self.lock.acquire()
                     # self.dataBuffer.put(sendData)
