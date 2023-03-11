@@ -6,23 +6,21 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import skew
-from scipy.fftpack import fft
-from sklearn.preprocessing import minmax_scale
 
-# INPUTS = 792 # 128 captures (for one sensor reading) * 6 sensor reading types + 4 extracted features * 6 sensor reading types --> only talking about the width, not the length of matrices
 
 NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
+LEARNING_RATE = 0.01
 NUM_FEATURES = 8
 INPUTS = NUM_FEATURES * 6 #  9 extracted features * 6 sensor reading types 
-DATA_LABELS = ["logout", "shield", "reload", "grenade", "none"]
+DATA_LABELS = ["logout", "shield", "reload", "grenade", "idle"]
 OUTPUTS = len(DATA_LABELS)
-EPOCHS = 50
+EPOCHS = 45
 THRESHOLD_PRECISION_TRAIN_DATA = 10
 PRINT_PRECISION_TEST_DATA = 8
 PRINT_PRECISION_WEIGHTS = 9
 ACTUAL_PRECISION_TRAIN_DATA = 6
+
 
 
 def custom_module_func(jagged_array, module_name, func_name):
@@ -99,12 +97,12 @@ def extract_features(*argsv):
     # signal_gyro_y = fft(argsv[4], axis=1)
     # signal_gyro_z = fft(argsv[5], axis=1)
 
-    # mag_acc_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    # mag_acc_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    # mag_acc_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    # mag_gyro_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    # mag_gyro_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    # mag_gyro_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_acc_x = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
+    # mag_acc_y = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
+    # mag_acc_z = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
+    # mag_gyro_x = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
+    # mag_gyro_y = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
+    # mag_gyro_z = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax"), (-1, 1))
 
     mag_acc_x = custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs")
     mag_acc_y = custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs")
@@ -121,12 +119,12 @@ def extract_features(*argsv):
     max_mag_gyro_z = np.reshape(custom_module_func(mag_gyro_z, "numpy", "amax"), (-1, 1))
 
 
-    energy_acc_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_x], "numpy", "sum") , (-1, 1))
-    energy_acc_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_y], "numpy", "sum") , (-1, 1))
-    energy_acc_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_z], "numpy", "sum") , (-1, 1))
-    energy_gyro_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_x], "numpy", "sum") , (-1, 1))
-    energy_gyro_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_y], "numpy", "sum") , (-1, 1))
-    energy_gyro_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_z], "numpy", "sum") , (-1, 1))
+    # energy_acc_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_x], "numpy", "sum") , (-1, 1))
+    # energy_acc_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_y], "numpy", "sum") , (-1, 1))
+    # energy_acc_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_z], "numpy", "sum") , (-1, 1))
+    # energy_gyro_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_x], "numpy", "sum") , (-1, 1))
+    # energy_gyro_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_y], "numpy", "sum") , (-1, 1))
+    # energy_gyro_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_z], "numpy", "sum") , (-1, 1))
 
 
     phase_acc_x = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
@@ -238,8 +236,7 @@ def get_raw_data(data_paths):
             lines = text_file.readlines()
             for line in lines:
                 temp_array_row = line.strip().split(",")
-                normalised_temp_row = minmax_scale([int(i) for i in temp_array_row])
-                temp_array.append([i * pow(10, 8) for i in normalised_temp_row])
+                temp_array.append([int(i) for i in temp_array_row])
         
         # jagged_array = np.empty((len(temp_array),), dtype=object)
 
@@ -268,7 +265,7 @@ def get_model():
     model.add(tf.keras.layers.Dense(OUTPUTS, activation="softmax"))
 
     model.compile(
-        optimizer="adam",
+        optimizer=tf.keras.optimizers.Adam(lr=LEARNING_RATE),
         loss="categorical_crossentropy",
         metrics=["accuracy"]
     )
@@ -283,13 +280,13 @@ def save_raw_weights_to_file(model, file_name):
     with open(file_name, "a") as params_file:
         for index, layer in enumerate(model.layers):
             if len(layer.get_weights()) > 0:
-                print(f"layer {index}\n", layer.get_weights())
+                # print(f"layer {index}\n", layer.get_weights())
                 for count, ele in enumerate(["weights", "biases"]):
                     params_file.write(f"\n\n\nlayer {index} - {ele}\n\n")
                     weights_content = np.transpose(layer.get_weights()[count])
                     params_file.write(str(weights_content.shape) + "\n\n")
                     np.savetxt(params_file, weights_content, fmt=f"%.{PRINT_PRECISION_WEIGHTS}f", delimiter=", ")
-                    print(layer.get_weights()[count].shape)
+                    # print(layer.get_weights()[count].shape)
 
 
 def is_array_correct(array_content, indexes):
@@ -388,7 +385,7 @@ def main():
     data_paths = get_data_paths()
     raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z = get_raw_data(data_paths)
     labels = get_data_labels()
-    train_acc_x, test_acc_x, train_acc_y, test_acc_y, train_acc_z, test_acc_z, train_gyro_x, test_gyro_x, train_gyro_y, test_gyro_y, train_gyro_z, test_gyro_z, training_data_labels, testing_data_labels = train_test_split(raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z, labels, test_size=0.25)
+    train_acc_x, test_acc_x, train_acc_y, test_acc_y, train_acc_z, test_acc_z, train_gyro_x, test_gyro_x, train_gyro_y, test_gyro_y, train_gyro_z, test_gyro_z, training_data_labels, testing_data_labels = train_test_split(raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z, labels, test_size=0.3)
     training_dataset = load_data("train", train_acc_x, train_acc_y, train_acc_z, train_gyro_x, train_gyro_y,  train_gyro_z)
     testing_dataset = load_data("test", test_acc_x, test_acc_y, test_acc_z, test_gyro_x, test_gyro_y, test_gyro_z)
     print(testing_dataset.shape, testing_data_labels.shape)
@@ -419,13 +416,13 @@ def main():
     plt.ylabel("Actual")
     
     # Comment/Uncomment out to remove/restore the heat map 
-    plt.show()
+    # plt.show()
 
-    # Extract weights and biases to text file
-    extract_params(model, "params.txt")
+    # # Extract weights and biases to text file
+    # extract_params(model, "params.txt")
 
-    # Print testing dataset to text file
-    save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
+    # # Print testing dataset to text file
+    # save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
 
 if __name__ == "__main__":
