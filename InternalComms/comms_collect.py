@@ -138,86 +138,7 @@ class MyDelegate(DefaultDelegate):
 
     def savedata(self, data):
         
-        # if keyboard.is_pressed("a"):
-        # print(self.isKeyPressed)
-        # if self.isKeyPressed:
-        # if not key_input:
-        #     key_input = input("Get Data? y/n")
-        #     print("okay, collecting data...")
-        
-        # if key_input != "y":
-        #     return
-        
-        # if counter <= NUM_OF_DATA_POINTS:
 
-        #     motiondata = data['motionData']
-        #     row = list(motiondata.values())
-        #     arr1.append(row[0])
-        #     arr2.append(row[1])
-        #     arr3.append(row[2])
-        #     arr4.append(row[3])
-        #     arr5.append(row[4])
-        #     arr6.append(row[5])
-        #     print("WORKS", row)
-
-        #     counter += 1
-            
-        # else:
-        #     # put line
-        #     # newline
-        #     # empty arr
-        #     # Open the six files in append mode
-        #     print("Data collected!")
-        #     key_input = input("Do you want to save the data? y/n")
-
-        #     if key_input == "y":
-        #         print("Okay, Saving to textfile...")
-
-        #         file1 = open("aX.txt", "a")
-        #         file2 = open("aY.txt", "a")
-        #         file3 = open("aZ.txt", "a")
-        #         file4 = open("gX.txt", "a")
-        #         file5 = open("gY.txt", "a")
-        #         file6 = open("gZ.txt", "a")
-        #         file7 = open("action.txt", "a")
-
-        #         # convert list to comma-separated string
-        #         data_str1 = ','.join(str(item) for item in arr1)
-        #         data_str2 = ','.join(str(item) for item in arr2)
-        #         data_str3 = ','.join(str(item) for item in arr3)
-        #         data_str4 = ','.join(str(item) for item in arr4)
-        #         data_str5 = ','.join(str(item) for item in arr5)
-        #         data_str6 = ','.join(str(item) for item in arr6)
-                
-        #         # Write some data to each file
-        #         file1.write(data_str1 + "\n")
-        #         file2.write(data_str2 + "\n")
-        #         file3.write(data_str3 + "\n")
-        #         file4.write(data_str4 + "\n")
-        #         file5.write(data_str5 + "\n")
-        #         file6.write(data_str6 + "\n")
-        #         # 3 GRENADE
-        #         file7.write("3\n")
-
-        #         # Close all the files
-        #         file1.close()
-        #         file2.close()
-        #         file3.close()
-        #         file4.close()
-        #         file5.close()
-        #         file6.close()
-        #     else:
-        #         print("Okay, ignoring current take...")
-
-        #     arr1.clear()
-        #     arr2.clear()
-        #     arr3.clear()
-        #     arr4.clear()
-        #     arr5.clear()
-        #     arr6.clear()
-
-        #     key_input = ""
-        #     counter = 0
         global counter
         if flag.is_set():
             motiondata = data['motionData']
@@ -238,13 +159,13 @@ class MyDelegate(DefaultDelegate):
             if(arr1):
                 print(f"Data collected and saved for {ACTION}, iteration {counter}")
                 counter+=1
-                file1 = open("aX.txt", "a")
-                file2 = open("aY.txt", "a")
-                file3 = open("aZ.txt", "a")
-                file4 = open("gX.txt", "a")
-                file5 = open("gY.txt", "a")
-                file6 = open("gZ.txt", "a")
-                file7 = open("action.txt", "a")
+                file1 = open("../dataCollect/aX.txt", "a")
+                file2 = open("../dataCollect/aY.txt", "a")
+                file3 = open("../dataCollect/aZ.txt", "a")
+                file4 = open("../dataCollect/gX.txt", "a")
+                file5 = open("../dataCollect/gY.txt", "a")
+                file6 = open("../dataCollect/gZ.txt", "a")
+                file7 = open("../dataCollect/action.txt", "a")
                 
                 # convert list to comma-separated string
                 data_str1 = ','.join(str(item) for item in arr1)
@@ -263,7 +184,7 @@ class MyDelegate(DefaultDelegate):
                 file5.write(data_str5 + "\n")
                 file6.write(data_str6 + "\n")
                 # 3 GRENADE
-                file7.write("4\n")
+                file7.write("2\n")
 
                 # Close all the files
                 file1.close()
