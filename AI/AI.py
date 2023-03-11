@@ -15,7 +15,7 @@ from sklearn.preprocessing import minmax_scale
 NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
 NUM_FEATURES = 8
-INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types 
+INPUTS = NUM_FEATURES * 6 #  9 extracted features * 6 sensor reading types 
 DATA_LABELS = ["logout", "shield", "reload", "grenade", "none"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 50
@@ -38,7 +38,7 @@ def custom_module_func(jagged_array, module_name, func_name):
         temp_array = []
 
         for i in range(len(jagged_array)):
-            temp_array.append(list([func(np.array(jagged_array[i]))])) 
+            temp_array.append(list(func(np.array(jagged_array[i])))) 
 
         del jagged_array
         return temp_array      
@@ -77,12 +77,12 @@ def extract_features(*argsv):
     min_gyro_y = custom_module_func(argsv[4], "numpy", "amin").reshape(-1,1)
     min_gyro_z = custom_module_func(argsv[5], "numpy", "amin").reshape(-1,1)
 
-    rms_acc_x = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[0]], "numpy", "mean"))), (-1, 1))
-    rms_acc_y = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[1]], "numpy", "mean"))), (-1, 1))
-    rms_acc_z = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[2]], "numpy", "mean"))), (-1, 1))
-    rms_gyro_x = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[3]], "numpy", "mean"))), (-1, 1))
-    rms_gyro_y = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[4]], "numpy", "mean"))), (-1, 1))
-    rms_gyro_z = np.reshape((np.sqrt(custom_module_func([[int(i)**2 for i in row] for row in argsv[5]], "numpy", "mean"))), (-1, 1))
+    rms_acc_x = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[0]], "numpy", "mean"))), (-1, 1))
+    rms_acc_y = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[1]], "numpy", "mean"))), (-1, 1))
+    rms_acc_z = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[2]], "numpy", "mean"))), (-1, 1))
+    rms_gyro_x = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[3]], "numpy", "mean"))), (-1, 1))
+    rms_gyro_y = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[4]], "numpy", "mean"))), (-1, 1))
+    rms_gyro_z = np.reshape((np.sqrt(custom_module_func([[i**2 for i in row] for row in argsv[5]], "numpy", "mean"))), (-1, 1))
 
     skew_acc_x = np.reshape(custom_module_func(argsv[0], "scipy.stats", "skew"), (-1, 1))
     skew_acc_y = np.reshape(custom_module_func(argsv[1], "scipy.stats", "skew"), (-1, 1))
@@ -99,20 +99,42 @@ def extract_features(*argsv):
     # signal_gyro_y = fft(argsv[4], axis=1)
     # signal_gyro_z = fft(argsv[5], axis=1)
 
-    mag_acc_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    mag_acc_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    mag_acc_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    mag_gyro_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    mag_gyro_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
-    mag_gyro_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_acc_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_acc_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_acc_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_gyro_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_gyro_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+    # mag_gyro_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "abs"), "numpy", "amax")), (-1, 1))
+
+    mag_acc_x = custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "abs")
+    mag_acc_y = custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "abs")
+    mag_acc_z = custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "abs")
+    mag_gyro_x = custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "abs")
+    mag_gyro_y = custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "abs")
+    mag_gyro_z = custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "abs")
+
+    max_mag_acc_x = np.reshape(custom_module_func(mag_acc_x, "numpy", "amax"), (-1, 1))
+    max_mag_acc_y = np.reshape(custom_module_func(mag_acc_y, "numpy", "amax"), (-1, 1))
+    max_mag_acc_z = np.reshape(custom_module_func(mag_acc_z, "numpy", "amax"), (-1, 1))
+    max_mag_gyro_x = np.reshape(custom_module_func(mag_gyro_x, "numpy", "amax"), (-1, 1))
+    max_mag_gyro_y = np.reshape(custom_module_func(mag_gyro_y, "numpy", "amax"), (-1, 1))
+    max_mag_gyro_z = np.reshape(custom_module_func(mag_gyro_z, "numpy", "amax"), (-1, 1))
 
 
-    phase_acc_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
-    phase_acc_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
-    phase_acc_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
-    phase_gyro_x = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
-    phase_gyro_y = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
-    phase_gyro_z = np.reshape((custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax")), (-1, 1))
+    energy_acc_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_x], "numpy", "sum") , (-1, 1))
+    energy_acc_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_y], "numpy", "sum") , (-1, 1))
+    energy_acc_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_acc_z], "numpy", "sum") , (-1, 1))
+    energy_gyro_x = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_x], "numpy", "sum") , (-1, 1))
+    energy_gyro_y = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_y], "numpy", "sum") , (-1, 1))
+    energy_gyro_z = np.reshape(custom_module_func([[i** 2 for i in row] for row in mag_gyro_z], "numpy", "sum") , (-1, 1))
+
+
+    phase_acc_x = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[0], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
+    phase_acc_y = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[1], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
+    phase_acc_z = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[2], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
+    phase_gyro_x = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[3], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
+    phase_gyro_y = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[4], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
+    phase_gyro_z = np.reshape(custom_module_func(custom_module_func(custom_module_func(argsv[5], "scipy.fftpack", "fft"), "numpy", "angle"), "numpy", "amax"), (-1, 1))
 
     # Concatenating operation
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
@@ -123,7 +145,7 @@ def extract_features(*argsv):
     min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z, 
     rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z, 
     skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
-    mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+    max_mag_acc_x, max_mag_acc_y, max_mag_acc_z, max_mag_gyro_x, max_mag_gyro_y, max_mag_gyro_z,
     phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z), axis=1)
 
 
@@ -216,7 +238,8 @@ def get_raw_data(data_paths):
             lines = text_file.readlines()
             for line in lines:
                 temp_array_row = line.strip().split(",")
-                temp_array.append(temp_array_row)
+                normalised_temp_row = minmax_scale([int(i) for i in temp_array_row])
+                temp_array.append([i * pow(10, 8) for i in normalised_temp_row])
         
         # jagged_array = np.empty((len(temp_array),), dtype=object)
 
