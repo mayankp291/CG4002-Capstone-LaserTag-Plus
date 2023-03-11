@@ -1,6 +1,8 @@
 from pynq import Overlay
 from pynq import allocate
 import numpy as np
+from scipy.stats import skew
+from scipy.fftpack import fft
 
 NUM_OUTPUT = 1
 
@@ -14,13 +16,12 @@ def extract_features(input):
     mean_gyro_z = np.mean(input[5], axis=1).reshape(-1,1)
 
 
-    sd_precision = 100000
-    sd_acc_x = np.std(input[0], axis=1).reshape(-1,1) * sd_precision
-    sd_acc_y = np.std(input[1], axis=1).reshape(-1,1) * sd_precision
-    sd_acc_z = np.std(input[2], axis=1).reshape(-1,1) * sd_precision
-    sd_gyro_x = np.std(input[3], axis=1).reshape(-1,1) * sd_precision
-    sd_gyro_y = np.std(input[4], axis=1).reshape(-1,1) * sd_precision
-    sd_gyro_z = np.std(input[5], axis=1).reshape(-1,1) * sd_precision
+    sd_acc_x = np.std(input[0], axis=1).reshape(-1,1) 
+    sd_acc_y = np.std(input[1], axis=1).reshape(-1,1) 
+    sd_acc_z = np.std(input[2], axis=1).reshape(-1,1) 
+    sd_gyro_x = np.std(input[3], axis=1).reshape(-1,1)
+    sd_gyro_y = np.std(input[4], axis=1).reshape(-1,1) 
+    sd_gyro_z = np.std(input[5], axis=1).reshape(-1,1) 
 
     max_acc_x = np.amax(input[0], axis=1).reshape(-1,1)
     max_acc_y = np.amax(input[1], axis=1).reshape(-1,1)
@@ -36,13 +37,12 @@ def extract_features(input):
     min_gyro_y = np.amin(input[4], axis=1).reshape(-1,1)
     min_gyro_z = np.amin(input[5], axis=1).reshape(-1,1)
 
-    rms_precision = 100000
-    rms_acc_x = np.sqrt(np.mean(input[0]**2, axis=1), axis=1) * rms_precision
-    rms_acc_y = np.sqrt(np.mean(input[1]**2, axis=1), axis=1) * rms_precision
-    rms_acc_z = np.sqrt(np.mean(input[2]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_x = np.sqrt(np.mean(input[3]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_y = np.sqrt(np.mean(input[4]**2, axis=1), axis=1) * rms_precision
-    rms_gyro_z = np.sqrt(np.mean(input[5]**2, axis=1), axis=1) * rms_precision
+    rms_acc_x = np.sqrt(np.mean(input[0]**2, axis=1), axis=1) 
+    rms_acc_y = np.sqrt(np.mean(input[1]**2, axis=1), axis=1)
+    rms_acc_z = np.sqrt(np.mean(input[2]**2, axis=1), axis=1) 
+    rms_gyro_x = np.sqrt(np.mean(input[3]**2, axis=1), axis=1) 
+    rms_gyro_y = np.sqrt(np.mean(input[4]**2, axis=1), axis=1) 
+    rms_gyro_z = np.sqrt(np.mean(input[5]**2, axis=1), axis=1)
 
     skew_acc_x = skew(input[0], axis=1)
     skew_acc_y = skew(input[1], axis=1)
@@ -59,22 +59,19 @@ def extract_features(input):
     signal_gyro_y = fft(input[4], axis=1)
     signal_gyro_z = fft(input[5], axis=1)
 
-    mag_precision = 10000
-    mag_acc_x = np.amax(np.abs(signal_acc_x), axis=1) * mag_precision
-    mag_acc_y = np.amax(np.abs(signal_acc_y), axis=1) * mag_precision
-    mag_acc_z = np.amax(np.abs(signal_acc_z), axis=1) * mag_precision
-    mag_gyro_x = np.amax(np.abs(signal_gyro_x), axis=1) * mag_precision
-    mag_gyro_y = np.amax(np.abs(signal_gyro_y), axis=1) * mag_precision
-    mag_gyro_z = np.amax(np.abs(signal_gyro_z), axis=1) * mag_precision
+    mag_acc_x = np.amax(np.abs(signal_acc_x), axis=1) 
+    mag_acc_y = np.amax(np.abs(signal_acc_y), axis=1) 
+    mag_acc_z = np.amax(np.abs(signal_acc_z), axis=1) 
+    mag_gyro_x = np.amax(np.abs(signal_gyro_x), axis=1) 
+    mag_gyro_y = np.amax(np.abs(signal_gyro_y), axis=1) 
+    mag_gyro_z = np.amax(np.abs(signal_gyro_z), axis=1) 
 
-
-    phase_precision = 10000
-    phase_acc_x = np.amax(np.angle(signal_acc_x), axis=1) * phase_precision
-    phase_acc_y = np.amax(np.angle(signal_acc_y), axis=1) * phase_precision
-    phase_acc_z = np.amax(np.angle(signal_acc_z), axis=1) * phase_precision
-    phase_gyro_x = np.amax(np.angle(signal_gyro_x), axis=1) * phase_precision
-    phase_gryo_y = np.amax(np.angle(signal_gyro_y), axis=1) * phase_precision
-    phase_gyro_z = np.amax(np.angle(signal_gyro_z), axis=1) * phase_precision
+    phase_acc_x = np.amax(np.angle(signal_acc_x), axis=1) 
+    phase_acc_y = np.amax(np.angle(signal_acc_y), axis=1) 
+    phase_acc_z = np.amax(np.angle(signal_acc_z), axis=1) 
+    phase_gyro_x = np.amax(np.angle(signal_gyro_x), axis=1) 
+    phase_gyro_y = np.amax(np.angle(signal_gyro_y), axis=1) 
+    phase_gyro_z = np.amax(np.angle(signal_gyro_z), axis=1) 
     
 
     return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z,         sd_acc_x, sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z, 
@@ -120,7 +117,7 @@ def dma(input):
             elif action == 3:
                 return "grenade" 
             elif action == 4:
-                return "none"
+                return "idle"
             
             run = False
         except RuntimeError as e:
