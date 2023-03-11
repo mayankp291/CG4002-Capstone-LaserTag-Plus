@@ -149,6 +149,7 @@ class MyDelegate(DefaultDelegate):
                 unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
+                # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
                 print("packetType, deviceId, length ", packetType , "," , self.deviceId,
                       ",", len(self.receivingBuffer) )
@@ -201,6 +202,9 @@ class MyDelegate(DefaultDelegate):
 
         except CheckSumFailedError:
             self.handleCheckSumError(data)
+
+        except ValueError:
+            pass
 
 
 
@@ -323,15 +327,18 @@ class BeetleConnectionThread:
                     SYN_FLAGS[self.beetleId] = False
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
                     # continue
             except KeyboardInterrupt:
                 self.dev.disconnect()
+                print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
@@ -339,8 +346,10 @@ class BeetleConnectionThread:
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
 
-            except Exception:
-                pass
+            except Exception as e:
+                print("Unexpected error:", sys.exc_info()[0])
+                print(e.__doc__)
+                print(e.message)
 
 
 class Relay_Client(threading.Thread):
