@@ -18,7 +18,7 @@ NUM_FEATURES = 8
 INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types 
 DATA_LABELS = ["logout", "shield", "reload", "grenade", "none"]
 OUTPUTS = len(DATA_LABELS)
-EPOCHS = 30
+EPOCHS = 50
 THRESHOLD_PRECISION_TRAIN_DATA = 10
 PRINT_PRECISION_TEST_DATA = 8
 PRINT_PRECISION_WEIGHTS = 9
@@ -365,7 +365,7 @@ def main():
     data_paths = get_data_paths()
     raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z = get_raw_data(data_paths)
     labels = get_data_labels()
-    train_acc_x, test_acc_x, train_acc_y, test_acc_y, train_acc_z, test_acc_z, train_gyro_x, test_gyro_x, train_gyro_y, test_gyro_y, train_gyro_z, test_gyro_z, training_data_labels, testing_data_labels = train_test_split(raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z, labels, test_size=0.30)
+    train_acc_x, test_acc_x, train_acc_y, test_acc_y, train_acc_z, test_acc_z, train_gyro_x, test_gyro_x, train_gyro_y, test_gyro_y, train_gyro_z, test_gyro_z, training_data_labels, testing_data_labels = train_test_split(raw_acc_x, raw_acc_y, raw_acc_z, raw_gyro_x, raw_gyro_y, raw_gyro_z, labels, test_size=0.25)
     training_dataset = load_data("train", train_acc_x, train_acc_y, train_acc_z, train_gyro_x, train_gyro_y,  train_gyro_z)
     testing_dataset = load_data("test", test_acc_x, test_acc_y, test_acc_z, test_gyro_x, test_gyro_y, test_gyro_z)
     print(testing_dataset.shape, testing_data_labels.shape)
