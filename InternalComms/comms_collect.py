@@ -11,6 +11,7 @@ import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
 import csv
 import keyboard
+import time
 
 # the peripheral class is used to connect and disconnect
 
@@ -24,6 +25,13 @@ Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 #     "0000dfb0-0000-1000-8000-00805f9b34fb")
 # serialChar = serialSvc.getCharacteristics(
 #     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
+
+
+# 'GRENADE': 3
+# 'LOGOUT' : 0
+# 'SHIELD' : 1
+# 'RELOAD' : 2
+# 'IDLE' : 4
 
 macAddresses = {
     1: "D0:39:72:BF:BF:BB", #imu1
@@ -68,6 +76,13 @@ arr55 =[]
 arr66 =[]
 
 keyPress = False
+key_input = ""
+counter = 1
+ACTION  = 'RELOAD'
+
+NUM_OF_DATA_POINTS = 128
+flag = threading.Event()
+flag.clear()
 
 class CheckSumFailedError(Exception):
     pass
@@ -126,10 +141,85 @@ class MyDelegate(DefaultDelegate):
         # if keyboard.is_pressed("a"):
         # print(self.isKeyPressed)
         # if self.isKeyPressed:
-        print(keyPress)
-        if keyboard.is_pressed("a"):
+        # if not key_input:
+        #     key_input = input("Get Data? y/n")
+        #     print("okay, collecting data...")
+        
+        # if key_input != "y":
+        #     return
+        
+        # if counter <= NUM_OF_DATA_POINTS:
 
-        # if keyPress:
+        #     motiondata = data['motionData']
+        #     row = list(motiondata.values())
+        #     arr1.append(row[0])
+        #     arr2.append(row[1])
+        #     arr3.append(row[2])
+        #     arr4.append(row[3])
+        #     arr5.append(row[4])
+        #     arr6.append(row[5])
+        #     print("WORKS", row)
+
+        #     counter += 1
+            
+        # else:
+        #     # put line
+        #     # newline
+        #     # empty arr
+        #     # Open the six files in append mode
+        #     print("Data collected!")
+        #     key_input = input("Do you want to save the data? y/n")
+
+        #     if key_input == "y":
+        #         print("Okay, Saving to textfile...")
+
+        #         file1 = open("aX.txt", "a")
+        #         file2 = open("aY.txt", "a")
+        #         file3 = open("aZ.txt", "a")
+        #         file4 = open("gX.txt", "a")
+        #         file5 = open("gY.txt", "a")
+        #         file6 = open("gZ.txt", "a")
+        #         file7 = open("action.txt", "a")
+
+        #         # convert list to comma-separated string
+        #         data_str1 = ','.join(str(item) for item in arr1)
+        #         data_str2 = ','.join(str(item) for item in arr2)
+        #         data_str3 = ','.join(str(item) for item in arr3)
+        #         data_str4 = ','.join(str(item) for item in arr4)
+        #         data_str5 = ','.join(str(item) for item in arr5)
+        #         data_str6 = ','.join(str(item) for item in arr6)
+                
+        #         # Write some data to each file
+        #         file1.write(data_str1 + "\n")
+        #         file2.write(data_str2 + "\n")
+        #         file3.write(data_str3 + "\n")
+        #         file4.write(data_str4 + "\n")
+        #         file5.write(data_str5 + "\n")
+        #         file6.write(data_str6 + "\n")
+        #         # 3 GRENADE
+        #         file7.write("3\n")
+
+        #         # Close all the files
+        #         file1.close()
+        #         file2.close()
+        #         file3.close()
+        #         file4.close()
+        #         file5.close()
+        #         file6.close()
+        #     else:
+        #         print("Okay, ignoring current take...")
+
+        #     arr1.clear()
+        #     arr2.clear()
+        #     arr3.clear()
+        #     arr4.clear()
+        #     arr5.clear()
+        #     arr6.clear()
+
+        #     key_input = ""
+        #     counter = 0
+        global counter
+        if flag.is_set():
             motiondata = data['motionData']
             row = list(motiondata.values())
             arr1.append(row[0])
@@ -138,55 +228,63 @@ class MyDelegate(DefaultDelegate):
             arr4.append(row[3])
             arr5.append(row[4])
             arr6.append(row[5])
-            print("WORKS", row)
+            print("DATA RECV", row)
             
         else:
             # put line
             # newline
             # empty arr
-            # Open the six files in append mode
-            file1 = open("aX.txt", "a")
-            file2 = open("aY.txt", "a")
-            file3 = open("aZ.txt", "a")
-            file4 = open("gX.txt", "a")
-            file5 = open("gY.txt", "a")
-            file6 = open("gZ.txt", "a")
-            file7 = open("action.txt", "a")
+            # only save when arrays are non-empty
+            if(arr1):
+                print(f"Data collected and saved for {ACTION}, iteration {counter}")
+                counter+=1
+                file1 = open("aX.txt", "a")
+                file2 = open("aY.txt", "a")
+                file3 = open("aZ.txt", "a")
+                file4 = open("gX.txt", "a")
+                file5 = open("gY.txt", "a")
+                file6 = open("gZ.txt", "a")
+                file7 = open("action.txt", "a")
+                
+                # convert list to comma-separated string
+                data_str1 = ','.join(str(item) for item in arr1)
+                data_str2 = ','.join(str(item) for item in arr2)
+                data_str3 = ','.join(str(item) for item in arr3)
+                data_str4 = ','.join(str(item) for item in arr4)
+                data_str5 = ','.join(str(item) for item in arr5)
+                data_str6 = ','.join(str(item) for item in arr6)
+                
+                # print(data_str1)
+                # Write some data to each file
+                file1.write(data_str1 + "\n")
+                file2.write(data_str2 + "\n")
+                file3.write(data_str3 + "\n")
+                file4.write(data_str4 + "\n")
+                file5.write(data_str5 + "\n")
+                file6.write(data_str6 + "\n")
+                # 3 GRENADE
+                file7.write("4\n")
 
-            # convert list to comma-separated string
-            data_str1 = ','.join(str(item) for item in arr1)
-            data_str2 = ','.join(str(item) for item in arr2)
-            data_str3 = ','.join(str(item) for item in arr3)
-            data_str4 = ','.join(str(item) for item in arr4)
-            data_str5 = ','.join(str(item) for item in arr5)
-            data_str6 = ','.join(str(item) for item in arr6)
-            
-            # Write some data to each file
-            file1.write(data_str1 + "\n")
-            file2.write(data_str2 + "\n")
-            file3.write(data_str3 + "\n")
-            file4.write(data_str4 + "\n")
-            file5.write(data_str5 + "\n")
-            file6.write(data_str6 + "\n")
-            # 3 GRENADE
-            file7.write("3\n")
+                # Close all the files
+                file1.close()
+                file2.close()
+                file3.close()
+                file4.close()
+                file5.close()
+                file6.close()
 
-            # Close all the files
-            file1.close()
-            file2.close()
-            file3.close()
-            file4.close()
-            file5.close()
-            file6.close()
+                arr1.clear()
+                arr2.clear()
+                arr3.clear()
+                arr4.clear()
+                arr5.clear()
+                arr6.clear()
+                
+                
+                
+            # print("FLAG UNSET")
+            # flag.clear()
 
-            arr1.clear()
-            arr2.clear()
-            arr3.clear()
-            arr4.clear()
-            arr5.clear()
-            arr6.clear()
-
-            
 
 
     def handleNotification(self, cHandle, data):
@@ -233,9 +331,9 @@ class MyDelegate(DefaultDelegate):
                     # print("MotionPacketsCount: ", self.motionPacketsCount)
                     # print(sendData)
                     self.savedata(sendData)
-                    self.lock.acquire()
-                    self.dataBuffer.put(sendData)
-                    self.lock.release()
+                    # self.lock.acquire()
+                    # self.dataBuffer.put(sendData)
+                    # self.lock.release()
                 if packetType == 'B' or packetType == 'H':
                     expectedPacketFormat = ("bb?16xb")
                     self.gunPacketsCount += 1
@@ -454,12 +552,21 @@ def executeThreads():
     # Vest2_Thread.join()
 
 
-# class Check_Thread():
-#     def __init__(self) -> None:
-#         super().__init__()
-#     def run(self):
-#         while True:
-#             if keyboard.is_pressed("a"):
+class Check_Thread(threading.Thread):
+    def __init__(self) -> None:
+        super().__init__()
+    def run(self):
+        while True:
+            if keyboard.is_pressed("a"):
+                if flag.is_set():
+                    print("FLAG IS CLEARED")
+                    flag.clear()
+                else:
+                    flag.set()
+                    print("FLAG IS SET")
+                time.sleep(0.5)
+
+                
                 
 
 
@@ -488,9 +595,11 @@ if __name__ == '__main__':
 
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-        # check_thread = Check_Thread()
-        # check_thread.start()
+        
+        check_thread = Check_Thread()
+        check_thread.start()
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
@@ -505,7 +614,7 @@ if __name__ == '__main__':
 
         IMU1_Thread.start()
         IMU1_Thread.join()
-
+        check_thread.join()
         # while True: time.sleep(100)
 
         # signal.pause()

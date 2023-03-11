@@ -13,7 +13,7 @@ load_dotenv()
 
 
 # IMU = {'x': 0, 'y': 0, 'z': 0}
-IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
+# IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
 
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
@@ -86,7 +86,7 @@ class Relay_Client(threading.Thread):
 
 def main():
     # Relay_Client.tunnel_ultra96()
-    relay_thread = Relay_Client('localhost', 11000)
+    relay_thread = Relay_Client('172.20.10.2', 11000)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)
     # relay_thread2.start()
