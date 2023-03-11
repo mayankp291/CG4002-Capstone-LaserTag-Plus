@@ -418,11 +418,14 @@ def main():
     # Comment/Uncomment out to remove/restore the heat map 
     # plt.show()
 
-    # # Extract weights and biases to text file
-    # extract_params(model, "params.txt")
+    answer = input("Do you want to save current params and test data? Y/N:")
 
-    # # Print testing dataset to text file
-    # save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
+    if answer.lower() == "y":
+        # Extract weights and biases to text file
+        extract_params(model, "params.txt")
+
+        # Print testing dataset to text file
+        save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
 
 if __name__ == "__main__":
