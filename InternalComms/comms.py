@@ -149,6 +149,7 @@ class MyDelegate(DefaultDelegate):
                 unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
+                # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
                 print("packetType, deviceId, length ", packetType , "," , self.deviceId,
                       ",", len(self.receivingBuffer) )
@@ -201,6 +202,9 @@ class MyDelegate(DefaultDelegate):
 
         except CheckSumFailedError:
             self.handleCheckSumError(data)
+
+        except ValueError:
+            pass
 
 
 
@@ -323,15 +327,18 @@ class BeetleConnectionThread:
                     SYN_FLAGS[self.beetleId] = False
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
                     # continue
             except KeyboardInterrupt:
                 self.dev.disconnect()
+                print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
@@ -339,8 +346,10 @@ class BeetleConnectionThread:
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
 
-            except Exception:
-                pass
+            except Exception as e:
+                print("Unexpected error:", sys.exc_info()[0])
+                print(e.__doc__)
+                print(e.message)
 
 
 class Relay_Client(threading.Thread):
@@ -446,9 +455,10 @@ if __name__ == '__main__':
         # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
         # Player 1 (IMU)
-        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-        relay_thread = Relay_Client('172.20.10.2', 11000)
+        # relay_thread = Relay_Client('172.20.10.2', 11000)
         
         
 
@@ -464,10 +474,10 @@ if __name__ == '__main__':
         # Vest1_Thread.join()
         # IMU2_Thread.join()
 
-        # IMU1_Thread.start()
-        relay_thread.start()
-        # IMU1_Thread.join()
-        relay_thread.join()
+        IMU1_Thread.start()
+        # relay_thread.start()
+        IMU1_Thread.join()
+        # relay_thread.join()
 
         # while True: time.sleep(100)
 

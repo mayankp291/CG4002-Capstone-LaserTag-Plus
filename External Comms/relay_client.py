@@ -13,7 +13,7 @@ load_dotenv()
 
 
 # IMU = {'x': 0, 'y': 0, 'z': 0}
-# IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
+IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
 
 
 SOC_USERNAME = os.getenv("SOC_USERNAME")
@@ -39,10 +39,11 @@ class Relay_Client(threading.Thread):
     def run(self):
         try: 
             while True:
-                input("Press any button to send data")
+                # input("Press any button to send data")
                 msg = str(IMU)
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
+                time.sleep(0.1)
                 # self.recv()
         except:
             print('Connection to Relay Server lost')
@@ -78,6 +79,7 @@ class Relay_Client(threading.Thread):
 
 
     def send(self, message):
+        # message = str(len(message)) + '_' + message
         self.relaySocket.send(message.encode('utf-8'))
         # print('Sent message to Relay Server', message)
         print('Sent packet to Relay Server', end='\r')       
@@ -85,8 +87,8 @@ class Relay_Client(threading.Thread):
 
 
 def main():
-    # Relay_Client.tunnel_ultra96()
-    relay_thread = Relay_Client('172.20.10.2', 11000)
+    Relay_Client.tunnel_ultra96()
+    relay_thread = Relay_Client("localhost", PORT_BIND)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)
     # relay_thread2.start()
