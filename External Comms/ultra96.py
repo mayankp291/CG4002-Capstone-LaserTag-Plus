@@ -305,14 +305,14 @@ class Game_Engine(threading.Thread):
                     startTimeOne = 0
                     startTimeTwo = 0
                     player_state['p1']['hp'] = 100
-                    player_state['p1']['num_deaths'] += 1
+                    player_state['p1']['num_deaths'] = 0
                     player_state['p1']['bullets'] = 6
                     player_state['p1']['grenades'] = 2
                     player_state['p1']['num_shield'] = 3
                     player_state['p1']['shield_time'] = 0
                     player_state['p1']['shield_health'] = 0
                     player_state['p2']['hp'] = 100
-                    player_state['p2']['num_deaths'] += 1
+                    player_state['p2']['num_deaths'] = 0
                     player_state['p2']['bullets'] = 6
                     player_state['p2']['grenades'] = 2
                     player_state['p2']['num_shield'] = 3
@@ -323,8 +323,8 @@ class Game_Engine(threading.Thread):
     def AI_random(self, imu_data):
         # TODO send through DMA
         # print(imu_data)
-        # AI_actions = ['reload', 'shield', 'shoot', 'grenade']
-        AI_actions = ['logout']
+        AI_actions = ['shoot']
+        # AI_actions = ['logout']
         # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
         # AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
@@ -384,14 +384,14 @@ class MQTT_Client(threading.Thread):
             #     else: 
             #         print("[MQTT] Player 2 is not in grenade range")
             #         action_queue.put('grenade_p2_misses')
-            if message.payload == b'grenade_hit':
+            if message.payload == b'11_CHECK_grenade_hit':
                 # to update grenade damage for player 2
                 print("[MQTT] Player 2 is in grenade range")
                 action_queue.put('grenade_p2_hits') 
-            elif message.payload == b'grenade_miss':
+            elif message.payload == b'12_CHECK_grenade_miss':
                 print("[MQTT] Player 2 is not in grenade range")       
                 # action_queue.put('grenade_p2_misses') 
-            elif message.payload == b'update':
+            elif message.payload == b'6_CHECK_update':
                 player_state_copy = player_state.copy()
                 player_state_copy['p1']['action'] = 'none'
                 player_state_copy['p2']['action'] = 'none'
