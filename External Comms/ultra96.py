@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 from ast import literal_eval
 import threading
 import random
+import time
 import traceback
 import time
 
@@ -215,6 +216,9 @@ class Game_Engine(threading.Thread):
     def run(self):
         isPlayerOneShieldActivated = False
         isPlayerTwoShieldActivated = False
+        startTimeOne = 0
+        startTimeTwo = 0
+        viz_queue.put(('STATE', player_state))
         while True:
             if isPlayerOneShieldActivated:
                 player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
@@ -241,6 +245,9 @@ class Game_Engine(threading.Thread):
                 # Update action for player 1
                 if action != 'grenade_p2_hits':
                     player_state['p1']['action'] = action
+                if action != 'grenade_p1_hits':
+                    player_state['p2']['action'] = action
+                
                 # Update player 1 state (active player) and player 2 state (passive player)
                 if action == 'reload':
                     if player_state['p1']['bullets'] <= 0:
@@ -255,9 +262,9 @@ class Game_Engine(threading.Thread):
                         player_state['p2']['shield_health'] -= 30
                     else:
                         player_state['p2']['hp'] -= 30
-
+                        print("[STATUS] ", player_state)       
                 elif action == 'shield':
-                    if player_state['p1']['num_shield'] > 0:
+                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
                         player_state['p1']['num_shield'] -= 1
                         player_state['p1']['shield_time'] = 10
                         player_state['p1']['shield_health'] = 30
@@ -289,19 +296,43 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['shield_health'] = 0
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
-                if not action == 'grenade': 
+                if not action == 'grenade_p2_hits': 
                     viz_queue.put(('STATE', player_state)) 
                     eval_queue.put(player_state) 
+                
+                if action == 'logout':
+                    isPlayerOneShieldActivated = False
+                    isPlayerTwoShieldActivated = False
+                    startTimeOne = 0
+                    startTimeTwo = 0
+                    player_state['p1']['hp'] = 100
+                    player_state['p1']['num_deaths'] += 1
+                    player_state['p1']['bullets'] = 6
+                    player_state['p1']['grenades'] = 2
+                    player_state['p1']['num_shield'] = 3
+                    player_state['p1']['shield_time'] = 0
+                    player_state['p1']['shield_health'] = 0
+                    player_state['p2']['hp'] = 100
+                    player_state['p2']['num_deaths'] += 1
+                    player_state['p2']['bullets'] = 6
+                    player_state['p2']['grenades'] = 2
+                    player_state['p2']['num_shield'] = 3
+                    player_state['p2']['shield_time'] = 0
+                    player_state['p2']['shield_health'] = 0
 
 
     def AI_random(self, imu_data):
         # TODO send through DMA
         # print(imu_data)
-        AI_actions = ['reload', 'shield', 'shoot']
+        # AI_actions = ['reload', 'shield', 'shoot', 'grenade']
+        AI_actions = ['logout']
         # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
         # AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
+        players = ['p1', 'p2']
+        player = random.choice(players)
         action_queue.put(action)
+        # action_queue.put((player, action))
 
     def eval_check(self, player_State):
         pass
@@ -338,22 +369,34 @@ class MQTT_Client(threading.Thread):
             print("Error: could not publish message")
     def receive(self, client, userdata, message):
         try:
-            msg  = message.payload.decode("utf-8")
-            # msg = message.payload	
-            length = int(msg.split('_')[0])
-            check = msg.split('_')[1]
-            data = msg.split('_')[2]
-            print('====================================')
-            print("\n [MQTT] Received message from", message.topic, message.payload)
-            print('====================================')
-            if check == 'CHECK':
+            # msg  = message.payload.decode("utf-8")
+            # # msg = message.payload	
+            # length = int(msg.split('_')[0])
+            # check = msg.split('_')[1]
+            # data = msg.split('_')[2]
+            # print('====================================')
+            # print("\n [MQTT] Received message from", message.topic, message.payload)
+            # print('====================================')
+            # if check == 'CHECK':
+            #     # to update grenade damage for player 2
+            #     if data == 'Visible':
+            #         print("[MQTT] Player 2 is in grenade range")
+            #         action_queue.put('grenade_p2_hits')
+            #     else: 
+            #         print("[MQTT] Player 2 is not in grenade range")
+            #         action_queue.put('grenade_p2_misses')
+            if message.payload == b'grenade_hit':
                 # to update grenade damage for player 2
-                if data == 'Visble':
-                    print("[MQTT] Player 2 is in grenade range")
-                    action_queue.put('grenade_p2_hits')
-                else: 
-                    print("[MQTT] Player 2 is not in grenade range")
-                    action_queue.put('grenade_p2_misses')
+                print("[MQTT] Player 2 is in grenade range")
+                action_queue.put('grenade_p2_hits') 
+            elif message.payload == b'grenade_miss':
+                print("[MQTT] Player 2 is not in grenade range")       
+                # action_queue.put('grenade_p2_misses') 
+            elif message.payload == b'update':
+                player_state_copy = player_state.copy()
+                player_state_copy['p1']['action'] = 'none'
+                player_state_copy['p2']['action'] = 'none'
+                viz_queue.put(('STATE', player_state_copy))
         except:
             print('Error: message not in correct format')
             print(message.payload)
