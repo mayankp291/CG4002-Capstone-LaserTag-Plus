@@ -427,6 +427,8 @@ def main():
         # Print testing dataset to text file
         save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
+    # model.save('my_model.h5')
+
 
 if __name__ == "__main__":
     main()
