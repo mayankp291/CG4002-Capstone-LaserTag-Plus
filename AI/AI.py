@@ -12,7 +12,7 @@ NEURONS_HIDDEN_LAYER = [56]
 DROPOUT = 0.40
 LEARNING_RATE = 0.01
 NUM_FEATURES = 8
-INPUTS = NUM_FEATURES * 6 #  9 extracted features * 6 sensor reading types 
+INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types 
 DATA_LABELS = ["logout", "shield", "reload", "grenade", "idle"]
 OUTPUTS = len(DATA_LABELS)
 EPOCHS = 45
@@ -364,7 +364,7 @@ def save_raw_test_data_to_file(testing_dataset, testing_data_labels, file_name):
         print("\n\nTesting Data params:\n\n" +
               f"{testing_dataset.shape} {testing_data_labels.shape}")
         test_file.write(f"{testing_dataset.shape}\n")
-        np.savetxt(test_file, (np.array(testing_dataset) * pow(10, PRINT_PRECISION_TEST_DATA)), fmt="%d", delimiter=", ")
+        np.savetxt(test_file, np.array(testing_dataset), fmt="%d", delimiter=", ")
         test_file.write("\n\n\n\n\n")
 
         test_file.write(f"{testing_data_labels.shape}\n")
