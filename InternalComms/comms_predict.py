@@ -12,7 +12,7 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 import csv
 import time
 import tensorflow as tf
-
+import numpy as np
 
 model = tf.keras.models.load_model('my_mlp_model')
 # the peripheral class is used to connect and disconnect
@@ -169,7 +169,8 @@ class MyDelegate(DefaultDelegate):
 
                 # Print the predicted class
                 predicted_class = np.argmax(predictions[0])
-                print('Predicted class:', predicted_class, mapping[predicted_class])
+                # print('Predicted class:', predicted_class, mapping[predicted_class])
+                print('Predicted class:', predicted_class)
 
                 arr1.clear()
                 arr2.clear()
