@@ -148,13 +148,13 @@ class MyDelegate(DefaultDelegate):
             if(arr1):
                 print(f"Data collected and saved for {ACTION}, iteration {counter}")
                 counter+=1
-                file1 = open("aX.txt", "a")
-                file2 = open("aY.txt", "a")
-                file3 = open("aZ.txt", "a")
-                file4 = open("gX.txt", "a")
-                file5 = open("gY.txt", "a")
-                file6 = open("gZ.txt", "a")
-                file7 = open("action.txt", "a")
+                file1 = open("../dataCollect/aX.txt", "a")
+                file2 = open("../dataCollect/aY.txt", "a")
+                file3 = open("../dataCollect/aZ.txt", "a")
+                file4 = open("../dataCollect/gX.txt", "a")
+                file5 = open("../dataCollect/gY.txt", "a")
+                file6 = open("../dataCollect/gZ.txt", "a")
+                file7 = open("../dataCollect/action.txt", "a")
                 
                 # convert list to comma-separated string
                 data_str1 = ','.join(str(item) for item in arr1)
