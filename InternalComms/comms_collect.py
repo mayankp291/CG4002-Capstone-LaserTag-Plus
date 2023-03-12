@@ -139,7 +139,7 @@ class MyDelegate(DefaultDelegate):
     def savedata(self, data):
         
 
-        global counter
+        global counter, arr1, arr2, arr3, arr4, arr5, arr6
         if flag.is_set():
             motiondata = data['motionData']
             row = list(motiondata.values())
@@ -156,7 +156,7 @@ class MyDelegate(DefaultDelegate):
             # newline
             # empty arr
             # only save when arrays are non-empty
-            if(arr1):
+            if arr1:
                 print(f"Data collected and saved for {ACTION}, iteration {counter}")
                 counter+=1
                 file1 = open("../dataCollect/aX.txt", "a")
@@ -206,13 +206,10 @@ class MyDelegate(DefaultDelegate):
             # print("FLAG UNSET")
             # flag.clear()
 
-
-
     def handleNotification(self, cHandle, data):
         try:
-
             self.receivingBuffer += data
-            if len(self.receivingBuffer) >=20:
+            if len(self.receivingBuffer) >= 20:
                 # print("Data received from beetle: ", self.receivingBuffer)
                 # self.endTime = time.time()
                 # self.endTime = datetime.now()
@@ -228,10 +225,11 @@ class MyDelegate(DefaultDelegate):
                 unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
+                # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
-                # print("packetType, deviceId, length ", packetType , "," , self.deviceId,
-                #       ",", len(self.receivingBuffer) )
-                # # , ",", self.transmissionSpeed, "kbps"
+                # print("packetType, deviceId, length ", packetType, ",", self.deviceId,
+                      # ",", len(self.receivingBuffer))
+                # , ",", self.transmissionSpeed, "kbps"
                 # print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
                 if packetType == 'A':
                     self.handleAckPacket()
@@ -280,6 +278,9 @@ class MyDelegate(DefaultDelegate):
 
         except CheckSumFailedError:
             self.handleCheckSumError(data)
+
+        except ValueError:
+            pass
 
 
 
@@ -403,19 +404,18 @@ class BeetleConnectionThread:
                     SYN_FLAGS[self.beetleId] = False
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
                     # continue
-                # if keyboard.is_pressed("a"):
-                #     self.isKeyPressed = True
-                #     global keyPress
-                #     keyPress = True
             except KeyboardInterrupt:
                 self.dev.disconnect()
+                print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
@@ -423,8 +423,13 @@ class BeetleConnectionThread:
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
 
-            except Exception:
+            except FileNotFoundError:
                 pass
+
+            except Exception as e:
+                print("Unexpected error:", sys.exc_info()[0])
+                print(e.__doc__)
+                print(e.message)
 
 
 def executeThreads():
