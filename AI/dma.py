@@ -14,6 +14,8 @@ input_buffer = allocate(shape=(NUM_INPUT,), dtype=np.int32)
 output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
 move_detector = SlidingWindow(WINDOW_SIZE)
 
+# is_move_detection_skipped = False
+
 
 def extract_features(input):
 
@@ -94,12 +96,27 @@ def extract_features(input):
 
 
 def send_data(imu_data):
+    # global input_buffer, output_buffer, dma, is_move_detection_skipped
     global input_buffer, output_buffer, dma
 
     move_detector.add_new_value(imu_data)
 
+    if not move_detector.is_full():
+        return "none"
+
+    move_detector.update_threshold()
+
     if not move_detector.is_start_of_move():
         return "none"
+    
+    # if not is_move_detection_skipped:
+    #     start_index = move_detector.is_start_of_move()
+    #     if start_index >= 0:
+    #         for i in range(start_index):
+    #             move_detector.remove_old_value()
+    #             is_move_detection_skipped = True
+    
+    # is_move_detection_skipped = False
 
     features = extract_features(move_detector.get_window_matrix())
 

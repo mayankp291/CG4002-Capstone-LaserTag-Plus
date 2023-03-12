@@ -12,8 +12,7 @@ class SlidingWindow:
         
 
     def fill(self, new_data):
-        for d in new_data:
-            self.data.append(d)
+        self.data.extend(np.array(new_data))
         
         # update mean and std
         self.acc_mean = np.mean(np.array(self.data)[:, :3], axis=0)
@@ -31,24 +30,26 @@ class SlidingWindow:
         
 
     def add_new_value(self, new_value):
-        self.data.popleft()
-        self.data.append(new_value)
-        
-        # update mean and std
-        self.acc_mean = np.mean(np.array(self.data)[:, :3], axis=0)
-        self.acc_std = np.std(np.array(self.data)[:, :3], axis=0)
-        self.gyro_mean = np.mean(np.array(self.data)[:, 3:], axis=0)
-        self.gyro_std = np.std(np.array(self.data)[:, 3:], axis=0)
-        
+        if self.is_full():
+            self.data.popleft()
 
-    def remove_next_value(self):
-        self.data.popleft()
-        
+        self.data.append(new_value)
+    
+
+    def update_threshold(self):
         # update mean and std
         self.acc_mean = np.mean(np.array(self.data)[:, :3], axis=0)
         self.acc_std = np.std(np.array(self.data)[:, :3], axis=0)
         self.gyro_mean = np.mean(np.array(self.data)[:, 3:], axis=0)
         self.gyro_std = np.std(np.array(self.data)[:, 3:], axis=0)
+
+
+    def is_full(self):
+        return len(self.data) == self.window_size
+    
+
+    def remove_old_value(self):
+        self.data.popleft()
 
         
     def is_start_of_move(self):
@@ -78,7 +79,9 @@ class SlidingWindow:
                 else:
                     # confirmed start of move action
                     return True
+                    # return j
         return False
+        # return -1
 
 
     def get_window_matrix(self):    
