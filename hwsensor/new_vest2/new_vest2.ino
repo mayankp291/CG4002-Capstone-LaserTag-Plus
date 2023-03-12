@@ -102,24 +102,53 @@ void clearLEDs() {
 }
 
 void led() {
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 150);
-    }
+    int color = 0x800080;
+    if(healthPoint == 100) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x00FF00);
+    } else if(healthPoint == 90) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x0000FF);
+      color = 0x0000FF;
+    } else if(healthPoint == 80) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFC0CB);
+      color = 0xFFC0CB;
+    } else if(healthPoint == 70) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFFF00);
+      color = 0xFFFF00;
+    } else if(healthPoint == 60) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x800080);
+      color = 0x800080;
+    } else if(healthPoint == 40) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xADD8E6);
+      color = 0xADD8E6;
+    } else if(healthPoint == 30) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFF4500);
+      color = 0xFF4500;
+    } else if(healthPoint == 20) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFD700);
+      color = 0xFFD700;
+    } else if(healthPoint == 10) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDC143C);
+      color = 0xDC143C;
+    } else {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFF0000);
+      color = 0xFF0000;
+    } 
     leds.show();
-    delay(500);
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 0xFF0000);
-    }
-    leds.show();
-    delay(500);
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 50);
-    }
-    leds.show();
-    delay(500);
+    // delay(500);
+    // for(int i = 0; i < LED_COUNT; i++) {
+    //   leds.setPixelColor(i, 0xFF0000);
+    // }
+    // leds.show();
+    // delay(500);
+    // for(int i = 0; i < LED_COUNT; i++) {
+    //   leds.setPixelColor(i, 50);
+    // }
+    // leds.show();
+    delay(2000);
     clearLEDs();
     leds.show();
 }
+
 
 void doHandshake() {
   byte packetType = Serial.read();
@@ -190,9 +219,9 @@ void loop(void) {
             }
        }
 
-       if(hasHandshake == true) {
+       if(hasHandshake == true && dummy_is_shot == true) {
 //          count<=5 &&
-           delay(10000);
+//            delay(10000);
            sendSensorReading();
            hasSent = true;
            count++;

@@ -18,6 +18,7 @@ CONNECTION_TIMEOUT = 3
 
 Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
+dataBuffer = mp.Queue()
 
 # serialSvc = dev.getServiceByUUID(
 #     "0000dfb0-0000-1000-8000-00805f9b34fb")
@@ -148,6 +149,7 @@ class MyDelegate(DefaultDelegate):
                 unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
+                # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
                 print("packetType, deviceId, length ", packetType , "," , self.deviceId,
                       ",", len(self.receivingBuffer) )
@@ -171,7 +173,7 @@ class MyDelegate(DefaultDelegate):
                     self.motionPacketsCount += 1
                     print("MotionPacketsCount: ", self.motionPacketsCount)
                     print(sendData)
-                    self.savedata(sendData)
+                    # self.savedata(sendData)
                     self.lock.acquire()
                     self.dataBuffer.put(sendData)
                     self.lock.release()
@@ -200,6 +202,9 @@ class MyDelegate(DefaultDelegate):
 
         except CheckSumFailedError:
             self.handleCheckSumError(data)
+
+        except ValueError:
+            pass
 
 
 
@@ -322,15 +327,18 @@ class BeetleConnectionThread:
                     SYN_FLAGS[self.beetleId] = False
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
                     # continue
             except KeyboardInterrupt:
                 self.dev.disconnect()
+                print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
@@ -338,8 +346,42 @@ class BeetleConnectionThread:
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
 
-            except Exception:
-                pass
+            except Exception as e:
+                print("Unexpected error:", sys.exc_info()[0])
+                print(e.__doc__)
+                print(e.message)
+
+
+class Relay_Client(threading.Thread):
+    def __init__(self, ip, port) -> None:
+        super().__init__()
+        self.relay_ip = gethostbyname(ip)
+        self.relay_port = port
+        self.relaySocket = socket(AF_INET, SOCK_STREAM)
+        self.relaySocket.connect((self.relay_ip, self.relay_port))
+        print('Connected to Relay Server', self.relay_ip, self.relay_port)
+        
+
+    def run(self):
+        try: 
+            while True:
+                msg = dataBuffer.get()
+                # input("Press any button to send data")
+                # msg = str(IMU)
+                # msg = str(len(msg)) + '_' + msg
+                self.send(msg)
+                # self.recv()
+        except:
+            print('Connection to Relay Server lost')
+            self.relaySocket.close()
+            sys.exit()
+
+
+    def send(self, message):
+        self.relaySocket.send(message.encode('utf-8'))
+        # print('Sent message to Relay Server', message)
+        print('Sent packet to Relay Server', end='\r')       
+        
 
 
 def executeThreads():
@@ -391,9 +433,10 @@ def executeThreads():
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
+        
 
         # using a multiprocessing queue FIFO
-        dataBuffer = mp.Queue()
+        # dataBuffer = mp.Queue()
         receivingBuffer1 = b''
         receivingBuffer2 = b''
         receivingBuffer3 = b''
@@ -412,8 +455,12 @@ if __name__ == '__main__':
         # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
         # Player 1 (IMU)
-        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
+        # relay_thread = Relay_Client('172.20.10.2', 11000)
+        
+        
 
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
@@ -428,7 +475,9 @@ if __name__ == '__main__':
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
+        # relay_thread.start()
         IMU1_Thread.join()
+        # relay_thread.join()
 
         # while True: time.sleep(100)
 

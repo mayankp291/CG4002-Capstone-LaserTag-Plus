@@ -192,9 +192,9 @@ void loop(void) {
             }
        }
 
-       if(hasHandshake == true) {
+       if(hasHandshake == true && dummy_shot == true) {
 //          count<=5 &&
-           delay(10000);
+//            delay(10000);
            sendSensorReading();
            hasSent = true;
            count++;
