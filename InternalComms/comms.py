@@ -207,45 +207,6 @@ class MyDelegate(DefaultDelegate):
             pass
 
 
-
-
-
-    def ohandleNotification(self, cHandle, data):
-        self.receivingBuffer += data
-        print("Data received from beetle: ", self.receivingBuffer)
-        if (len(self.receivingBuffer)) == 1 and self.receivingBuffer == b'A' and not ACK_FLAGS[self.deviceId]:
-            # global beetleAck
-            # beetleAck = True
-            ACK_FLAGS[self.deviceId] = True
-            self.receivingBuffer = b'' # reset the data
-
-        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) >1:
-            dataPacket = self.receivingBuffer[0:20]
-            unpackedPacket = ()
-            # expectedPacketFormat = (
-            #     'b'
-            #     'b'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'x'
-            #     'b'
-            # )
-            expectedPacketFormat = ("bb6hxb")
-            unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-            # dataPacket = dataPacket[::-1]
-            print(unpackedPacket)
-            # packetType = struct.unpack('b', dataPacket[0])
-            # deviceId = struct.unpack('i', dataPacket[1])
-            # print(self.receivingBuffer)
-            # print(packetType, deviceId)
-            self.receivingBuffer = b''
-        self.receivingBuffer = b''
-
-
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
         return calcChecksum == self.buffer[length]
@@ -303,7 +264,7 @@ class BeetleConnectionThread:
         return hasHandshake
 
     def sendSynMessage(self):
-        self.dev.waitForNotifications(1.0)
+        # self.dev.waitForNotifications(1.0)
         if not SYN_FLAGS[self.beetleId]:
             print("sending syn to beetle")
             self.serialChar.write(bytes('S', encoding="utf-8"))
@@ -320,15 +281,19 @@ class BeetleConnectionThread:
                         isConnected = self.openBeetleConnection()
                     # hasHandshake = self.startThreeWayHandshake(hasHandshake)
                     self.sendSynMessage()
+
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
+                if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
+                    hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
+                    print('disconnecting')
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
                     SYN_FLAGS[self.beetleId] = False
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
-                if hasHandshake:
-                    self.dev.waitForNotifications(1)
                     # continue
             except KeyboardInterrupt:
                 self.dev.disconnect()
@@ -455,8 +420,8 @@ if __name__ == '__main__':
         # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
         # Player 1 (IMU)
-        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
-        IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
         # relay_thread = Relay_Client('172.20.10.2', 11000)
         
