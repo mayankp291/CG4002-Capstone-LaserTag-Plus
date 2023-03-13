@@ -89,6 +89,9 @@ NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
 flag.clear()
 
+WINDOW_SIZE = 40
+move_detector = SlidingWindow(WINDOW_SIZE)
+
 
 class CheckSumFailedError(Exception):
     pass
@@ -220,49 +223,78 @@ class MyDelegate(DefaultDelegate):
                                mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
                                phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z),
                               axis=1).astype(np.int32)
+        
 
     def predictdata(self, data):
-        global counter, model
+        global counter, model, move_detector, is_move_detection_skipped
+
+        motiondata = data['motionData']
+        imu_data = np.array(motiondata.values())
+
+        move_detector.add_new_value(imu_data)
+
+        if not move_detector.is_full():
+            return "none"
+
+        move_detector.update_threshold()
+
+        if not move_detector.is_start_of_move():
+            return "none"
+        
+        # if not is_move_detection_skipped:
+        #     start_index = move_detector.is_start_of_move()
+        #     if start_index >= 0:
+        #         for i in range(start_index):
+        #             move_detector.remove_old_value()
+        #             is_move_detection_skipped = True
+        
+        # is_move_detection_skipped = False
+
+        features = self.extract_features(move_detector.get_window_matrix())
 
         mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
+        predictions = model.predict(features)
+        predicted_class = np.argmax(predictions[0])
+        print('Predicted class:', predicted_class, mapping[predicted_class])
+        
 
-        if counter <= 50:
-            motiondata = data['motionData']
-            row = list(motiondata.values())
-            arr1.append(row[0])
-            arr2.append(row[1])
-            arr3.append(row[2])
-            arr4.append(row[3])
-            arr5.append(row[4])
-            arr6.append(row[5])
-            # print("DATA RECV", row)
-            counter += 1
+        # if counter <= 50:
+        #     motiondata = data['motionData']
+        #     row = list(motiondata.values())
+        #     arr1.append(row[0])
+        #     arr2.append(row[1])
+        #     arr3.append(row[2])
+        #     arr4.append(row[3])
+        #     arr5.append(row[4])
+        #     arr6.append(row[5])
+        #     # print("DATA RECV", row)
+        #     counter += 1
 
-        elif counter > 50:
-            # put line
-            # newline
-            # empty arr
-            # only save when arrays are non-empty
-            print("raw data collected!")
-            raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).astype(np.float32)
-            # print(raw_data)
-            features = self.extract_features(raw_data)
-            print(f"Data collected and saved for {ACTION}, iteration {counter}")
+        # elif counter > 50:
+        #     # put line
+        #     # newline
+        #     # empty arr
+        #     # only save when arrays are non-empty
+        #     print("raw data collected!")
+        #     raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).astype(np.float32)
+        #     # print(raw_data)
+        #     features = self.extract_features(raw_data)
+        #     print(f"Data collected and saved for {ACTION}, iteration {counter}")
 
-            # Make a prediction on the new data
-            predictions = model.predict(features)
+        #     # # Make a prediction on the new data
+        #     # predictions = model.predict(features)
 
-            # Print the predicted class
-            predicted_class = np.argmax(predictions[0])
-            print('Predicted class:', predicted_class, mapping[predicted_class])
+        #     # # Print the predicted class
+        #     # predicted_class = np.argmax(predictions[0])
+        #     # print('Predicted class:', predicted_class, mapping[predicted_class])
 
-            arr1.clear()
-            arr2.clear()
-            arr3.clear()
-            arr4.clear()
-            arr5.clear()
-            arr6.clear()
-            counter = 1
+        #     arr1.clear()
+        #     arr2.clear()
+        #     arr3.clear()
+        #     arr4.clear()
+        #     arr5.clear()
+        #     arr6.clear()
+        #     counter = 1
 
     def handleNotification(self, cHandle, data):
         try:
