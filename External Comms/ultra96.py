@@ -43,6 +43,7 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
+        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     },
@@ -54,6 +55,7 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
+        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     }
@@ -273,11 +275,11 @@ class Game_Engine(threading.Thread):
                 elif action == 'shoot':
                     if player_state['p1']['bullets'] > 0:
                         player_state['p1']['bullets'] -= 1
-                        if isPlayerTwoShieldActivated:
-                            player_state['p2']['shield_health'] -= 10
-                        else:
-                            player_state['p2']['hp'] -= 10
-
+                        if player_state['p2']['hit']:
+                            if isPlayerTwoShieldActivated:
+                                player_state['p2']['shield_health'] -= 10
+                            else:
+                                player_state['p2']['hp'] -= 10  
                 if player_state['p2']['shield_health'] <= 0:
                     isPlayerTwoShieldActivated = False
                     player_state['p2']['hp'] += player_state['p2']['shield_health']
@@ -299,6 +301,9 @@ class Game_Engine(threading.Thread):
                 if not action == 'grenade_p2_hits': 
                     viz_queue.put(('STATE', player_state)) 
                     eval_queue.put(player_state) 
+
+                if action == 'shoot':
+                    player_state['p2']['hit'] = 0
                 
                 if action == 'logout':
                     isPlayerOneShieldActivated = False
