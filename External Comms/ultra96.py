@@ -6,7 +6,8 @@ from Crypto.Util.Padding import pad, unpad
 import base64
 from multiprocessing import Process, Queue, Lock
 import json
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as paho
+from paho import mqtt
 from ast import literal_eval
 import threading
 import random
@@ -27,6 +28,8 @@ beetleID_mapping = {
     6: "GUN" #gun2
 }
 
+MQTT_USERNAME = "capstonekillingus"
+MQTT_PASSWORD = "capstonekillingus"
 imu_queue = Queue()
 action_queue = Queue()
 viz_queue = Queue()
@@ -336,8 +339,10 @@ class MQTT_Client(threading.Thread):
         self.sub_topic = sub_topic
         self.client_id = client_id
         self.group = group
-        self.client = mqtt.Client(client_id)
-        self.client.connect("test.mosquitto.org", 1883, 60)
+        self.client = paho.Client(client_id, protocol=paho.MQTTv5)
+        self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+        self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+        self.client.connect("e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883, 60)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.sub_topic)
         self.client.on_message = self.receive
