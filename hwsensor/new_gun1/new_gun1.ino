@@ -133,6 +133,13 @@ void sendSensorReading() {
     Serial.write((byte *)&gunPacket, sizeof(gunPacket));
 }
 
+void playReloadTone() {
+    tone(buzzer, 7 * 200); // Send 1KHz sound signal...
+    delay(1500);        // ...for 1 sec
+    noTone(buzzer);     // Stop sound...
+    //delay(500);        // ...for 1sec
+}
+
 boolean hasSent = false;
 boolean hasAcknowledged = false;
 
