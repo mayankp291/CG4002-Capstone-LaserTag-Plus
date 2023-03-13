@@ -32,7 +32,8 @@ action_queue = Queue()
 viz_queue = Queue()
 eval_queue = Queue()
 
-
+reloadSendRelay = threading.Event()
+reloadSendRelay.clear() 
 
 player_state = {
     "p1":
@@ -159,7 +160,11 @@ class Relay_Server(threading.Thread):
                         # action_queue.put(action_packet)
                         action_queue.put("shoot")
 
-                    # imu_queue.put(data)
+                if reloadSendRelay.is_set():
+                    dict = {"playerId": 1, "isReload": 1}
+                    dict = str(dict)
+                    reloadSendRelay.clear()
+                    request.sendall(dict.encode("utf8"))	
 
         except Exception as e:
             print("Client disconnected")
@@ -218,6 +223,7 @@ class Game_Engine(threading.Thread):
                 if action == 'reload':
                     if player_state['p1']['bullets'] <= 0:
                         player_state['p1']['bullets'] = 6
+
                 elif action == 'grenade':
                     # update grenade for player 1
                     if player_state['p1']['grenades'] > 0:
