@@ -144,16 +144,20 @@ class Relay_Server(threading.Thread):
 
                     if data_device == "IMU":
                         # add an IMU PACKET to the queue (playerID, sensorData)
-                        imu_packet = (data["playerID"], data["sensorData"])
-                        imu_queue.put(imu_packet)
+                        # imu_packet = (data["playerID"], data["sensorData"])
+                        # imu_queue.put(imu_packet)
+                        imu_queue.put(data["sensorData"])
                     elif data_device == "VEST":
                         # got shot damage
-                        action_packet = (data["playerID"], "damage")
-                        action_queue.put(action_packet)
+                        # action_packet = (data["playerID"], "shoot_p2_hits")
+                        # action_queue.put(action_packet)
+                        action_queue.put("shoot_p2_hits")
+
                     elif data_device == "GUN":
                         # shot by player
-                        action_packet = (data["playerID"], "shoot")
-                        action_queue.put(action_packet)
+                        # action_packet = (data["playerID"], "shoot")
+                        # action_queue.put(action_packet)
+                        action_queue.put("shoot")
 
                     # imu_queue.put(data)
 
