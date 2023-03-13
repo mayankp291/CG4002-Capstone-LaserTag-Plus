@@ -91,7 +91,8 @@ flag.clear()
 
 WINDOW_SIZE = 40
 move_detector = SlidingWindow(WINDOW_SIZE)
-
+is_move_detection_skipped = False
+prediction_array = []
 
 class CheckSumFailedError(Exception):
     pass
@@ -229,33 +230,44 @@ class MyDelegate(DefaultDelegate):
         global counter, model, move_detector, is_move_detection_skipped
 
         motiondata = data['motionData']
-        imu_data = np.array(motiondata.values())
+        imu_data = list(motiondata.values())
 
-        move_detector.add_new_value(imu_data)
+        move_detector.add_new_value(np.array(imu_data))
 
         if not move_detector.is_full():
             return "none"
 
-        move_detector.update_threshold()
+        # move_detector.update_threshold()
 
-        if not move_detector.is_start_of_move():
-            return "none"
-        
-        # if not is_move_detection_skipped:
-        #     start_index = move_detector.is_start_of_move()
-        #     if start_index >= 0:
-        #         for i in range(start_index):
-        #             move_detector.remove_old_value()
-        #             is_move_detection_skipped = True
-        
-        # is_move_detection_skipped = False
+        # if not move_detector.is_start_of_move():
+        #     return "none"
+
+        if not is_move_detection_skipped:
+            start_index = move_detector.is_start_of_move()
+            if start_index >= 0:
+                for i in range(start_index):
+                    move_detector.remove_old_value()
+                    is_move_detection_skipped = True
+
+        is_move_detection_skipped = False
 
         features = self.extract_features(move_detector.get_window_matrix())
 
+        # move_detector.clear()
+
         mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
-        predictions = model.predict(features)
+        predictions = model.predict(features, verbose=False)
         predicted_class = np.argmax(predictions[0])
-        print('Predicted class:', predicted_class, mapping[predicted_class])
+        prediction_array.append(predicted_class)
+
+
+        if len(prediction_array) > 43:
+            ans = np.bincount(np.array(prediction_array)).argmax()
+            print('Predicted class:', ans, mapping[ans])
+            prediction_array.clear()
+
+
+        # print('Predicted class:', predicted_class, mapping[predicted_class])
         
 
         # if counter <= 50:
