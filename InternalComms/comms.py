@@ -226,6 +226,9 @@ class BeetleConnectionThread:
         self.receivingBuffer = receivingBuffer
         self.hasHandshaken = False
 
+        if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
+            self.isReload = False
+
     def writetoBeetle(self):
         pass
 
@@ -263,6 +266,10 @@ class BeetleConnectionThread:
                 print("HandshakeCompleted")
         return hasHandshake
 
+    def checkForReload(self):
+        if self.isReload == 1:
+            self.serialChar.write(bytes("R", encoding = "utf-8"))
+
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
         if not SYN_FLAGS[self.beetleId]:
@@ -284,6 +291,9 @@ class BeetleConnectionThread:
 
                 if hasHandshake:
                     self.dev.waitForNotifications(1)
+                    if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
+                        self.checkForReload(self.serialChar)
+
                 if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
                     hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
@@ -315,6 +325,10 @@ class BeetleConnectionThread:
                 print("Unexpected error:", sys.exc_info()[0])
                 print(e.__doc__)
                 print(e.message)
+
+
+
+
 
 
 class Relay_Client(threading.Thread):
