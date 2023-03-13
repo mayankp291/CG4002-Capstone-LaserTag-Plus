@@ -15,8 +15,9 @@ import tensorflow as tf
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
+from slidingwindow import SlidingWindow
 
-model = tf.keras.models.load_model('my_mlp_model')
+model = tf.keras.models.load_model('my_model.h5')
 # the peripheral class is used to connect and disconnect
 
 # timeouts in seconds
@@ -144,7 +145,7 @@ class MyDelegate(DefaultDelegate):
         self.receivingBuffer = b''
         print("Checksum failed for device", self.deviceId, ", packet dropped")
 
-    def extract_features(input):
+    def extract_features(self, input):
 
         mean_acc_x = np.mean(input[0]).reshape(-1, 1)
         mean_acc_y = np.mean(input[1]).reshape(-1, 1)
@@ -234,33 +235,34 @@ class MyDelegate(DefaultDelegate):
             arr4.append(row[3])
             arr5.append(row[4])
             arr6.append(row[5])
-            print("DATA RECV", row)
+            # print("DATA RECV", row)
             counter += 1
 
-        elif counter == 50:
+        elif counter > 50:
             # put line
             # newline
             # empty arr
             # only save when arrays are non-empty
-            if (arr1):
-                raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).astype(np.float32)
-                features = extract_features(raw_data)
-                print(f"Data collected and saved for {ACTION}, iteration {counter}")
+            print("raw data collected!")
+            raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).astype(np.float32)
+            # print(raw_data)
+            features = self.extract_features(raw_data)
+            print(f"Data collected and saved for {ACTION}, iteration {counter}")
 
-                # Make a prediction on the new data
-                predictions = model.predict(features)
+            # Make a prediction on the new data
+            predictions = model.predict(features)
 
-                # Print the predicted class
-                predicted_class = np.argmax(predictions[0])
-                print('Predicted class:', predicted_class, mapping[predicted_class])
+            # Print the predicted class
+            predicted_class = np.argmax(predictions[0])
+            print('Predicted class:', predicted_class, mapping[predicted_class])
 
-                arr1.clear()
-                arr2.clear()
-                arr3.clear()
-                arr4.clear()
-                arr5.clear()
-                arr6.clear()
-                counter = 1
+            arr1.clear()
+            arr2.clear()
+            arr3.clear()
+            arr4.clear()
+            arr5.clear()
+            arr6.clear()
+            counter = 1
 
     def handleNotification(self, cHandle, data):
         try:
@@ -335,40 +337,8 @@ class MyDelegate(DefaultDelegate):
         except CheckSumFailedError:
             self.handleCheckSumError(data)
 
-    def ohandleNotification(self, cHandle, data):
-        self.receivingBuffer += data
-        print("Data received from beetle: ", self.receivingBuffer)
-        if (len(self.receivingBuffer)) == 1 and self.receivingBuffer == b'A' and not ACK_FLAGS[self.deviceId]:
-            # global beetleAck
-            # beetleAck = True
-            ACK_FLAGS[self.deviceId] = True
-            self.receivingBuffer = b''  # reset the data
-
-        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) > 1:
-            dataPacket = self.receivingBuffer[0:20]
-            unpackedPacket = ()
-            # expectedPacketFormat = (
-            #     'b'
-            #     'b'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'x'
-            #     'b'
-            # )
-            expectedPacketFormat = ("bb6hxb")
-            unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-            # dataPacket = dataPacket[::-1]
-            print(unpackedPacket)
-            # packetType = struct.unpack('b', dataPacket[0])
-            # deviceId = struct.unpack('i', dataPacket[1])
-            # print(self.receivingBuffer)
-            # print(packetType, deviceId)
-            self.receivingBuffer = b''
-        self.receivingBuffer = b''
+        except ValueError:
+            pass
 
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
@@ -428,7 +398,7 @@ class BeetleConnectionThread:
         return hasHandshake
 
     def sendSynMessage(self):
-        self.dev.waitForNotifications(1.0)
+        # self.dev.waitForNotifications(1.0)
         if not SYN_FLAGS[self.beetleId]:
             print("sending syn to beetle")
             self.serialChar.write(bytes('S', encoding="utf-8"))
@@ -445,7 +415,13 @@ class BeetleConnectionThread:
                         isConnected = self.openBeetleConnection()
                     # hasHandshake = self.startThreeWayHandshake(hasHandshake)
                     self.sendSynMessage()
+
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
+                if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
+                    hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
+                    print('disconnecting')
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
@@ -459,12 +435,13 @@ class BeetleConnectionThread:
                 #     keyPress = True
             except KeyboardInterrupt:
                 self.dev.disconnect()
+                print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
@@ -472,8 +449,39 @@ class BeetleConnectionThread:
                 SYN_FLAGS[self.beetleId] = False
                 ACK_FLAGS[self.beetleId] = False
 
-            except Exception:
-                pass
+            except Exception as e:
+                print("Unexpected error:", sys.exc_info()[0])
+                print(e.__doc__)
+                print(e.message)
+
+
+class Relay_Client(threading.Thread):
+    def __init__(self, ip, port) -> None:
+        super().__init__()
+        self.relay_ip = gethostbyname(ip)
+        self.relay_port = port
+        self.relaySocket = socket(AF_INET, SOCK_STREAM)
+        self.relaySocket.connect((self.relay_ip, self.relay_port))
+        print('Connected to Relay Server', self.relay_ip, self.relay_port)
+
+    def run(self):
+        try:
+            while True:
+                msg = dataBuffer.get()
+                # input("Press any button to send data")
+                # msg = str(IMU)
+                # msg = str(len(msg)) + '_' + msg
+                self.send(msg)
+                # self.recv()
+        except:
+            print('Connection to Relay Server lost')
+            self.relaySocket.close()
+            sys.exit()
+
+    def send(self, message):
+        self.relaySocket.send(message.encode('utf-8'))
+        # print('Sent message to Relay Server', message)
+        print('Sent packet to Relay Server', end='\r')
 
 
 def executeThreads():
