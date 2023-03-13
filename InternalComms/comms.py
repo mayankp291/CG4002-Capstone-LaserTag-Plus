@@ -279,11 +279,13 @@ class BeetleConnectionThread:
             if isReloadFlagGun1.is_set():
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = False
+                isReloadFlagGun1.clear()
 
         if self.beetleId == GUN_PLAYER_2:
             if isReloadFlagGun2.is_set():
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = False
+                isReloadFlagGun2.clear()
 
 
     def sendSynMessage(self):
