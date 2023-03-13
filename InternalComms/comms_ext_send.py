@@ -615,7 +615,10 @@ class Relay_Client_Recv(threading.Thread):
                     data = data.decode("utf-8")
                     data = literal_eval(data)
                     isReload = data["isReload"]
-                    if isReload == 1:
+                    playerID = data["playerId"]
+                    if playerID == 1 and isReload == 1:	
+                        flag.set()
+                    if playerID == 2 and isReload == 1:	
                         flag.set()
         except:
             print('Connection to Relay Server lost')
