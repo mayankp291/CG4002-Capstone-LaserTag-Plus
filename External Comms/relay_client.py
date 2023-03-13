@@ -43,7 +43,7 @@ class Relay_Client(threading.Thread):
                 msg = str(IMU)
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
-                time.sleep(0.1)
+                time.sleep(0.05)
                 # self.recv()
         except:
             print('Connection to Relay Server lost')

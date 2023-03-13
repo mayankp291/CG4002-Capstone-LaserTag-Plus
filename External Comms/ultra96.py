@@ -59,6 +59,8 @@ player_state = {
     }
 }
 
+
+
 # TCP Server to receive data from the Relay Laptops
 class Relay_Server(threading.Thread):
     def __init__(self, host, port):
@@ -164,55 +166,6 @@ class Game_Engine(threading.Thread):
     def __init__(self):
         super().__init__()
     
-    # def run(self):
-    #     while True:
-    #         if not imu_queue.empty():
-    #             imu_data = imu_queue.get()
-    #             self.AI_random(imu_data)
-
-    #         if not action_queue.empty():
-    #             action = action_queue.get()
-    #             print("[ACTION]", action)
-    #             # Update action for player 1
-    #             if action != 'grenade_p2_hits':
-    #                 player_state['p1']['action'] = action
-    #             # Update player 1 state (active player) and player 2 state (passive player)
-    #             if action == 'reload':
-    #                 player_state['p1']['bullets'] = 6
-    #             elif action == 'grenade':
-    #                 # update grenade for player 1
-    #                 player_state['p1']['grenades'] -= 1
-    #                 # send check for player 2
-    #                 viz_queue.put(('CHECK', 'grenadeInSight'))
-    #             elif action == 'grenade_p2_hits':
-    #                 player_state['p2']['hp'] -= 30
-    #             elif action == 'grenade_p2_misses':
-    #                 pass    
-    #             elif action == 'shield':
-    #                 player_state['p1']['num_shield'] -= 1
-    #                 player_state['p1']['shield_time'] = 10
-    #                 player_state['p1']['shield_health'] = 30
-    #             elif action == 'shoot':
-    #                 player_state['p1']['bullets'] -= 1
-    #                 # TODO check if player 2 is in shield
-    #                 player_state['p2']['hp'] -= 10
-                
-    #             # rebirth for player 2
-    #             if player_state['p2']['hp'] <= 0:
-    #                 # reset player 2 stats
-    #                 player_state['p2']['hp'] = 100
-    #                 player_state['p2']['num_deaths'] += 1
-    #                 player_state['p2']['bullets'] = 6
-    #                 player_state['p2']['grenades'] = 2
-    #                 player_state['p2']['num_shield'] = 3
-    #                 player_state['p2']['shield_time'] = 0
-    #                 player_state['p2']['shield_health'] = 0
-                
-    #             # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
-    #             if not action == 'grenade': 
-    #                 viz_queue.put(('STATE', player_state)) 
-    #                 eval_queue.put(player_state)
-
     def run(self):
         isPlayerOneShieldActivated = False
         isPlayerTwoShieldActivated = False
