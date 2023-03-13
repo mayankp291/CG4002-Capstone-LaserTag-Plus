@@ -53,6 +53,13 @@ MOTION_PACKET = 'M'
 AMMO_PACKET = 'B'
 HEALTH_PACKET = 'H'
 
+isReloadFlagGun1 = threading.Event()
+isReloadFlagGun1.clear()
+
+isReloadFlagGun2 = threading.Event()
+isReloadFlagGun2.clear()
+
+
 class CheckSumFailedError(Exception):
     pass
 
@@ -229,6 +236,7 @@ class BeetleConnectionThread:
         if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
             self.isReload = False
 
+
     def writetoBeetle(self):
         pass
 
@@ -267,8 +275,16 @@ class BeetleConnectionThread:
         return hasHandshake
 
     def checkForReload(self):
-        if self.isReload == 1:
-            self.serialChar.write(bytes("R", encoding = "utf-8"))
+        if self.beetleId == GUN_PLAYER_1:
+            if isReloadFlagGun1.is_set():
+                self.serialChar.write(bytes("R", encoding="utf-8"))
+                self.isReload = False
+
+        if self.beetleId == GUN_PLAYER_2:
+            if isReloadFlagGun2.is_set():
+                self.serialChar.write(bytes("R", encoding="utf-8"))
+                self.isReload = False
+
 
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
