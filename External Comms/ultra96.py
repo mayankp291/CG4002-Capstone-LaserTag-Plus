@@ -198,6 +198,7 @@ class Game_Engine(threading.Thread):
             if isPlayerOneShootActivated:
                 time_elapsed = time.time() - startTimeOneShoot
                 if time_elapsed >= 1:
+                    isPlayerOneShootActivated = False
                     action_queue.put('shoot_p2_misses')
             
             if not imu_queue.empty():
@@ -210,7 +211,7 @@ class Game_Engine(threading.Thread):
                 # Update action for player 1
                 if action != 'grenade_p2_hits' or action != 'shoot_p2_hits' or action != 'shoot_p2_misses':
                     player_state['p1']['action'] = action
-                # if action != 'grenade_p1_hits':
+                # if action != 'grenade_p1_h++++++++its':
                 #     player_state['p2']['action'] = action
                 
                 # Update player 1 state (active player) and player 2 state (passive player)
@@ -240,6 +241,7 @@ class Game_Engine(threading.Thread):
                         player_state['p2']['shield_health'] -= 10
                     else:
                         player_state['p2']['hp'] -= 10
+                    isPlayerOneShootActivated = False
                     player_state['p2']['hit'] = 1
                 elif action == 'shoot_p2_misses':
                     player_state['p2']['hit'] = 0
@@ -248,6 +250,13 @@ class Game_Engine(threading.Thread):
                         player_state['p1']['bullets'] -= 1
                         isPlayerOneShootActivated = True
                         startTimeOneShoot = time.time()
+
+                if player_state['p1']['shield_health'] <= 0:
+                    isPlayerOneShieldActivated = False
+                    player_state['p1']['hp'] += player_state['p1']['shield_health']
+                    player_state['p1']['shield_health'] = 0
+                    player_state['p1']['shield_time'] = 0
+            
                 if player_state['p2']['shield_health'] <= 0:
                     isPlayerTwoShieldActivated = False
                     player_state['p2']['hp'] += player_state['p2']['shield_health']
@@ -270,11 +279,10 @@ class Game_Engine(threading.Thread):
                     player_state['p1']['action'] = 'shoot'
                     viz_queue.put(('STATE', player_state))
                     eval_queue.put(player_state) 
+                    player_state['p1']['hit'] = 0
                 elif not action == 'grenade_p2_hits' or 'shoot': 
                     viz_queue.put(('STATE', player_state)) 
                     eval_queue.put(player_state) 
-                
-
                 
                 if action == 'logout':
                     isPlayerOneShieldActivated = False
