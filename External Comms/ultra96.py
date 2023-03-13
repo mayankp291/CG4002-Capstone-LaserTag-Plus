@@ -161,10 +161,10 @@ class Relay_Server(threading.Thread):
                         action_queue.put("shoot")
 
                 if reloadSendRelay.is_set():
-                    dict = {"playerId": 1, "isReload": 1}
-                    dict = str(dict)
+                    dic = {"playerId": 1, "isReload": 1}
+                    dic = str(dic)
                     reloadSendRelay.clear()
-                    request.sendall(dict.encode("utf8"))	
+                    request.sendall(dic.encode("utf8"))
 
         except Exception as e:
             print("Client disconnected")
@@ -314,7 +314,8 @@ class Game_Engine(threading.Thread):
     def AI_random(self, imu_data):
         # TODO send through DMA
         # print(imu_data)
-        AI_actions = ['shoot']
+        # AI_actions = ['shoot']
+        AI_actions = ['reload']
         # AI_actions = ['logout']
         # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
         # AI_actions = ['reload', 'shield', 'shoot']
