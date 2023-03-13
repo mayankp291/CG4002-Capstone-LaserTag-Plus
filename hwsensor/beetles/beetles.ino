@@ -301,7 +301,8 @@ boolean hasSent = false;
 int count = 0;
 
 void loop(void) {
-  if (Serial.available()) {
+  if (Serial.available()>0) {
+    
     if (hasHandshake == false) {
       char serialRead = Serial.read();
       // Serial.println(serialRead);
@@ -323,7 +324,16 @@ void loop(void) {
       hasSent = true;
       count++;
     }
+//    if (serialRead == 'K') {
+//        hasHandshake = false;
+//    }
   }
+ if(Serial.available() <=0) {
+   hasHandshake = false;
+ }
+//  if(Serial.available() == 0) {
+//    hasHandshake = false;
+//  }
 
 //getSensorReading();
 //sendSensorReading();
