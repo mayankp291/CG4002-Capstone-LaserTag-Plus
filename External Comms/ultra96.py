@@ -43,6 +43,7 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
+        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     },
@@ -54,6 +55,7 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
+        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     }
