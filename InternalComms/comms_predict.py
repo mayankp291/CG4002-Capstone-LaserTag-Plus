@@ -13,6 +13,8 @@ import csv
 import time
 import tensorflow as tf
 import numpy as np
+from scipy.stats import skew
+from scipy.fftpack import fft
 
 model = tf.keras.models.load_model('my_mlp_model')
 # the peripheral class is used to connect and disconnect
@@ -20,7 +22,7 @@ model = tf.keras.models.load_model('my_mlp_model')
 # timeouts in seconds
 CONNECTION_TIMEOUT = 3
 
-Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
+Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 
 # serialSvc = dev.getServiceByUUID(
@@ -36,12 +38,12 @@ Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 # 'IDLE' : 4
 
 macAddresses = {
-    1: "D0:39:72:BF:BF:BB", #imu1
-    2: "D0:39:72:BF:C6:07", #VEST1
-    3: "D0:39:72:BF:C3:BF", #GUN1
-    4: "D0:39:72:BF:C8:A8", #IMU2
-    5: "D0:39:72:BF:BF:DD", #vest2
-    6: "D0:39:72:BF:C8:CF" #gun2
+    1: "D0:39:72:BF:BF:BB",  # imu1
+    2: "D0:39:72:BF:C6:07",  # VEST1
+    3: "D0:39:72:BF:C3:BF",  # GUN1
+    4: "D0:39:72:BF:C8:A8",  # IMU2
+    5: "D0:39:72:BF:BF:DD",  # vest2
+    6: "D0:39:72:BF:C8:CF"  # gun2
 }
 
 DATA_PACKET_SIZE = 20
@@ -51,7 +53,7 @@ ACK_FLAGS = [False] * 6
 
 # Device IDs
 IMU_PLAYER_1 = 1
-VEST_PLAYER_1= 2
+VEST_PLAYER_1 = 2
 GUN_PLAYER_1 = 3
 IMU_PLAYER_2 = 4
 VEST_PLAYER_2 = 5
@@ -65,33 +67,36 @@ HEALTH_PACKET = 'H'
 
 arr1 = []
 arr2 = []
-arr3 =[]
+arr3 = []
 arr4 = []
-arr5=[]
-arr6=[]
+arr5 = []
+arr6 = []
 
 arr11 = []
 arr22 = []
-arr33 =[]
+arr33 = []
 arr44 = []
-arr55 =[]
-arr66 =[]
+arr55 = []
+arr66 = []
 
 keyPress = False
 key_input = ""
 counter = 1
-ACTION  = 'RELOAD'
+ACTION = 'RELOAD'
 
 NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
 flag.clear()
 
+
 class CheckSumFailedError(Exception):
     pass
 
+
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
-    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar, isKeyPressed):
+    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar,
+                 isKeyPressed):
         DefaultDelegate.__init__(self)
         self.playerId = playerId
         self.deviceId = deviceId
@@ -133,16 +138,93 @@ class MyDelegate(DefaultDelegate):
             return True
         else:
             return False
+
     def handleCheckSumError(self, data):
         # If there is a problem, then drop
         self.receivingBuffer = b''
-        print("Checksum failed for device", self.deviceId ,", packet dropped")
+        print("Checksum failed for device", self.deviceId, ", packet dropped")
+
+    def extract_features(input):
+
+        mean_acc_x = np.mean(input[0]).reshape(-1, 1)
+        mean_acc_y = np.mean(input[1]).reshape(-1, 1)
+        mean_acc_z = np.mean(input[2]).reshape(-1, 1)
+        mean_gyro_x = np.mean(input[3]).reshape(-1, 1)
+        mean_gyro_y = np.mean(input[4]).reshape(-1, 1)
+        mean_gyro_z = np.mean(input[5]).reshape(-1, 1)
+
+        sd_acc_x = np.std(input[0]).reshape(-1, 1)
+        sd_acc_y = np.std(input[1]).reshape(-1, 1)
+        sd_acc_z = np.std(input[2]).reshape(-1, 1)
+        sd_gyro_x = np.std(input[3]).reshape(-1, 1)
+        sd_gyro_y = np.std(input[4]).reshape(-1, 1)
+        sd_gyro_z = np.std(input[5]).reshape(-1, 1)
+
+        max_acc_x = np.amax(input[0]).reshape(-1, 1)
+        max_acc_y = np.amax(input[1]).reshape(-1, 1)
+        max_acc_z = np.amax(input[2]).reshape(-1, 1)
+        max_gyro_x = np.amax(input[3]).reshape(-1, 1)
+        max_gyro_y = np.amax(input[4]).reshape(-1, 1)
+        max_gyro_z = np.amax(input[5]).reshape(-1, 1)
+
+        min_acc_x = np.amin(input[0]).reshape(-1, 1)
+        min_acc_y = np.amin(input[1]).reshape(-1, 1)
+        min_acc_z = np.amin(input[2]).reshape(-1, 1)
+        min_gyro_x = np.amin(input[3]).reshape(-1, 1)
+        min_gyro_y = np.amin(input[4]).reshape(-1, 1)
+        min_gyro_z = np.amin(input[5]).reshape(-1, 1)
+
+        rms_acc_x = np.reshape(np.sqrt(np.mean(input[0] ** 2)), (-1, 1))
+        rms_acc_y = np.reshape(np.sqrt(np.mean(input[1] ** 2)), (-1, 1))
+        rms_acc_z = np.reshape(np.sqrt(np.mean(input[2] ** 2)), (-1, 1))
+        rms_gyro_x = np.reshape(np.sqrt(np.mean(input[3] ** 2)), (-1, 1))
+        rms_gyro_y = np.reshape(np.sqrt(np.mean(input[4] ** 2)), (-1, 1))
+        rms_gyro_z = np.reshape(np.sqrt(np.mean(input[5] ** 2)), (-1, 1))
+
+        skew_acc_x = np.reshape(skew(input[0]), (-1, 1))
+        skew_acc_y = np.reshape(skew(input[1]), (-1, 1))
+        skew_acc_z = np.reshape(skew(input[2]), (-1, 1))
+        skew_gyro_x = np.reshape(skew(input[3]), (-1, 1))
+        skew_gyro_y = np.reshape(skew(input[4]), (-1, 1))
+        skew_gyro_z = np.reshape(skew(input[5]), (-1, 1))
+
+        # # Convert to frequency domain
+        # signal_acc_x = fft(input[0], axis=1)
+        # signal_acc_y = fft(input[1], axis=1)
+        # signal_acc_z = fft(input[2], axis=1)
+        # signal_gyro_x = fft(input[3], axis=1)
+        # signal_gyro_y = fft(input[4], axis=1)
+        # signal_gyro_z = fft(input[5], axis=1)
+
+        mag_acc_x = np.reshape(np.amax(np.abs(fft(input[0]))), (-1, 1))
+        mag_acc_y = np.reshape(np.amax(np.abs(fft(input[1]))), (-1, 1))
+        mag_acc_z = np.reshape(np.amax(np.abs(fft(input[2]))), (-1, 1))
+        mag_gyro_x = np.reshape(np.amax(np.abs(fft(input[3]))), (-1, 1))
+        mag_gyro_y = np.reshape(np.amax(np.abs(fft(input[4]))), (-1, 1))
+        mag_gyro_z = np.reshape(np.amax(np.abs(fft(input[5]))), (-1, 1))
+
+        phase_acc_x = np.reshape(np.amax(np.angle(fft(input[0]))), (-1, 1))
+        phase_acc_y = np.reshape(np.amax(np.angle(fft(input[1]))), (-1, 1))
+        phase_acc_z = np.reshape(np.amax(np.angle(fft(input[2]))), (-1, 1))
+        phase_gyro_x = np.reshape(np.amax(np.angle(fft(input[3]))), (-1, 1))
+        phase_gyro_y = np.reshape(np.amax(np.angle(fft(input[4]))), (-1, 1))
+        phase_gyro_z = np.reshape(np.amax(np.angle(fft(input[5]))), (-1, 1))
+
+        return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+                               sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
+                               max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
+                               min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
+                               rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
+                               skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+                               mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z),
+                              axis=1).astype(np.int32)
 
     def predictdata(self, data):
         global counter, model
-        
-        mapping = {0:'LOGOUT', 1:'SHIELD', 2:'RELOAD', 3:'GRENADE', 4:'IDLE'}
-        
+
+        mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
+
         if counter <= 50:
             motiondata = data['motionData']
             row = list(motiondata.values())
@@ -153,24 +235,24 @@ class MyDelegate(DefaultDelegate):
             arr5.append(row[4])
             arr6.append(row[5])
             print("DATA RECV", row)
-            counter+=1
-            
-        elif counter==50:
+            counter += 1
+
+        elif counter == 50:
             # put line
             # newline
             # empty arr
             # only save when arrays are non-empty
-            if(arr1):
-                raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).reshape(6, 50)
+            if (arr1):
+                raw_data = np.array([arr1, arr2, arr3, arr4, arr5, arr6]).astype(np.float32)
+                features = extract_features(raw_data)
                 print(f"Data collected and saved for {ACTION}, iteration {counter}")
 
                 # Make a prediction on the new data
-                predictions = model.predict(raw_data)
+                predictions = model.predict(features)
 
                 # Print the predicted class
                 predicted_class = np.argmax(predictions[0])
-                # print('Predicted class:', predicted_class, mapping[predicted_class])
-                print('Predicted class:', predicted_class)
+                print('Predicted class:', predicted_class, mapping[predicted_class])
 
                 arr1.clear()
                 arr2.clear()
@@ -178,15 +260,13 @@ class MyDelegate(DefaultDelegate):
                 arr4.clear()
                 arr5.clear()
                 arr6.clear()
-                counter=1
-
-
+                counter = 1
 
     def handleNotification(self, cHandle, data):
         try:
 
             self.receivingBuffer += data
-            if len(self.receivingBuffer) >=20:
+            if len(self.receivingBuffer) >= 20:
                 # print("Data received from beetle: ", self.receivingBuffer)
                 # self.endTime = time.time()
                 # self.endTime = datetime.now()
@@ -255,10 +335,6 @@ class MyDelegate(DefaultDelegate):
         except CheckSumFailedError:
             self.handleCheckSumError(data)
 
-
-
-
-
     def ohandleNotification(self, cHandle, data):
         self.receivingBuffer += data
         print("Data received from beetle: ", self.receivingBuffer)
@@ -266,9 +342,9 @@ class MyDelegate(DefaultDelegate):
             # global beetleAck
             # beetleAck = True
             ACK_FLAGS[self.deviceId] = True
-            self.receivingBuffer = b'' # reset the data
+            self.receivingBuffer = b''  # reset the data
 
-        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) >1:
+        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) > 1:
             dataPacket = self.receivingBuffer[0:20]
             unpackedPacket = ()
             # expectedPacketFormat = (
@@ -293,7 +369,6 @@ class MyDelegate(DefaultDelegate):
             # print(packetType, deviceId)
             self.receivingBuffer = b''
         self.receivingBuffer = b''
-
 
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
@@ -326,7 +401,8 @@ class BeetleConnectionThread:
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
-                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar, self.isKeyPressed)
+                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar,
+                                        self.isKeyPressed)
             self.dev.withDelegate(deviceDelegate)
             return True
             # break
@@ -334,7 +410,6 @@ class BeetleConnectionThread:
             print("Connection failed")
             return False
             # return
-
 
     def startThreeWayHandshake(self, hasHandshake):
 
@@ -446,9 +521,6 @@ def executeThreads():
     # Gun2_Thread.join()
     # Vest2_Thread.join()
 
-                
-                
-
 
 if __name__ == '__main__':
     try:
@@ -476,7 +548,7 @@ if __name__ == '__main__':
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
+        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
