@@ -340,9 +340,9 @@ class MyDelegate(DefaultDelegate):
                     print("MotionPacketsCount: ", self.motionPacketsCount)
                     print(sendData)
                     # self.savedata(sendData)
-                    # self.lock.acquire()
-                    # self.dataBuffer.put(sendData)
-                    # self.lock.release()
+                    self.lock.acquire()
+                    self.dataBuffer.put(sendData)
+                    self.lock.release()
                 if packetType == 'B' or packetType == 'H':
                     expectedPacketFormat = ("bb?16xb")
                     self.gunPacketsCount += 1
@@ -648,13 +648,13 @@ if __name__ == '__main__':
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
 
-        # Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer1)
-        # Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
-        #
+        Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer1)
+        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
+
         # # Create a socket and connect to the server
         # sock = socket(AF_INET, SOCK_STREAM)
         # sock.connect(('localhost', 11000))
-        #
+
         # send_thread = Relay_Client_Send(sock)
         # recv_thread = Relay_Client_Recv(sock)
 
@@ -671,13 +671,13 @@ if __name__ == '__main__':
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
-        # Gun2_Thread.start()
+        Gun2_Thread.start()
 
         # send_thread.start()
         # recv_thread.start()
         IMU1_Thread.join()
-        # Gun2_Thread.join()
-        #
+        Gun2_Thread.join()
+
         # send_thread.join()
         # recv_thread.join()
         # while True: time.sleep(100)
