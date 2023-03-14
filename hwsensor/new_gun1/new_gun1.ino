@@ -8,7 +8,7 @@
 #define PIN_SEND 3
 int ledPin = 4;
 const int buzzer = 2;
-int inputPin = A2;
+int inputPin = A1;
 
 int buttonState = LOW; //this variable tracks the state of the button, low if not pressed, high if pressed
 long lastDebounceTime = 0;  // the last time the output pin was toggled
@@ -137,7 +137,7 @@ void playReloadTone() {
     tone(buzzer, 7 * 200); // Send 1KHz sound signal...
     delay(1500);        // ...for 1 sec
     noTone(buzzer);     // Stop sound...
-    //delay(500);        // ...for 1sec     
+    //delay(500);        // ...for 1sec
 }
 
 boolean hasSent = false;
@@ -157,16 +157,15 @@ void loop(void) {
     playReloadTone();
     isReloading = false;
   }
-
   buttonState = digitalRead(inputPin);
-  if((millis() - lastDebounceTime) > debounceDelay) {
+  if( (millis() - lastDebounceTime) > debounceDelay) {
     if (buttonState == HIGH) {            // check if the input is HIGH
       lastDebounceTime = millis(); //set the current time
 
-
+      
 //       Serial.println("Triggered!!!");
       if (bullets > 0 ) {
-          IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent
+          IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent 
           dummy_shot = true;
           shotsCount +=1;
           playTone(bullets);
