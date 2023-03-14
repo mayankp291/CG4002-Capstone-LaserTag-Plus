@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 import time
 import threading
 import random
-import sys
+import sys 
+import numpy as np
+import base64
 
 # load environment variables
 load_dotenv()
@@ -39,11 +41,14 @@ class Relay_Client(threading.Thread):
     def run(self):
         try: 
             while True:
-                # input("Press any button to send data")
+                input("Press any button to send data")
+                arr = np.random.rand(40, 6)
+                # IMU['sensorData'] = np.array2string(arr)
+                IMU['sensorData'] = base64.binascii.b2a_base64(arr).decode('ascii')
                 msg = str(IMU)
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
-                time.sleep(0.05)
+                # time.sleep(0.05)
                 # self.recv()
         except:
             print('Connection to Relay Server lost')
@@ -80,14 +85,14 @@ class Relay_Client(threading.Thread):
 
     def send(self, message):
         # message = str(len(message)) + '_' + message
-        self.relaySocket.send(message.encode('utf-8'))
+        self.relaySocket.sendall(message.encode('utf-8'))
         # print('Sent message to Relay Server', message)
         print('Sent packet to Relay Server', end='\r')       
         
 
 
 def main():
-    Relay_Client.tunnel_ultra96()
+    # Relay_Client.tunnel_ultra96()
     relay_thread = Relay_Client("localhost", PORT_BIND)
     relay_thread.start()
     # relay_thread2 = Relay_Client('localhost', 11000)

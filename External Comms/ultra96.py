@@ -14,7 +14,7 @@ import random
 import time
 import traceback
 from copy import deepcopy
-
+import numpy as np
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
@@ -149,7 +149,11 @@ class Relay_Server(threading.Thread):
                         # add an IMU PACKET to the queue (playerID, sensorData)
                         # imu_packet = (data["playerID"], data["sensorData"])
                         # imu_queue.put(imu_packet)
-                        print(data["sensorData"])
+                        arr = data["sensorData"]
+                        # convert string to numpy array of ints
+                        # new_array = np.fromstring(arrayyy, dtype=float).reshape((40, 6))
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr.encode("ascii"))).reshape(40, 6)
+                        print(new_array, new_array.shape)
                         # imu_queue.put(data["sensorData"])
                         # print("IMU RECV")
                         # grenadeSendRelay.set()
