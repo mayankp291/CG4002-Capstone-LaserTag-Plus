@@ -47,8 +47,8 @@ macAddresses = {
 dataBuffer = mp.Queue()
 DATA_PACKET_SIZE = 20
 
-SYN_FLAGS = [False] * 6
-ACK_FLAGS = [False] * 6
+SYN_FLAGS = [False] * 7
+ACK_FLAGS = [False] * 7
 
 # Device IDs
 IMU_PLAYER_1 = 1
@@ -123,7 +123,7 @@ class MyDelegate(DefaultDelegate):
         self.serialChar.write(bytes("A", "utf-8"))
 
     def handleAckPacket(self):
-        ACK_FLAGS[self.deviceId-1] = True
+        ACK_FLAGS[self.deviceId] = True
         print("received ack from beetle")
         self.serialChar.write(bytes('A', encoding="utf-8"))
         print("HandshakeCompleted")
@@ -422,11 +422,11 @@ class BeetleConnectionThread:
         while not hasHandshake:
             self.dev.waitForNotifications(1.0)
 
-            if not SYN_FLAGS[self.beetleId-1]:
+            if not SYN_FLAGS[self.beetleId]:
                 print("sending syn to beetle")
                 self.serialChar.write(bytes('S', encoding="utf-8"))
-                SYN_FLAGS[self.beetleId-1] = True
-            if ACK_FLAGS[self.beetleId-1]:
+                SYN_FLAGS[self.beetleId] = True
+            if ACK_FLAGS[self.beetleId]:
                 print("received ack from beetle")
                 self.serialChar.write(bytes('A', encoding="utf-8"))
                 hasHandshake = True
@@ -449,10 +449,10 @@ class BeetleConnectionThread:
 
     def sendSynMessage(self):
         self.dev.waitForNotifications(1.0)
-        if not SYN_FLAGS[self.beetleId-1]:
+        if not SYN_FLAGS[self.beetleId]:
             print("sending syn to beetle")
             self.serialChar.write(bytes('S', encoding="utf-8"))
-            SYN_FLAGS[self.beetleId-1] = True
+            SYN_FLAGS[self.beetleId] = True
 
     def executeCommunications(self):
         # connect to beetle
@@ -471,15 +471,15 @@ class BeetleConnectionThread:
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload(self.serialChar)
 
-                if SYN_FLAGS[self.beetleId-1] and ACK_FLAGS[self.beetleId-1]:
+                if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
                     hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
                     print('disconnecting')
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
-                    SYN_FLAGS[self.beetleId-1] = False
-                    ACK_FLAGS[self.beetleId-1] = False
+                    SYN_FLAGS[self.beetleId] = False
+                    ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
                     # continue
                 # if keyboard.is_pressed("a"):
@@ -492,15 +492,15 @@ class BeetleConnectionThread:
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
-                SYN_FLAGS[self.beetleId-1] = False
-                ACK_FLAGS[self.beetleId-1] = False
+                SYN_FLAGS[self.beetleId] = False
+                ACK_FLAGS[self.beetleId] = False
             except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
-                SYN_FLAGS[self.beetleId-1] = False
-                ACK_FLAGS[self.beetleId-1] = False
+                SYN_FLAGS[self.beetleId] = False
+                ACK_FLAGS[self.beetleId] = False
 
             except Exception as e:
                 print("Unexpected error:", sys.exc_info()[0])
