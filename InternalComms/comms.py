@@ -310,7 +310,7 @@ class BeetleConnectionThread:
         return hasHandshake
 
     def sendSynMessage(self):
-        self.dev.waitForNotifications(1.0)
+        # self.dev.waitForNotifications(1.0)
         if not SYN_FLAGS[self.beetleId]:
             print("sending syn to beetle")
             self.serialChar.write(bytes('S', encoding="utf-8"))
@@ -327,7 +327,11 @@ class BeetleConnectionThread:
                         isConnected = self.openBeetleConnection()
                     # hasHandshake = self.startThreeWayHandshake(hasHandshake)
                     self.sendSynMessage()
+
+                if SYN_FLAGS[self.beetleId-1] and ACK_FLAGS[self.beetleId-1]:
+                    hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
+                #     self.serialChar.write(bytes('P', encoding="utf-8"))
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
@@ -336,6 +340,8 @@ class BeetleConnectionThread:
                     self.dev.disconnect()
                 if hasHandshake:
                     self.dev.waitForNotifications(1)
+                    if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
+                        self.checkForReload(self.serialChar)
                     # continue
             except KeyboardInterrupt:
                 self.dev.disconnect()
