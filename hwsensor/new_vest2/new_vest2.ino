@@ -179,6 +179,7 @@ void sendSensorReading() {
 
 boolean hasSent = false;
 boolean hasAcknowledged = false;
+int shotsCount = 0;
 
 int count = 0;
 
@@ -195,7 +196,8 @@ void loop(void) {
         // tone(buzzer, 1000); // Send 1KHz sound signal...
         // delay(500);        // ...for 1 sec
         // noTone(buzzer);     // Stop sound...
-        // delay(500);        // ...for 1sec   
+        // delay(500);        // ...for 1sec
+        shotsCount += 1;
         dummy_is_shot = true;
     } else {
       dummy_is_shot = false;
@@ -206,23 +208,37 @@ void loop(void) {
   }
 
    if(Serial.available()) {
-       if(hasHandshake == false) {
-            char serialRead = Serial.read();
-            // Serial.println(serialRead);
-            if (serialRead == 'S') {
+        char serialRead = Serial.read();
+        // Serial.println(serialRead);
+        if (serialRead == 'S') {
 //              Serial.write('A');
-                sendACKPacket();
-            }
-            else if(serialRead == 'A') {
-              hasHandshake = true;
+            hasHandshake = false;
+            sendACKPacket();
+        }
+        else if(serialRead == 'A') {
+          hasHandshake = true;
+         }
+        if(serialRead == 'G') {
+            healthPoint -= 30;
+        }
 
-            }
+       if(dummy_is_shot == true) {
+            hasSent = false;
        }
 
-       if(hasHandshake == true && dummy_is_shot == true) {
+//        if(hasHandshake == false) {
+//
+//        }
+
+//        if(hasHandshake == true && dummy_is_shot == true)
+       if(hasHandshake == true && hasSent == false && shotsCount > 0)
+       {
 //          count<=5 &&
 //            delay(10000);
-           sendSensorReading();
+           for (int i = 0; i < shotsCount; i++) {
+              sendSensorReading();
+           }
+           shotsCount = 0;
            hasSent = true;
            count++;
            hasAcknowledged = false;
