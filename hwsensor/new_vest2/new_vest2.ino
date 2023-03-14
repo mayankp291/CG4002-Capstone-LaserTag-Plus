@@ -16,6 +16,8 @@ const int buzzer = 5;
 Adafruit_NeoPixel leds = Adafruit_NeoPixel(LED_COUNT, ledPin, NEO_GRB + NEO_KHZ800);
 bool dummy_is_shot = false;
 
+bool isGrenadeHit = false;
+
 Adafruit_MPU6050 mpu;
 
 byte dataPacket[20];
@@ -104,30 +106,30 @@ void clearLEDs() {
 void led() {
     int color = 0x800080;
     if(healthPoint == 100) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x00FF00);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x008000);
     } else if(healthPoint == 90) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x0000FF);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x2E8B57);
       color = 0x0000FF;
     } else if(healthPoint == 80) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFC0CB);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x90EE90);
       color = 0xFFC0CB;
     } else if(healthPoint == 70) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFFF00);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xADFF2F);
       color = 0xFFFF00;
     } else if(healthPoint == 60) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x800080);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDAA520);
       color = 0x800080;
     } else if(healthPoint == 40) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xADD8E6);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
       color = 0xADD8E6;
     } else if(healthPoint == 30) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFF4500);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFFFE0);
       color = 0xFF4500;
     } else if(healthPoint == 20) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFD700);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFC0CB);
       color = 0xFFD700;
     } else if(healthPoint == 10) {
-      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDC143C);
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xC71585);
       color = 0xDC143C;
     } else {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFF0000);
@@ -169,7 +171,7 @@ void sendSensorReading() {
     DatagramPacket vestPacket;
     vestPacket.typeOfPacket = (byte) 'H';
     vestPacket.deviceID = 5;
-    vestPacket.isShotReceived = dummy_is_shot;
+    vestPacket.isShotReceived = true;
 
     vestPacket.padding[16] = {0};
     vestPacket.checkSum = findCheckSum((uint8_t *)&vestPacket);
@@ -187,6 +189,13 @@ void loop(void) {
   if(healthPoint <= 0) {
       healthPoint = 100;
   }
+
+  if(isGrenadeHit) {
+    healthPoint -= 30;
+    led();
+    isGrenadeHit = false;
+  }
+
   if (IrReceiver.decode()) {
 //     Serial.println("Received something...");
     if(IrReceiver.decodedIRData.address == 0x0102) {
@@ -202,7 +211,7 @@ void loop(void) {
     } else {
       dummy_is_shot = false;
     }
-    IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
+//     IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
 //     Serial.println();
     IrReceiver.begin(PIN_RECV); // Important, enables to receive the next IR signal
   }
@@ -219,7 +228,7 @@ void loop(void) {
           hasHandshake = true;
          }
         if(serialRead == 'G') {
-            healthPoint -= 30;
+            isGrenadeHit = true;
         }
 
        if(dummy_is_shot == true) {
