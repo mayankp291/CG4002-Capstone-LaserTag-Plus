@@ -96,7 +96,7 @@ void setup(void) {
   pinMode(buzzer, OUTPUT);
   pinMode(inputPin, INPUT);     // declare pushbutton as input
   // generating random numbers
-  randomNumber = random(500);
+//   randomNumber = random(500);
 }
 
 void playTone(int bullets) {
@@ -125,7 +125,7 @@ void sendSensorReading() {
     DatagramPacket gunPacket;
     gunPacket.typeOfPacket = (byte) 'B';
     gunPacket.deviceID = 5;
-    gunPacket.isGunShot = dummy_shot;
+    gunPacket.isGunShot = true;
 
     gunPacket.padding[16] = {0};
     gunPacket.checkSum = findCheckSum((uint8_t *)&gunPacket);
@@ -142,6 +142,7 @@ void playReloadTone() {
 
 boolean hasSent = false;
 boolean hasAcknowledged = false;
+int shotsCount = 0;
 
 int count = 0;
 
@@ -162,13 +163,18 @@ void loop(void) {
     if (buttonState == HIGH) {            // check if the input is HIGH
       lastDebounceTime = millis(); //set the current time
 
-      IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent 
+
 //       Serial.println("Triggered!!!");
-      dummy_shot = true;
+      if (bullets > 0 ) {
+          IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent
+          dummy_shot = true;
+          shotsCount +=1;
+          playTone(bullets);
+          bullets = bullets - 1;
+      }
 //       Serial.println(bullets);
       digitalWrite(ledPin, HIGH);  // turn LED OFF
-      playTone(bullets);
-      bullets = bullets - 1;
+
       delay(500); // wait for one second
 
     } else {
@@ -179,23 +185,44 @@ void loop(void) {
   }
 
    if(Serial.available()) {
-       if(hasHandshake == false) {
-            char serialRead = Serial.read();
-            // Serial.println(serialRead);
-            if (serialRead == 'S') {
+        char serialRead = Serial.read();
+        // Serial.println(serialRead);
+        if (serialRead == 'S') {
 //              Serial.write('A');
-                sendACKPacket();
-            }
-            else if(serialRead == 'A') {
-              hasHandshake = true;
+            hasHandshake = false;
+            sendACKPacket();
+        }
+        else if(serialRead == 'A') {
+          hasHandshake = true;
 
-            }
+        }
+        if(serialRead == 'R') {
+           isReloading = true;
+        }
+
+
+//        if(hasHandshake == false) {
+//
+//        }
+//
+//        if(hasHandshake == true) {
+//             char serialRead = Serial.read();
+//
+//
+//        }
+       if(dummy_shot == true) {
+        hasSent = false;
        }
 
-       if(hasHandshake == true && dummy_shot == true) {
+//       if(hasHandshake == true && dummy_shot == true)
+       if(hasHandshake == true && hasSent == false && shotsCount > 0)
+       {
 //          count<=5 &&
 //            delay(10000);
-           sendSensorReading();
+           for (int i = 0; i < shotsCount; i++) {
+              sendSensorReading();
+           }
+           shotsCount = 0;
            hasSent = true;
            count++;
            hasAcknowledged = false;
