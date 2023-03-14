@@ -38,6 +38,8 @@ eval_queue = Queue()
 
 reloadSendRelay = threading.Event()
 reloadSendRelay.clear() 
+grenadeSendRelay = threading.Event()
+grenadeSendRelay.clear()
 
 player_state = {
     "p1":
@@ -166,10 +168,18 @@ class Relay_Server(threading.Thread):
                         action = data["sensorData"]
                         action_queue.put(action)
 
+                # RELOAD SEND TO RELAY
                 if reloadSendRelay.is_set():
-                    dic = {"playerId": 1, "isReload": 1}
+                    dic = {"playerId": 1, "action": "reload"}
                     dic = str(dic)
                     reloadSendRelay.clear()
+                    request.sendall(dic.encode("utf8"))
+
+                # GRENADE SEND TO RELAY
+                if grenadeSendRelay.is_set():
+                    dic = {"playerId": 1, "action": "grenade"}
+                    dic = str(dic)
+                    grenadeSendRelay.clear()
                     request.sendall(dic.encode("utf8"))
 
         except Exception as e:
@@ -497,6 +507,11 @@ class Evaluation_Client(threading.Thread):
                 print('=====================================')
                 print("[EVAL UPDATE] Updated player state from Evaluation Server", player_state)
                 print('=====================================')
+                ### update event flags
+                if player_state['p1']['action'] == 'grenade':
+                    grenadeSendRelay.set()
+                if player_state['p1']['action'] == 'reload':
+                    reloadSendRelay.set()
 
             
             except:
