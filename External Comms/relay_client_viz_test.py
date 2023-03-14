@@ -9,6 +9,7 @@ import sys
 
 # IMU = {'x': 0, 'y': 0, 'z': 0}
 IMU = {'playerID': 2, 'beetleID': 4, 'sensorData': {'aX': 409, 'aY': 158, 'aZ': 435, 'gX': 265, 'gY': 261, 'gZ': 261}}
+test = {'playerID': 2, 'beetleID': 7, 'sensorData': None}
 
 
 
@@ -24,9 +25,14 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         try: 
+            match = {1:"shoot", 2:"grenade", 3:"shield", 4:"reload", 5:"shoot_p2_hits"}	
             while True:
-                input("Press any button to send data")
-                msg = str(IMU)
+                print(match)
+                a = input("Press any button to send data")
+                test['sensorData'] = match[int(a)]
+                msg = str(test)
+                # msg = str(IMU)
+                # msg = str(len(msg)) + '_' + msg
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
                 # self.recv()
