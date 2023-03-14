@@ -38,6 +38,7 @@ DATA_PACKET_SIZE = 20
 
 SYN_FLAGS = [False] * 7
 ACK_FLAGS = [False] * 7
+HANDSHAKE_FLAGS = [False] * 7
 
 # Device IDs
 IMU_PLAYER_1 = 1
@@ -63,6 +64,7 @@ isReloadFlagGun2.clear()
 
 doesGrenadeHitFlagVest1 = threading.Event()
 doesGrenadeHitFlagVest1.clear()
+
 doesGrenadeHitFlagVest2 = threading.Event()
 doesGrenadeHitFlagVest2.clear()
 
@@ -99,6 +101,7 @@ class MyDelegate(DefaultDelegate):
         print("HandshakeCompleted")
         self.sendAckPacket()
         self.hasHandshaken = True
+        HANDSHAKE_FLAGS[self.deviceId] = True
         # self.startTime = time.time()
         # self.startTime = datetime.now()
 
@@ -346,10 +349,11 @@ class BeetleConnectionThread:
                 doesGrenadeHitFlagVest1.clear()
 
         if self.beetleId == VEST_PLAYER_2:
-            if doesGrenadeHitFlagVest1.is_set():
+            if doesGrenadeHitFlagVest2.is_set():
+                print('writing grenade on beetle')
                 self.serialChar.write(bytes("G", encoding = "utf-8"))
                 self.isGrenadeHit = True
-                doesGrenadeHitFlagVest1.clear()
+                doesGrenadeHitFlagVest2.clear()
 
 
     def sendSynMessage(self):
@@ -373,7 +377,10 @@ class BeetleConnectionThread:
 
                 if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
                     hasHandshake = True
-                if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
+                if HANDSHAKE_FLAGS[self.beetleId]:
+                    hasHandshake = True
+
+                if not self.dev.waitForNotifications(5):
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
@@ -381,12 +388,13 @@ class BeetleConnectionThread:
                     ACK_FLAGS[self.beetleId] = False
                     self.dev.disconnect()
                 if hasHandshake:
-                    # print('comes here and has handshaked')
+                    print('comes here and has handshaked')
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload()
 
                     if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
                         self.checkForGrenadeHit()
+
                     self.dev.waitForNotifications(1)
 
                     # continue
@@ -496,6 +504,13 @@ def testReloadThread():
         isReloadFlagGun1.set()
         print('setting reload flags')
 
+def testGrenadeHitThread():
+    while True:
+        time.sleep(5)
+        doesGrenadeHitFlagVest1.set()
+        doesGrenadeHitFlagVest2.set()
+        print('setting grenade flags')
+
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
@@ -513,8 +528,8 @@ if __name__ == '__main__':
         Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
         Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
 
-        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
+        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
+        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
         # # Player 2
         # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
@@ -528,27 +543,30 @@ if __name__ == '__main__':
 
 
         ReloadThread = threading.Thread(target = testReloadThread, args = ())
+        GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
 
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
 
         Gun1_Thread.start()
-        # Vest1_Thread.start()
+        Vest2_Thread.start()
         # IMU2_Thread.start()
 
 
-        # Vest1_Thread.join()
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
         # relay_thread.start()
         ReloadThread.start()
+        GrenadeThread.start()
 
         Gun1_Thread.join()
         IMU1_Thread.join()
+        Vest2_Thread.join()
 
         ReloadThread.join()
+        GrenadeThread.join()
         # relay_thread.join()
 
         # while True: time.sleep(100)
