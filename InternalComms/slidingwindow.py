@@ -62,8 +62,7 @@ class SlidingWindow:
             acc_vals = np.array(self.data)[j, :3]
             gyro_vals = np.array(self.data)[j, 3:]
             
-            if ((acc_vals > self.acc_mean + acc_thresh).all() and (gyro_vals > self.gyro_mean + gyro_thresh).all()
-                    or ((acc_vals < self.acc_mean - acc_thresh).all() and (gyro_vals < self.gyro_mean - gyro_thresh).all())):
+            if (((acc_vals > self.acc_mean + acc_thresh).all() and (gyro_vals > self.gyro_mean + gyro_thresh).all()) or ((acc_vals < self.acc_mean - acc_thresh).all() and (gyro_vals < self.gyro_mean - gyro_thresh).all())):
             # if ((acc_vals >= self.acc_mean + acc_thresh).all() or
             #         (acc_vals <= self.acc_mean - acc_thresh).all()):
                 # potential start of move action identified
@@ -77,7 +76,7 @@ class SlidingWindow:
                         # if index is out of range, move to next window
                         break
 
-                    if not ((next_acc_vals > self.acc_mean + acc_thresh).all() and (next_gyro_vals > self.gyro_mean + gyro_thresh).all() or (next_acc_vals < self.acc_mean - acc_thresh).all() and (next_gyro_vals < self.gyro_mean - gyro_thresh).all()):
+                    if not (((next_acc_vals > self.acc_mean + acc_thresh).all() and (next_gyro_vals > self.gyro_mean + gyro_thresh).all()) or ((next_acc_vals < self.acc_mean - acc_thresh).all() and (next_gyro_vals < self.gyro_mean - gyro_thresh).all())):
                     # if not ((next_acc_vals >= self.acc_mean + acc_thresh).all() or (next_acc_vals <= self.acc_mean - acc_thresh).all()):
                         # not the start of move action, move to next window
                         break
@@ -92,8 +91,8 @@ class SlidingWindow:
     def get_window_matrix(self):    
         window_matrix = np.array(self.data)
         # pad with zeros if data is less than window size
-        if window_matrix.shape[0] < self.window_size:
-            pad_size = self.window_size - window_matrix.shape[0]
-            padding = np.zeros((pad_size, window_matrix.shape[1]))
-            window_matrix = np.concatenate((padding, window_matrix), axis=0)
+        # if window_matrix.shape[0] < self.window_size:
+        #     pad_size = self.window_size - window_matrix.shape[0]
+        #     padding = np.zeros((pad_size, window_matrix.shape[1]))
+        #     window_matrix = np.concatenate((padding, window_matrix), axis=0)
         return window_matrix.T

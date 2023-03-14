@@ -87,8 +87,8 @@ class SlidingWindow:
     def get_window_matrix(self):    
         window_matrix = np.array(self.data)
         # pad with zeros if data is less than window size
-        if window_matrix.shape[0] < self.window_size:
-            pad_size = self.window_size - window_matrix.shape[0]
-            padding = np.zeros((pad_size, window_matrix.shape[1]))
-            window_matrix = np.concatenate((padding, window_matrix), axis=0)
+        # if window_matrix.shape[0] < self.window_size:
+        #     pad_size = self.window_size - window_matrix.shape[0]
+        #     padding = np.zeros((pad_size, window_matrix.shape[1]))
+        #     window_matrix = np.concatenate((padding, window_matrix), axis=0)
         return window_matrix.T

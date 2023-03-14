@@ -245,9 +245,10 @@ class MyDelegate(DefaultDelegate):
         if not is_move_detection_skipped:
             start_index = move_detector.is_start_of_move()
             if start_index >= 0:
-                for i in range(start_index):
+                for _ in range(start_index):
                     move_detector.remove_old_value()
-                    is_move_detection_skipped = True
+                is_move_detection_skipped = True
+                return "none"
 
         is_move_detection_skipped = False
 
@@ -260,14 +261,16 @@ class MyDelegate(DefaultDelegate):
         predicted_class = np.argmax(predictions[0])
         prediction_array.append(predicted_class)
 
-
-        if len(prediction_array) > 43:
-            ans = np.bincount(np.array(prediction_array)).argmax()
-            print('Predicted class:', ans, mapping[ans])
-            prediction_array.clear()
+        move_detector.clear()
 
 
-        # print('Predicted class:', predicted_class, mapping[predicted_class])
+        # if len(prediction_array) > 43:
+        #     ans = np.bincount(np.array(prediction_array)).argmax()
+        #     print('Predicted class:', ans, mapping[ans])
+        #     prediction_array.clear()
+
+
+        print('Predicted class:', predicted_class, mapping[predicted_class])
         
 
         # if counter <= 50:
