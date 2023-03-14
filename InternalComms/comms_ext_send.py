@@ -12,6 +12,7 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 import csv
 import keyboard
 import time
+from ast import literal_eval
 
 # the peripheral class is used to connect and disconnect
 
@@ -575,16 +576,11 @@ def executeThreads():
 #                     print("FLAG IS SET")
 #                 time.sleep(0.5)
 
-                
-class Relay_Client(threading.Thread):
-    def __init__(self, ip, port) -> None:
+
+class Relay_Client_Send(threading.Thread):
+    def __init__(self, sock) -> None:
         super().__init__()
-        self.relay_ip = gethostbyname(ip)
-        self.relay_port = port
-        self.relaySocket = socket(AF_INET, SOCK_STREAM)
-        self.relaySocket.connect((self.relay_ip, self.relay_port))
-        print('Connected to Relay Server', self.relay_ip, self.relay_port)
-        
+        self.sock = sock
 
     def run(self):
         try: 
@@ -593,21 +589,41 @@ class Relay_Client(threading.Thread):
                 msg = str(msg)
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
-                # self.recv()
         except:
             print('Connection to Relay Server lost')
             self.relaySocket.close()
             sys.exit()
-    
-    
-            
-        
-    def send(self, message):
-        self.relaySocket.send(message.encode('utf-8'))
-        # print('Sent message to Relay Server', message)
-        print('Sent packet to Relay Server', end='\r')       
-        
 
+    def send(self, msg):
+        try:
+            self.sock.send(msg.encode("utf-8"))
+        except:
+            print('Connection to Relay Server lost')
+            self.relaySocket.close()
+            sys.exit()
+
+class Relay_Client_Recv(threading.Thread):
+    def __init__(self, sock) -> None:
+        super().__init__()
+        self.sock = sock
+
+    def run(self):
+        try:
+            while True:
+                data = self.recv()
+                if data:
+                    data = data.decode("utf-8")
+                    data = literal_eval(data)
+                    isReload = data["isReload"]
+                    playerID = data["playerId"]
+                    if playerID == 1 and isReload == 1:	
+                        flag.set()
+                    if playerID == 2 and isReload == 1:	
+                        flag.set()
+        except:
+            print('Connection to Relay Server lost')
+            self.relaySocket.close()
+            sys.exit()
 
 
 if __name__ == '__main__':
@@ -637,8 +653,14 @@ if __name__ == '__main__':
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-        relay_thread = Relay_Client('localhost', 11000)
         
+        # Create a socket and connect to the server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(('localhost', 11000))
+
+        send_thread = Relay_Client_Send(sock)        
+        recv_thread = Relay_Client_Recv(sock)
+
         # check_thread = Check_Thread()
         # check_thread.start()
         # Gun1_Thread.daemon = True
@@ -654,9 +676,11 @@ if __name__ == '__main__':
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
-        relay_thread.start()
+        send_thread.start()
+        recv_thread.start()
         IMU1_Thread.join()
-        relay_thread.join()
+        send_thread.join()
+        recv_thread.join()
         # while True: time.sleep(100)
 
         # signal.pause()

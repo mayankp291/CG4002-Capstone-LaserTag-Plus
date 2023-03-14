@@ -10,30 +10,41 @@ import time
 import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
 import csv
+import keyboard
+import time
+from ast import literal_eval
+# import socket
 
 # the peripheral class is used to connect and disconnect
 
 # timeouts in seconds
 CONNECTION_TIMEOUT = 3
 
-Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
+Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
-dataBuffer = mp.Queue()
 
 # serialSvc = dev.getServiceByUUID(
 #     "0000dfb0-0000-1000-8000-00805f9b34fb")
 # serialChar = serialSvc.getCharacteristics(
 #     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
 
+
+# 'GRENADE': 3
+# 'LOGOUT' : 0
+# 'SHIELD' : 1
+# 'RELOAD' : 2
+# 'IDLE' : 4
+
 macAddresses = {
-    1: "D0:39:72:BF:BF:BB", #imu1
-    2: "D0:39:72:BF:C6:07", #VEST1
-    3: "D0:39:72:BF:C3:BF", #GUN1
-    4: "D0:39:72:BF:C8:A8", #IMU2
-    5: "D0:39:72:BF:BF:DD", #vest2
-    6: "D0:39:72:BF:C8:CF" #gun2
+    1: "D0:39:72:BF:BF:BB",  # imu1
+    2: "D0:39:72:BF:C6:07",  # VEST1
+    3: "D0:39:72:BF:C3:BF",  # GUN1
+    4: "D0:39:72:BF:C8:A8",  # IMU2
+    5: "D0:39:72:BF:BF:DD",  # vest2
+    6: "D0:39:72:BF:C8:CF"  # gun2
 }
 
+dataBuffer = mp.Queue()
 DATA_PACKET_SIZE = 20
 
 SYN_FLAGS = [False] * 6
@@ -41,7 +52,7 @@ ACK_FLAGS = [False] * 6
 
 # Device IDs
 IMU_PLAYER_1 = 1
-VEST_PLAYER_1= 2
+VEST_PLAYER_1 = 2
 GUN_PLAYER_1 = 3
 IMU_PLAYER_2 = 4
 VEST_PLAYER_2 = 5
@@ -53,12 +64,44 @@ MOTION_PACKET = 'M'
 AMMO_PACKET = 'B'
 HEALTH_PACKET = 'H'
 
+isReloadFlagGun1 = threading.Event()
+isReloadFlagGun1.clear()
+
+isReloadFlagGun2 = threading.Event()
+isReloadFlagGun2.clear()
+
+arr1 = []
+arr2 = []
+arr3 = []
+arr4 = []
+arr5 = []
+arr6 = []
+
+arr11 = []
+arr22 = []
+arr33 = []
+arr44 = []
+arr55 = []
+arr66 = []
+
+keyPress = False
+key_input = ""
+counter = 1
+ACTION = 'RELOAD'
+
+NUM_OF_DATA_POINTS = 128
+flag = threading.Event()
+flag.clear()
+
+
 class CheckSumFailedError(Exception):
     pass
 
+
 # each beetle has a delegate to handle BLE transactions
 class MyDelegate(DefaultDelegate):
-    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar):
+    def __init__(self, playerId, deviceId, dataBuffer, lock, receivingBuffer, hasHandshaken, serialSvc, serialChar,
+                 isKeyPressed):
         DefaultDelegate.__init__(self)
         self.playerId = playerId
         self.deviceId = deviceId
@@ -74,12 +117,13 @@ class MyDelegate(DefaultDelegate):
         self.startTime = None
         self.endTime = None
         self.transmissionSpeed = 0
+        self.isKeyPressed = isKeyPressed
 
     def sendAckPacket(self):
         self.serialChar.write(bytes("A", "utf-8"))
 
     def handleAckPacket(self):
-        ACK_FLAGS[self.deviceId] = True
+        ACK_FLAGS[self.deviceId-1] = True
         print("received ack from beetle")
         self.serialChar.write(bytes('A', encoding="utf-8"))
         print("HandshakeCompleted")
@@ -99,41 +143,164 @@ class MyDelegate(DefaultDelegate):
             return True
         else:
             return False
+
     def handleCheckSumError(self, data):
         # If there is a problem, then drop
         self.receivingBuffer = b''
-        print("Checksum failed for device", self.deviceId ,", packet dropped")
+        print("Checksum failed for device", self.deviceId, ", packet dropped")
 
-    def savedata(self, data):
-        
-        
-        motiondata = data['motionData']
-        row = list(motiondata.values())
-        # define CSV filename
-        filename = 'data.csv'
+    # def savedata(self, data):
 
-        # open file in write mode
-        with open(filename, mode='a', newline='') as file:
-            
-            # create a writer object
-            writer = csv.writer(file)
-            
-            # write header row
-            # writer.writerow(['First Name', 'Last Name', 'Age'])
-            
-            # write data rows
-            # for row in data
-                # writer.writerow(row)
-            writer.writerow(row)
-                
-        # print(f"Data saved to {filename} successfully.")
-        print("DATA SAVED:", row)
+    #     # if keyboard.is_pressed("a"):
+    #     # print(self.isKeyPressed)
+    #     # if self.isKeyPressed:
+    #     # if not key_input:
+    #     #     key_input = input("Get Data? y/n")
+    #     #     print("okay, collecting data...")
 
+    #     # if key_input != "y":
+    #     #     return
+
+    #     # if counter <= NUM_OF_DATA_POINTS:
+
+    #     #     motiondata = data['motionData']
+    #     #     row = list(motiondata.values())
+    #     #     arr1.append(row[0])
+    #     #     arr2.append(row[1])
+    #     #     arr3.append(row[2])
+    #     #     arr4.append(row[3])
+    #     #     arr5.append(row[4])
+    #     #     arr6.append(row[5])
+    #     #     print("WORKS", row)
+
+    #     #     counter += 1
+
+    #     # else:
+    #     #     # put line
+    #     #     # newline
+    #     #     # empty arr
+    #     #     # Open the six files in append mode
+    #     #     print("Data collected!")
+    #     #     key_input = input("Do you want to save the data? y/n")
+
+    #     #     if key_input == "y":
+    #     #         print("Okay, Saving to textfile...")
+
+    #     #         file1 = open("aX.txt", "a")
+    #     #         file2 = open("aY.txt", "a")
+    #     #         file3 = open("aZ.txt", "a")
+    #     #         file4 = open("gX.txt", "a")
+    #     #         file5 = open("gY.txt", "a")
+    #     #         file6 = open("gZ.txt", "a")
+    #     #         file7 = open("action.txt", "a")
+
+    #     #         # convert list to comma-separated string
+    #     #         data_str1 = ','.join(str(item) for item in arr1)
+    #     #         data_str2 = ','.join(str(item) for item in arr2)
+    #     #         data_str3 = ','.join(str(item) for item in arr3)
+    #     #         data_str4 = ','.join(str(item) for item in arr4)
+    #     #         data_str5 = ','.join(str(item) for item in arr5)
+    #     #         data_str6 = ','.join(str(item) for item in arr6)
+
+    #     #         # Write some data to each file
+    #     #         file1.write(data_str1 + "\n")
+    #     #         file2.write(data_str2 + "\n")
+    #     #         file3.write(data_str3 + "\n")
+    #     #         file4.write(data_str4 + "\n")
+    #     #         file5.write(data_str5 + "\n")
+    #     #         file6.write(data_str6 + "\n")
+    #     #         # 3 GRENADE
+    #     #         file7.write("3\n")
+
+    #     #         # Close all the files
+    #     #         file1.close()
+    #     #         file2.close()
+    #     #         file3.close()
+    #     #         file4.close()
+    #     #         file5.close()
+    #     #         file6.close()
+    #     #     else:
+    #     #         print("Okay, ignoring current take...")
+
+    #     #     arr1.clear()
+    #     #     arr2.clear()
+    #     #     arr3.clear()
+    #     #     arr4.clear()
+    #     #     arr5.clear()
+    #     #     arr6.clear()
+
+    #     #     key_input = ""
+    #     #     counter = 0
+    #     global counter
+    #     if flag.is_set():
+    #         motiondata = data['motionData']
+    #         row = list(motiondata.values())
+    #         arr1.append(row[0])
+    #         arr2.append(row[1])
+    #         arr3.append(row[2])
+    #         arr4.append(row[3])
+    #         arr5.append(row[4])
+    #         arr6.append(row[5])
+    #         print("DATA RECV", row)
+
+    #     else:
+    #         # put line
+    #         # newline
+    #         # empty arr
+    #         # only save when arrays are non-empty
+    #         if(arr1):
+    #             print(f"Data collected and saved for {ACTION}, iteration {counter}")
+    #             counter+=1
+    #             file1 = open("aX.txt", "a")
+    #             file2 = open("aY.txt", "a")
+    #             file3 = open("aZ.txt", "a")
+    #             file4 = open("gX.txt", "a")
+    #             file5 = open("gY.txt", "a")
+    #             file6 = open("gZ.txt", "a")
+    #             file7 = open("action.txt", "a")
+
+    #             # convert list to comma-separated string
+    #             data_str1 = ','.join(str(item) for item in arr1)
+    #             data_str2 = ','.join(str(item) for item in arr2)
+    #             data_str3 = ','.join(str(item) for item in arr3)
+    #             data_str4 = ','.join(str(item) for item in arr4)
+    #             data_str5 = ','.join(str(item) for item in arr5)
+    #             data_str6 = ','.join(str(item) for item in arr6)
+
+    #             # print(data_str1)
+    #             # Write some data to each file
+    #             file1.write(data_str1 + "\n")
+    #             file2.write(data_str2 + "\n")
+    #             file3.write(data_str3 + "\n")
+    #             file4.write(data_str4 + "\n")
+    #             file5.write(data_str5 + "\n")
+    #             file6.write(data_str6 + "\n")
+    #             # 3 GRENADE
+    #             file7.write("4\n")
+
+    #             # Close all the files
+    #             file1.close()
+    #             file2.close()
+    #             file3.close()
+    #             file4.close()
+    #             file5.close()
+    #             file6.close()
+
+    #             arr1.clear()
+    #             arr2.clear()
+    #             arr3.clear()
+    #             arr4.clear()
+    #             arr5.clear()
+    #             arr6.clear()
+
+    #         # print("FLAG UNSET")
+    #         # flag.clear()
 
     def handleNotification(self, cHandle, data):
         try:
+
             self.receivingBuffer += data
-            if len(self.receivingBuffer) >=20:
+            if len(self.receivingBuffer) >= 20:
                 # print("Data received from beetle: ", self.receivingBuffer)
                 # self.endTime = time.time()
                 # self.endTime = datetime.now()
@@ -149,12 +316,11 @@ class MyDelegate(DefaultDelegate):
                 unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
                 # dataPacket = dataPacket[::-1]
                 # print(unpackedPacket)
-                # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
-                print("packetType, deviceId, length ", packetType , "," , self.deviceId,
-                      ",", len(self.receivingBuffer) )
-                # , ",", self.transmissionSpeed, "kbps"
-                print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
+                # print("packetType, deviceId, length ", packetType , "," , self.deviceId,
+                #       ",", len(self.receivingBuffer) )
+                # # , ",", self.transmissionSpeed, "kbps"
+                # print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
                 if packetType == 'A':
                     self.handleAckPacket()
                 if packetType == 'M':
@@ -207,45 +373,6 @@ class MyDelegate(DefaultDelegate):
             pass
 
 
-
-
-
-    def ohandleNotification(self, cHandle, data):
-        self.receivingBuffer += data
-        print("Data received from beetle: ", self.receivingBuffer)
-        if (len(self.receivingBuffer)) == 1 and self.receivingBuffer == b'A' and not ACK_FLAGS[self.deviceId]:
-            # global beetleAck
-            # beetleAck = True
-            ACK_FLAGS[self.deviceId] = True
-            self.receivingBuffer = b'' # reset the data
-
-        if ACK_FLAGS[self.deviceId] and len(self.receivingBuffer) >1:
-            dataPacket = self.receivingBuffer[0:20]
-            unpackedPacket = ()
-            # expectedPacketFormat = (
-            #     'b'
-            #     'b'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'h'
-            #     'x'
-            #     'b'
-            # )
-            expectedPacketFormat = ("bb6hxb")
-            unpackedPacket = struct.unpack_from(expectedPacketFormat, dataPacket, 0)
-            # dataPacket = dataPacket[::-1]
-            print(unpackedPacket)
-            # packetType = struct.unpack('b', dataPacket[0])
-            # deviceId = struct.unpack('i', dataPacket[1])
-            # print(self.receivingBuffer)
-            # print(packetType, deviceId)
-            self.receivingBuffer = b''
-        self.receivingBuffer = b''
-
-
     def checkCRC(self, length):
         calcChecksum = Crc8.calc(self.buffer[0: length])
         return calcChecksum == self.buffer[length]
@@ -264,6 +391,10 @@ class BeetleConnectionThread:
         self.serialChar = None
         self.receivingBuffer = receivingBuffer
         self.hasHandshaken = False
+        self.isKeyPressed = False
+
+        if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
+            self.isReload = False
 
     def writetoBeetle(self):
         pass
@@ -276,7 +407,8 @@ class BeetleConnectionThread:
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
-                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar)
+                                        self.receivingBuffer, self.hasHandshaken, self.serialSvc, self.serialChar,
+                                        self.isKeyPressed)
             self.dev.withDelegate(deviceDelegate)
             return True
             # break
@@ -285,29 +417,42 @@ class BeetleConnectionThread:
             return False
             # return
 
-
     def startThreeWayHandshake(self, hasHandshake):
 
         while not hasHandshake:
             self.dev.waitForNotifications(1.0)
 
-            if not SYN_FLAGS[self.beetleId]:
+            if not SYN_FLAGS[self.beetleId-1]:
                 print("sending syn to beetle")
                 self.serialChar.write(bytes('S', encoding="utf-8"))
-                SYN_FLAGS[self.beetleId] = True
-            if ACK_FLAGS[self.beetleId]:
+                SYN_FLAGS[self.beetleId-1] = True
+            if ACK_FLAGS[self.beetleId-1]:
                 print("received ack from beetle")
                 self.serialChar.write(bytes('A', encoding="utf-8"))
                 hasHandshake = True
                 print("HandshakeCompleted")
         return hasHandshake
 
+    def checkForReload(self):
+        if self.beetleId == GUN_PLAYER_1:
+            if isReloadFlagGun1.is_set():
+                self.serialChar.write(bytes("R", encoding="utf-8"))
+                self.isReload = False
+                isReloadFlagGun1.clear()
+
+        if self.beetleId == GUN_PLAYER_2:
+            if isReloadFlagGun2.is_set():
+                self.serialChar.write(bytes("R", encoding="utf-8"))
+                self.isReload = False
+                isReloadFlagGun2.clear()
+
+
     def sendSynMessage(self):
         self.dev.waitForNotifications(1.0)
-        if not SYN_FLAGS[self.beetleId]:
+        if not SYN_FLAGS[self.beetleId-1]:
             print("sending syn to beetle")
             self.serialChar.write(bytes('S', encoding="utf-8"))
-            SYN_FLAGS[self.beetleId] = True
+            SYN_FLAGS[self.beetleId-1] = True
 
     def executeCommunications(self):
         # connect to beetle
@@ -320,68 +465,47 @@ class BeetleConnectionThread:
                         isConnected = self.openBeetleConnection()
                     # hasHandshake = self.startThreeWayHandshake(hasHandshake)
                     self.sendSynMessage()
+
+                if hasHandshake:
+                    self.dev.waitForNotifications(1)
+                    if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
+                        self.checkForReload(self.serialChar)
+
+                if SYN_FLAGS[self.beetleId-1] and ACK_FLAGS[self.beetleId-1]:
+                    hasHandshake = True
                 if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
+                    print('disconnecting')
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
-                    SYN_FLAGS[self.beetleId] = False
-                    ACK_FLAGS[self.beetleId] = False
+                    SYN_FLAGS[self.beetleId-1] = False
+                    ACK_FLAGS[self.beetleId-1] = False
                     self.dev.disconnect()
-                if hasHandshake:
-                    self.dev.waitForNotifications(1)
                     # continue
+                # if keyboard.is_pressed("a"):
+                #     self.isKeyPressed = True
+                #     global keyPress
+                #     keyPress = True
             except KeyboardInterrupt:
                 self.dev.disconnect()
                 print('Disconnecting from beetle ', self.beetleId)
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
-                SYN_FLAGS[self.beetleId] = False
-                ACK_FLAGS[self.beetleId] = False
+                SYN_FLAGS[self.beetleId-1] = False
+                ACK_FLAGS[self.beetleId-1] = False
             except (BTLEDisconnectError, AttributeError):
                 print("Device Disconnected")
                 self.hasHandshaken = False
                 isConnected = False
                 hasHandshake = False
-                SYN_FLAGS[self.beetleId] = False
-                ACK_FLAGS[self.beetleId] = False
+                SYN_FLAGS[self.beetleId-1] = False
+                ACK_FLAGS[self.beetleId-1] = False
 
             except Exception as e:
                 print("Unexpected error:", sys.exc_info()[0])
                 print(e.__doc__)
                 print(e.message)
-
-
-class Relay_Client(threading.Thread):
-    def __init__(self, ip, port) -> None:
-        super().__init__()
-        self.relay_ip = gethostbyname(ip)
-        self.relay_port = port
-        self.relaySocket = socket(AF_INET, SOCK_STREAM)
-        self.relaySocket.connect((self.relay_ip, self.relay_port))
-        print('Connected to Relay Server', self.relay_ip, self.relay_port)
-        
-
-    def run(self):
-        try: 
-            while True:
-                msg = dataBuffer.get()
-                # input("Press any button to send data")
-                # msg = str(IMU)
-                # msg = str(len(msg)) + '_' + msg
-                self.send(msg)
-                # self.recv()
-        except:
-            print('Connection to Relay Server lost')
-            self.relaySocket.close()
-            sys.exit()
-
-
-    def send(self, message):
-        self.relaySocket.send(message.encode('utf-8'))
-        # print('Sent message to Relay Server', message)
-        print('Sent packet to Relay Server', end='\r')       
-        
 
 
 def executeThreads():
@@ -430,13 +554,78 @@ def executeThreads():
     # Vest2_Thread.join()
 
 
+# class Check_Thread(threading.Thread):
+#     def __init__(self) -> None:
+#         super().__init__()
+#     def run(self):
+#         while True:
+#             if keyboard.is_pressed("a"):
+#                 if flag.is_set():
+#                     print("FLAG IS CLEARED")
+#                     flag.clear()
+#                 else:
+#                     flag.set()
+#                     print("FLAG IS SET")
+#                 time.sleep(0.5)
+
+
+class Relay_Client_Send(threading.Thread):
+    def __init__(self, sock) -> None:
+        super().__init__()
+        self.sock = sock
+
+    def run(self):
+        try:
+            while True:
+                msg = dataBuffer.get()
+                msg = str(msg)
+                msg = str(len(msg)) + '_' + msg
+                self.send(msg)
+                time.sleep(5)
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+    def send(self, msg):
+        try:
+            self.sock.send(msg.encode("utf-8"))
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+
+class Relay_Client_Recv(threading.Thread):
+    def __init__(self, sock) -> None:
+        super().__init__()
+        self.sock = sock
+
+    def run(self):
+        try:
+            while True:
+                data = self.sock.recv(100)
+                if data:
+                    data = data.decode("utf-8")
+                    data = literal_eval(data)
+                    isReload = data["isReload"]
+                    playerID = data["playerId"]
+                    if playerID == 1 and isReload == 1:
+                        isReloadFlagGun1.set()
+                    if playerID == 2 and isReload == 1:
+                        isReloadFlagGun2.set()
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
-        
 
         # using a multiprocessing queue FIFO
-        # dataBuffer = mp.Queue()
+
         receivingBuffer1 = b''
         receivingBuffer2 = b''
         receivingBuffer3 = b''
@@ -457,28 +646,40 @@ if __name__ == '__main__':
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
-        # relay_thread = Relay_Client('172.20.10.2', 11000)
-        
-        
+        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
 
+        Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer1)
+        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
+
+        # # Create a socket and connect to the server
+        # sock = socket(AF_INET, SOCK_STREAM)
+        # sock.connect(('localhost', 11000))
+
+        # send_thread = Relay_Client_Send(sock)
+        # recv_thread = Relay_Client_Recv(sock)
+
+        # check_thread = Check_Thread()
+        # check_thread.start()
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
 
-        # Gun1_Thread.start()
         # Vest1_Thread.start()
         # IMU2_Thread.start()
 
-        # Gun1_Thread.join()
         # Vest1_Thread.join()
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
-        # relay_thread.start()
-        IMU1_Thread.join()
-        # relay_thread.join()
+        Gun2_Thread.start()
 
+        # send_thread.start()
+        # recv_thread.start()
+        IMU1_Thread.join()
+        Gun2_Thread.join()
+
+        # send_thread.join()
+        # recv_thread.join()
         # while True: time.sleep(100)
 
         # signal.pause()
