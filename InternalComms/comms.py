@@ -36,8 +36,8 @@ macAddresses = {
 
 DATA_PACKET_SIZE = 20
 
-SYN_FLAGS = [False] * 6
-ACK_FLAGS = [False] * 6
+SYN_FLAGS = [False] * 7
+ACK_FLAGS = [False] * 7
 
 # Device IDs
 IMU_PLAYER_1 = 1
@@ -52,6 +52,13 @@ ACK_PACKET = 'A'
 MOTION_PACKET = 'M'
 AMMO_PACKET = 'B'
 HEALTH_PACKET = 'H'
+
+isReloadFlagGun1 = threading.Event()
+isReloadFlagGun1.clear()
+
+isReloadFlagGun2 = threading.Event()
+isReloadFlagGun2.clear()
+
 
 class CheckSumFailedError(Exception):
     pass
@@ -444,8 +451,8 @@ if __name__ == '__main__':
         # IMU2_Beetle.executeCommunications()
 
         # # Devices 234
-        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
-        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
+        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
+        Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
 
         # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
         # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
@@ -466,16 +473,18 @@ if __name__ == '__main__':
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
 
-        # Gun1_Thread.start()
+        Gun1_Thread.start()
         # Vest1_Thread.start()
         # IMU2_Thread.start()
 
-        # Gun1_Thread.join()
+
         # Vest1_Thread.join()
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
         # relay_thread.start()
+
+        Gun1_Thread.join()
         IMU1_Thread.join()
         # relay_thread.join()
 
