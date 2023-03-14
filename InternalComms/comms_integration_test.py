@@ -12,6 +12,7 @@ from ast import literal_eval
 import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
 import csv
+import numpy as np
 
 # the peripheral class is used to connect and disconnect
 
@@ -40,6 +41,7 @@ DATA_PACKET_SIZE = 20
 
 SYN_FLAGS = [False] * 7
 ACK_FLAGS = [False] * 7
+HANDSHAKE_FLAGS = [False] * 7
 
 # Device IDs
 IMU_PLAYER_1 = 1
@@ -54,12 +56,20 @@ ACK_PACKET = 'A'
 MOTION_PACKET = 'M'
 AMMO_PACKET = 'B'
 HEALTH_PACKET = 'H'
+RELOAD_PACKET = 'R'
+GRENADE_PACKET = 'G'
 
 isReloadFlagGun1 = threading.Event()
 isReloadFlagGun1.clear()
 
 isReloadFlagGun2 = threading.Event()
 isReloadFlagGun2.clear()
+
+doesGrenadeHitFlagVest1 = threading.Event()
+doesGrenadeHitFlagVest1.clear()
+
+doesGrenadeHitFlagVest2 = threading.Event()
+doesGrenadeHitFlagVest2.clear()
 
 
 class CheckSumFailedError(Exception):
@@ -95,6 +105,7 @@ class MyDelegate(DefaultDelegate):
         print("HandshakeCompleted")
         self.sendAckPacket()
         self.hasHandshaken = True
+        HANDSHAKE_FLAGS[self.deviceId] = True
         # self.startTime = time.time()
         # self.startTime = datetime.now()
 
@@ -271,6 +282,9 @@ class BeetleConnectionThread:
         if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
             self.isReload = False
 
+        if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
+            self.isGrenadeHit = False
+
     def writetoBeetle(self):
         pass
 
@@ -322,6 +336,22 @@ class BeetleConnectionThread:
                 self.isReload = True
                 isReloadFlagGun2.clear()
 
+    def checkForGrenadeHit(self):
+        print('checking for grenade')
+        if self.beetleId == VEST_PLAYER_1:
+            if doesGrenadeHitFlagVest1.is_set():
+                self.serialChar.write(bytes("G", encoding = "utf-8"))
+                self.isGrenadeHit = True
+                doesGrenadeHitFlagVest1.clear()
+
+        if self.beetleId == VEST_PLAYER_2:
+            if doesGrenadeHitFlagVest2.is_set():
+                print('writing grenade on beetle')
+                self.serialChar.write(bytes("G", encoding = "utf-8"))
+                self.isGrenadeHit = True
+                doesGrenadeHitFlagVest2.clear()
+
+
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
         if not SYN_FLAGS[self.beetleId]:
@@ -343,8 +373,11 @@ class BeetleConnectionThread:
 
                 if SYN_FLAGS[self.beetleId] and ACK_FLAGS[self.beetleId]:
                     hasHandshake = True
-                if not self.dev.waitForNotifications(CONNECTION_TIMEOUT):
-                    #     self.serialChar.write(bytes('P', encoding="utf-8"))
+
+                if HANDSHAKE_FLAGS[self.beetleId]:
+                    hasHandshake = True
+
+                if not self.dev.waitForNotifications(5):
                     self.hasHandshaken = False
                     isConnected = False
                     hasHandshake = False
@@ -355,6 +388,10 @@ class BeetleConnectionThread:
                     print('comes here and has handshaked')
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload()
+
+                    if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
+                        self.checkForGrenadeHit()
+
                     self.dev.waitForNotifications(1)
 
                     # continue
@@ -386,13 +423,43 @@ class Relay_Client_Send(threading.Thread):
         self.sock = sock
 
     def run(self):
+        beetleID_mapping = {
+            1: "IMU",  # imu1
+            2: "VEST",  # VEST1
+            3: "GUN",  # GUN1
+            4: "IMU",  # IMU2
+            5: "VEST",  # vest2
+            6: "GUN",  # gun2
+            7: "TEST"
+        }
         try:
+            imu_raw = []
             while True:
+                # time.sleep(10)
                 msg = dataBuffer.get()
-                msg = str(msg)
-                msg = str(len(msg)) + '_' + msg
-                self.send(msg)
-                time.sleep(10)
+                # msg = literal_eval(msg)
+                beetle = msg['beetleId']
+                packet_type = beetleID_mapping[beetle]
+                print(beetle, packet_type)
+
+                if packet_type == 'IMU':
+                    motiondata = msg['sensorData']
+                    row = list(motiondata.values())
+                    imu_raw.append(row)
+                    if len(imu_raw) == 40:
+                        numpy_imu_raw = np.array(imu_raw)
+                        msg['sensorData'] = numpy_imu_raw
+                        # msg = numpy_imu_raw.toString()
+                        msg = str(msg)
+                        msg = str(len(msg)) + '_' + msg
+                        imu_raw.clear()
+                        self.send(msg)
+                else:
+                    msg = str(msg)
+                    msg = str(len(msg)) + '_' + msg
+                    self.send(msg)
+
+
         except:
             print('Connection to Relay Server lost')
             # self.relaySocket.close()
@@ -419,12 +486,14 @@ class Relay_Client_Recv(threading.Thread):
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
-                    isReload = data["isReload"]
+                    action = data['action']
                     playerID = data["playerId"]
-                    if playerID == 1 and isReload == 1:
+                    if playerID == 1 and action == 'reload':
                         isReloadFlagGun1.set()
-                    if playerID == 2 and isReload == 1:
-                        isReloadFlagGun2.set()
+                    # if playerID == 2 and isReload == 1:
+                    #     isReloadFlagGun2.set()
+                    if playerID == 1 and action == 'grenade':
+                        doesGrenadeHitFlagVest2.set()
         except:
             print('Connection to Relay Server lost')
             # self.relaySocket.close()
@@ -456,8 +525,8 @@ if __name__ == '__main__':
         Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
         Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
 
-        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
+        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
+        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
         # # Player 2
         # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
@@ -469,7 +538,9 @@ if __name__ == '__main__':
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
         # relay_thread = Relay_Client('172.20.10.2', 11000)
 
-        # ReloadThread = threading.Thread(target=testReloadThread, args=())
+
+        # ReloadThread = threading.Thread(target = testReloadThread, args = ())
+        # GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
 
         # Gun1_Thread.daemon = True
         # Vest1_Thread.daemon = True
@@ -492,13 +563,14 @@ if __name__ == '__main__':
         # IMU2_Thread.join()
 
         IMU1_Thread.start()
+        Vest2_Thread.start()
         # relay_thread.start()
-        ReloadThread.start()
+        # ReloadThread.start()
 
         Gun1_Thread.join()
         IMU1_Thread.join()
 
-        ReloadThread.join()
+        # ReloadThread.join()
 
         send_thread.join()
         recv_thread.join()

@@ -149,18 +149,22 @@ class Relay_Server(threading.Thread):
                         # add an IMU PACKET to the queue (playerID, sensorData)
                         # imu_packet = (data["playerID"], data["sensorData"])
                         # imu_queue.put(imu_packet)
-                        imu_queue.put(data["sensorData"])
-                        
+                        print(data["sensorData"])
+                        # imu_queue.put(data["sensorData"])
+                        # print("IMU RECV")
+                        # grenadeSendRelay.set()
                     elif data_device == "VEST":
                         # got shot damage
                         # action_packet = (data["playerID"], "shoot_p2_hits")
                         # action_queue.put(action_packet)
+                        print("VEST RECV")
                         action_queue.put("shoot_p2_hits")
 
                     elif data_device == "GUN":
                         # shot by player
                         # action_packet = (data["playerID"], "shoot")
                         # action_queue.put(action_packet)
+                        print("SHOOT RECV")
                         action_queue.put("shoot")
                     elif data_device == "TEST":
                         action = data["sensorData"]
@@ -172,6 +176,7 @@ class Relay_Server(threading.Thread):
                     dic = str(dic)
                     reloadSendRelay.clear()
                     request.sendall(dic.encode("utf8"))
+                    print("RELOAD SENT")
 
                 # GRENADE SEND TO RELAY
                 if grenadeSendRelay.is_set():
@@ -179,6 +184,7 @@ class Relay_Server(threading.Thread):
                     dic = str(dic)
                     grenadeSendRelay.clear()
                     request.sendall(dic.encode("utf8"))
+                    print("GRENADE SENT")
 
         except Exception as e:
             print("Client disconnected")
