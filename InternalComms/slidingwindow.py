@@ -54,8 +54,8 @@ class SlidingWindow:
         
     def is_start_of_move(self):
         # define threshold values as 2 standard deviations away from the mean
-        acc_thresh = 0.22 * self.acc_std
-        gyro_thresh = 0.2 * self.gyro_std
+        acc_thresh = 0.05 * self.acc_std
+        gyro_thresh = 0.1 * self.gyro_std
 
         # print(acc_thresh, gyro_thresh, self.acc_mean, self.gyro_mean)
 

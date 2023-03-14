@@ -16,6 +16,7 @@ import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
 from slidingwindow import SlidingWindow
+import time
 
 model = tf.keras.models.load_model('my_model.h5')
 # the peripheral class is used to connect and disconnect
@@ -89,7 +90,7 @@ NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
 flag.clear()
 
-WINDOW_SIZE = 45
+WINDOW_SIZE = 40
 move_detector = SlidingWindow(WINDOW_SIZE)
 is_move_detection_skipped = False
 prediction_array = []
@@ -237,22 +238,22 @@ class MyDelegate(DefaultDelegate):
         if not move_detector.is_full():
             return "none"
 
-        move_detector.update_threshold()
+        # move_detector.update_threshold()
 
         # if not move_detector.is_start_of_move():
         #     return "none"
 
-        if not is_move_detection_skipped:
-            start_index = move_detector.is_start_of_move()
-            print(start_index)
-            if start_index >= 0:
-                for _ in range(start_index):
-                    move_detector.remove_old_value()
-                is_move_detection_skipped = True
+        # if not is_move_detection_skipped:
+        #     start_index = move_detector.is_start_of_move()
+        #     print(start_index)
+        #     if start_index >= 0:
+        #         for _ in range(start_index):
+        #             move_detector.remove_old_value()
+        #         is_move_detection_skipped = True
             
-            return "none"
+        #     return "none"
 
-        is_move_detection_skipped = False
+        # is_move_detection_skipped = False
 
         features = self.extract_features(move_detector.get_window_matrix())
 
@@ -261,18 +262,19 @@ class MyDelegate(DefaultDelegate):
         mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
         predictions = model.predict(features, verbose=False)
         predicted_class = np.argmax(predictions[0])
-        # prediction_array.append(predicted_class)
+        prediction_array.append(predicted_class)
 
-        move_detector.clear()
-
-
-        # if len(prediction_array) > 43:
-        #     ans = np.bincount(np.array(prediction_array)).argmax()
-        #     print('Predicted class:', ans, mapping[ans])
-        #     prediction_array.clear()
+        # move_detector.clear()
 
 
-        print('Predicted class:', predicted_class, mapping[predicted_class])
+        if len(prediction_array) > 49:
+            ans = np.bincount(np.array(prediction_array)).argmax()
+            print('Predicted class:', ans, mapping[ans])
+            prediction_array.clear()
+            time.sleep(3)
+
+
+        # print('Predicted class:', predicted_class, mapping[predicted_class])
         
 
         # if counter <= 50:
