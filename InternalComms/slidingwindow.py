@@ -54,17 +54,21 @@ class SlidingWindow:
         
     def is_start_of_move(self):
         # define threshold values as 2 standard deviations away from the mean
-        acc_thresh = 2 * self.acc_std
-        gyro_thresh = 2 * self.gyro_std
+        acc_thresh = 0.22 * self.acc_std
+        gyro_thresh = 0.2 * self.gyro_std
+
+        # print(acc_thresh, gyro_thresh, self.acc_mean, self.gyro_mean)
 
         # compare each data point in window to threshold
         for j in range(self.window_size):
             acc_vals = np.array(self.data)[j, :3]
             gyro_vals = np.array(self.data)[j, 3:]
+
+            # print(acc_vals, gyro_vals)
             
-            if (((acc_vals > self.acc_mean + acc_thresh).all() and (gyro_vals > self.gyro_mean + gyro_thresh).all()) or ((acc_vals < self.acc_mean - acc_thresh).all() and (gyro_vals < self.gyro_mean - gyro_thresh).all())):
-            # if ((acc_vals >= self.acc_mean + acc_thresh).all() or
-            #         (acc_vals <= self.acc_mean - acc_thresh).all()):
+            # if (((acc_vals > (self.acc_mean + acc_thresh)).all() and (gyro_vals > (self.gyro_mean + gyro_thresh)).all()) or ((acc_vals < (self.acc_mean - acc_thresh)).all() and (gyro_vals < (self.gyro_mean - gyro_thresh)).all())):
+            if ((acc_vals > (self.acc_mean + acc_thresh)).all() or
+                    (acc_vals < (self.acc_mean - acc_thresh)).all()):
                 # potential start of move action identified
                 # check next few data points to confirm start of move action
 
@@ -76,8 +80,8 @@ class SlidingWindow:
                         # if index is out of range, move to next window
                         break
 
-                    if not (((next_acc_vals > self.acc_mean + acc_thresh).all() and (next_gyro_vals > self.gyro_mean + gyro_thresh).all()) or ((next_acc_vals < self.acc_mean - acc_thresh).all() and (next_gyro_vals < self.gyro_mean - gyro_thresh).all())):
-                    # if not ((next_acc_vals >= self.acc_mean + acc_thresh).all() or (next_acc_vals <= self.acc_mean - acc_thresh).all()):
+                    # if not (((next_acc_vals > (self.acc_mean + acc_thresh)).all() and (next_gyro_vals > (self.gyro_mean + gyro_thresh)).all()) or ((next_acc_vals < (self.acc_mean - acc_thresh)).all() and (next_gyro_vals < (self.gyro_mean - gyro_thresh)).all())):
+                    if not ((next_acc_vals > (self.acc_mean + acc_thresh)).all() or (next_acc_vals < (self.acc_mean - acc_thresh)).all()):
                         # not the start of move action, move to next window
                         break
                 else:

@@ -89,7 +89,7 @@ NUM_OF_DATA_POINTS = 128
 flag = threading.Event()
 flag.clear()
 
-WINDOW_SIZE = 40
+WINDOW_SIZE = 45
 move_detector = SlidingWindow(WINDOW_SIZE)
 is_move_detection_skipped = False
 prediction_array = []
@@ -232,12 +232,12 @@ class MyDelegate(DefaultDelegate):
         motiondata = data['motionData']
         imu_data = list(motiondata.values())
 
-        move_detector.add_new_value(np.array(imu_data))
+        move_detector.add_new_value(np.array(imu_data).astype(np.float32))
 
         if not move_detector.is_full():
             return "none"
 
-        # move_detector.update_threshold()
+        move_detector.update_threshold()
 
         # if not move_detector.is_start_of_move():
         #     return "none"
@@ -261,7 +261,7 @@ class MyDelegate(DefaultDelegate):
         mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
         predictions = model.predict(features, verbose=False)
         predicted_class = np.argmax(predictions[0])
-        prediction_array.append(predicted_class)
+        # prediction_array.append(predicted_class)
 
         move_detector.clear()
 
