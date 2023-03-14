@@ -244,11 +244,13 @@ class MyDelegate(DefaultDelegate):
 
         if not is_move_detection_skipped:
             start_index = move_detector.is_start_of_move()
+            print(start_index)
             if start_index >= 0:
                 for _ in range(start_index):
                     move_detector.remove_old_value()
                 is_move_detection_skipped = True
-                return "none"
+            
+            return "none"
 
         is_move_detection_skipped = False
 
