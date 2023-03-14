@@ -13,7 +13,7 @@ import threading
 import random
 import time
 import traceback
-import time
+from copy import deepcopy
 
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
@@ -218,7 +218,7 @@ class Game_Engine(threading.Thread):
                 action = action_queue.get()
                 print("[ACTION]", action)
                 # Update action for player 1
-                if action != 'grenade_p2_hits' or action != 'shoot_p2_hits' or action != 'shoot_p2_misses':
+                if action != 'grenade_p2_hits':
                     player_state['p1']['action'] = action
                 # if action != 'grenade_p1_hits':
                 #     player_state['p2']['action'] = action
@@ -285,19 +285,22 @@ class Game_Engine(threading.Thread):
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
                 if (action == 'shoot_p2_hits') or (action == 'shoot_p2_misses'):
-                    viz_queue.put(('STATE', player_state))
+                    print(player_state)
+                    viz_queue.put(('STATE', deepcopy(player_state)))
                     player_state['p1']['action'] = 'shoot'
-                    player_state_cp = player_state.copy()
-                    eval_queue.put(player_state_cp) 
+                    eval_queue.put(player_state)
                 elif action == 'grenade':
-                    player_state_cp = player_state.copy()
-                    viz_queue.put(('CHECK', player_state_cp))
+                    if player_state['p1']['num_grenades'] > 0:
+                        viz_queue.put(('CHECK', player_state))
+                    else:
+                        eval_queue.put(deepcopy(player_state))
                 elif action == 'grenade_p2_hits' or action == 'grenade_p2_misses':
-                    player_state_cp = player_state.copy()
                     player_state['p1']['action'] = 'grenade'
-                    eval_queue.put(player_state_cp)
-                elif not (action == 'shoot'): 
-                    player_state_cp = player_state.copy()
+                    eval_queue.put(player_state)
+                elif action == 'shoot' and player_state['p1']['bullets'] <= 0:
+                    eval_queue.put(deepcopy(player_state))
+                elif action != 'shoot': 
+                    player_state_cp = deepcopy(player_state)
                     viz_queue.put(('STATE', player_state_cp))
                     eval_queue.put(player_state_cp) 
                 
@@ -393,10 +396,11 @@ class MQTT_Client(threading.Thread):
                 print("[MQTT] Player 2 is in grenade range")
                 action_queue.put('grenade_p2_hits') 
             elif message.payload == b'12_CHECK_grenade_miss':
-                print("[MQTT] Player 2 is not in grenade range")       
+                print("[MQTT] Player 2 is not in grenade range")      
+                action_queue.put('grenade_p2_misses') 
                 # action_queue.put('grenade_p2_misses') 
             elif message.payload == b'6_CHECK_update':
-                player_state_copy = player_state.copy()
+                player_state_copy = deepcopy(player_state)
                 player_state_copy['p1']['action'] = 'none'
                 player_state_copy['p2']['action'] = 'none'
                 viz_queue.put(('STATE', player_state_copy))
@@ -488,6 +492,9 @@ class Evaluation_Client(threading.Thread):
                 msg = data.decode("utf8")  # Decode raw bytes to UTF-8
                 recv_dict = literal_eval(msg)
                 player_state = recv_dict
+                recv_dict['p1']['action'] = 'none'
+                recv_dict['p2']['action'] = 'none'
+                viz_queue.put(('STATE', recv_dict))
                 print('=====================================')
                 print("[EVAL SERVER] Received message from Evaluation Server", msg)
                 print('=====================================')
