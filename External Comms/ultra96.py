@@ -47,7 +47,6 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
-        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     },
@@ -59,13 +58,10 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
-        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     }
 }
-
-
 
 # TCP Server to receive data from the Relay Laptops
 class Relay_Server(threading.Thread):
@@ -318,9 +314,8 @@ class Game_Engine(threading.Thread):
         # TODO send through DMA
         # print(imu_data)
         # AI_actions = ['shoot']
-        AI_actions = ['reload']
         # AI_actions = ['logout']
-        # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
+        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
         # AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
         players = ['p1', 'p2']
@@ -504,7 +499,7 @@ def main():
     eval_client.daemon = True
     eval_client.start()
 
-    game_engine = Game_Engine()
+    game_engine = Game_Engine() 
     game_engine.daemon = True
     game_engine.start()
 
