@@ -25,7 +25,8 @@ beetleID_mapping = {
     3: "GUN", #GUN1
     4: "IMU", #IMU2
     5: "VEST", #vest2
-    6: "GUN" #gun2
+    6: "GUN", #gun2
+    7: "TEST"
 }
 
 MQTT_USERNAME = "capstonekillingus"
@@ -47,7 +48,6 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
-        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     },
@@ -59,7 +59,6 @@ player_state = {
         "grenades": 2,
         "shield_time": 0,
         "shield_health": 0,
-        "hit": 0,
         "num_deaths": 0,
         "num_shield": 3
     }
@@ -151,6 +150,7 @@ class Relay_Server(threading.Thread):
                         # imu_packet = (data["playerID"], data["sensorData"])
                         # imu_queue.put(imu_packet)
                         imu_queue.put(data["sensorData"])
+                        
                     elif data_device == "VEST":
                         # got shot damage
                         # action_packet = (data["playerID"], "shoot_p2_hits")
@@ -162,6 +162,9 @@ class Relay_Server(threading.Thread):
                         # action_packet = (data["playerID"], "shoot")
                         # action_queue.put(action_packet)
                         action_queue.put("shoot")
+                    elif data_device == "TEST":
+                        action = data["sensorData"]
+                        action_queue.put(action)
 
                 if reloadSendRelay.is_set():
                     dic = {"playerId": 1, "isReload": 1}
@@ -205,7 +208,7 @@ class Game_Engine(threading.Thread):
 
             if isPlayerOneShootActivated:
                 time_elapsed = time.time() - startTimeOneShoot
-                if time_elapsed >= 1:
+                if time_elapsed >= 3:
                     isPlayerOneShootActivated = False
                     action_queue.put('shoot_p2_misses')
             
@@ -251,9 +254,8 @@ class Game_Engine(threading.Thread):
                     else:
                         player_state['p2']['hp'] -= 10
                     isPlayerOneShootActivated = False
-                    player_state['p2']['hit'] = 1
                 elif action == 'shoot_p2_misses':
-                    player_state['p2']['hit'] = 0
+                    pass
                 elif action == 'shoot':
                     if player_state['p1']['bullets'] > 0:
                         player_state['p1']['bullets'] -= 1
@@ -285,13 +287,21 @@ class Game_Engine(threading.Thread):
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
                 if (action == 'shoot_p2_hits') or (action == 'shoot_p2_misses'):
-                    player_state['p1']['action'] = 'shoot'
                     viz_queue.put(('STATE', player_state))
-                    eval_queue.put(player_state) 
-                    player_state['p2']['hit'] = 0
-                elif not (action == 'grenade_p2_hits' or action == 'shoot'): 
-                    viz_queue.put(('STATE', player_state)) 
-                    eval_queue.put(player_state) 
+                    player_state['p1']['action'] = 'shoot'
+                    player_state_cp = player_state.copy()
+                    eval_queue.put(player_state_cp) 
+                elif action == 'grenade':
+                    player_state_cp = player_state.copy()
+                    viz_queue.put(('CHECK', player_state_cp))
+                elif action == 'grenade_p2_hits' or action == 'grenade_p2_misses':
+                    player_state_cp = player_state.copy()
+                    player_state['p1']['action'] = 'grenade'
+                    eval_queue.put(player_state_cp)
+                elif not (action == 'shoot'): 
+                    player_state_cp = player_state.copy()
+                    viz_queue.put(('STATE', player_state_cp))
+                    eval_queue.put(player_state_cp) 
                 
                 if action == 'logout':
                     isPlayerOneShieldActivated = False
@@ -318,10 +328,10 @@ class Game_Engine(threading.Thread):
         # TODO send through DMA
         # print(imu_data)
         # AI_actions = ['shoot']
-        AI_actions = ['reload']
+        # AI_actions = ['reload']
         # AI_actions = ['logout']
         # AI_actions = ['reload', 'grenade', 'shield', 'shoot']
-        # AI_actions = ['reload', 'shield', 'shoot']
+        AI_actions = ['reload', 'shield', 'shoot']
         action = random.choice(AI_actions)
         players = ['p1', 'p2']
         player = random.choice(players)
@@ -451,6 +461,7 @@ class Evaluation_Client(threading.Thread):
     
     def receive(self):
         if self.clientSocket is not None:
+            global player_state
             try:
                 # recv length followed by '_' followed by cypher
                 data = b''
@@ -478,9 +489,15 @@ class Evaluation_Client(threading.Thread):
                     print('no more data from the client')
                     self.stop()
                 msg = data.decode("utf8")  # Decode raw bytes to UTF-8
+                recv_dict = literal_eval(msg)
+                player_state = recv_dict
                 print('=====================================')
-                print("[EVAL CLIENT] Received message from Evaluation Server", msg)
+                print("[EVAL SERVER] Received message from Evaluation Server", msg)
                 print('=====================================')
+                print('=====================================')
+                print("[EVAL UPDATE] Updated player state from Evaluation Server", player_state)
+                print('=====================================')
+
             
             except:
                 print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
