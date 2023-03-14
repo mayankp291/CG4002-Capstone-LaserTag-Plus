@@ -211,7 +211,7 @@ class Game_Engine(threading.Thread):
                 # Update action for player 1
                 if action != 'grenade_p2_hits' or action != 'shoot_p2_hits' or action != 'shoot_p2_misses':
                     player_state['p1']['action'] = action
-                # if action != 'grenade_p1_h++++++++its':
+                # if action != 'grenade_p1_hits':
                 #     player_state['p2']['action'] = action
                 
                 # Update player 1 state (active player) and player 2 state (passive player)
@@ -275,12 +275,12 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['shield_health'] = 0
                 
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
-                if action == 'shoot_p2_hits' or 'shoot_p2_misses':
+                if (action == 'shoot_p2_hits') or (action == 'shoot_p2_misses'):
                     player_state['p1']['action'] = 'shoot'
                     viz_queue.put(('STATE', player_state))
                     eval_queue.put(player_state) 
-                    player_state['p1']['hit'] = 0
-                elif not action == 'grenade_p2_hits' or 'shoot': 
+                    player_state['p2']['hit'] = 0
+                elif not (action == 'grenade_p2_hits' or action == 'shoot'): 
                     viz_queue.put(('STATE', player_state)) 
                     eval_queue.put(player_state) 
                 
