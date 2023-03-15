@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- 
+
 # Ultra96 Server
 from socket import *
 from Crypto import Random
@@ -15,6 +18,8 @@ import time
 import traceback
 from copy import deepcopy
 import numpy as np
+from scipy.stats import skew
+from scipy.fftpack import fft
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
@@ -152,10 +157,10 @@ class Relay_Server(threading.Thread):
                         arr = data["sensorData"]
                         # convert string to numpy array of ints
                         # new_array = np.fromstring(arrayyy, dtype=float).reshape((40, 6))
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr.encode("ascii"))).reshape(40, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(40, 6)
                         print(new_array, new_array.shape)
-                        # imu_queue.put(data["sensorData"])
-                        # print("IMU RECV")
+                        imu_queue.put(new_array)
+                        print("IMU RECV")
                         # grenadeSendRelay.set()
                     elif data_device == "VEST":
                         # got shot damage
@@ -343,6 +348,7 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['num_shield'] = 3
                     player_state['p2']['shield_time'] = 0
                     player_state['p2']['shield_health'] = 0
+  
 
 
     def AI_random(self, imu_data):
@@ -357,6 +363,8 @@ class Game_Engine(threading.Thread):
         player = random.choice(players)
         action_queue.put(action)
         # action_queue.put((player, action))
+
+    
 
     def eval_check(self, player_State):
         pass
