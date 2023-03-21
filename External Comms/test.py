@@ -21,3 +21,8 @@ def recv(data):
 
 a = send(data)
 recv(a)
+
+
+
+a = literal_eval(str(data))
+print(a)

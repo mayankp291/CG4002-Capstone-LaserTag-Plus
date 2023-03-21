@@ -16,6 +16,8 @@ const int buzzer = 5;
 Adafruit_NeoPixel leds = Adafruit_NeoPixel(LED_COUNT, ledPin, NEO_GRB + NEO_KHZ800);
 bool dummy_is_shot = false;
 
+bool isGrenadeHit = false;
+
 Adafruit_MPU6050 mpu;
 
 byte dataPacket[20];
@@ -102,24 +104,53 @@ void clearLEDs() {
 }
 
 void led() {
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 150);
-    }
+    int color = 0x800080;
+    if(healthPoint == 100) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x008000);
+    } else if(healthPoint == 90) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x2E8B57);
+      color = 0x0000FF;
+    } else if(healthPoint == 80) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x90EE90);
+      color = 0xFFC0CB;
+    } else if(healthPoint == 70) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xADFF2F);
+      color = 0xFFFF00;
+    } else if(healthPoint == 60) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDAA520);
+      color = 0x800080;
+    } else if(healthPoint == 40) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
+      color = 0xADD8E6;
+    } else if(healthPoint == 30) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFFFE0);
+      color = 0xFF4500;
+    } else if(healthPoint == 20) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFC0CB);
+      color = 0xFFD700;
+    } else if(healthPoint == 10) {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xC71585);
+      color = 0xDC143C;
+    } else {
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFF0000);
+      color = 0xFF0000;
+    } 
     leds.show();
-    delay(500);
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 0xFF0000);
-    }
-    leds.show();
-    delay(500);
-    for(int i = 0; i < LED_COUNT; i++) {
-      leds.setPixelColor(i, 50);
-    }
-    leds.show();
-    delay(500);
+    // delay(500);
+    // for(int i = 0; i < LED_COUNT; i++) {
+    //   leds.setPixelColor(i, 0xFF0000);
+    // }
+    // leds.show();
+    // delay(500);
+    // for(int i = 0; i < LED_COUNT; i++) {
+    //   leds.setPixelColor(i, 50);
+    // }
+    // leds.show();
+    delay(2000);
     clearLEDs();
     leds.show();
 }
+
 
 void doHandshake() {
   byte packetType = Serial.read();
@@ -140,7 +171,7 @@ void sendSensorReading() {
     DatagramPacket vestPacket;
     vestPacket.typeOfPacket = (byte) 'H';
     vestPacket.deviceID = 5;
-    vestPacket.isShotReceived = dummy_is_shot;
+    vestPacket.isShotReceived = true;
 
     vestPacket.padding[16] = {0};
     vestPacket.checkSum = findCheckSum((uint8_t *)&vestPacket);
@@ -150,6 +181,7 @@ void sendSensorReading() {
 
 boolean hasSent = false;
 boolean hasAcknowledged = false;
+int shotsCount = 0;
 
 int count = 0;
 
@@ -157,6 +189,13 @@ void loop(void) {
   if(healthPoint <= 0) {
       healthPoint = 100;
   }
+
+  if(isGrenadeHit) {
+    healthPoint -= 30;
+    led();
+    isGrenadeHit = false;
+  }
+
   if (IrReceiver.decode()) {
 //     Serial.println("Received something...");
     if(IrReceiver.decodedIRData.address == 0x0102) {
@@ -166,34 +205,49 @@ void loop(void) {
         // tone(buzzer, 1000); // Send 1KHz sound signal...
         // delay(500);        // ...for 1 sec
         // noTone(buzzer);     // Stop sound...
-        // delay(500);        // ...for 1sec   
+        // delay(500);        // ...for 1sec
+        shotsCount += 1;
         dummy_is_shot = true;
     } else {
       dummy_is_shot = false;
     }
-    IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
+//     IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
 //     Serial.println();
     IrReceiver.begin(PIN_RECV); // Important, enables to receive the next IR signal
   }
 
    if(Serial.available()) {
-       if(hasHandshake == false) {
-            char serialRead = Serial.read();
-            // Serial.println(serialRead);
-            if (serialRead == 'S') {
+        char serialRead = Serial.read();
+        // Serial.println(serialRead);
+        if (serialRead == 'S') {
 //              Serial.write('A');
-                sendACKPacket();
-            }
-            else if(serialRead == 'A') {
-              hasHandshake = true;
+            hasHandshake = false;
+            sendACKPacket();
+        }
+        else if(serialRead == 'A') {
+          hasHandshake = true;
+         }
+        if(serialRead == 'G') {
+            isGrenadeHit = true;
+        }
 
-            }
+       if(dummy_is_shot == true) {
+            hasSent = false;
        }
 
-       if(hasHandshake == true) {
+//        if(hasHandshake == false) {
+//
+//        }
+
+//        if(hasHandshake == true && dummy_is_shot == true)
+       if(hasHandshake == true && hasSent == false && shotsCount > 0)
+       {
 //          count<=5 &&
-           delay(10000);
-           sendSensorReading();
+//            delay(10000);
+           for (int i = 0; i < shotsCount; i++) {
+              sendSensorReading();
+           }
+           shotsCount = 0;
            hasSent = true;
            count++;
            hasAcknowledged = false;

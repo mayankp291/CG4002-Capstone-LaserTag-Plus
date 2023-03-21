@@ -199,14 +199,13 @@ class Server(threading.Thread):
             '192.168.95.248': 'B16',
             '192.168.95.244': 'B17',
             '192.168.95.249': 'B18',
-            '192.168.95.243': 'B19',
-            'localhost': 'test'}
+            '192.168.95.243': 'B19'}
         # Wait for a connection
         print('Waiting for a connection')
         self.connection, client_address = self.server_socket.accept()
         print('--------------------------------------------------')
         print('        Connected to:', client_address[0])
-        # print('                     ', ipaddress_dict[client_address[0]])
+        # print('                     ', ipaddress_dict[client_address[0]])  
         print('--------------------------------------------------')
 
         if DISABLE_GUI:
@@ -341,7 +340,7 @@ class Server(threading.Thread):
 
         print("bye ", end='')
 
-    def   decrypt_message(self, cipher_text):
+    def decrypt_message(self, cipher_text):
         """
         This function decrypts the response message received from the Ultra96 using the secret encryption key
         that was entered in this script during initial connection by the Ultra96.
