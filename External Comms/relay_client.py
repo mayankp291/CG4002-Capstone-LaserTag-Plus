@@ -40,15 +40,22 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         try: 
+
+            # import base64
+            # import numpy as np
+            # random_array = np.random.randn(32,32)
+            # string_repr = base64.binascii.b2a_base64(random_array).decode("ascii")
+            # array = np.frombuffer(base64.binascii.a2b_base64(string_repr.encode("ascii"))) 
+            # array = array.reshape(32,32)
             while True:
-                input("Press any button to send data")
+                # input("Press any button to send data")
                 arr = np.random.rand(40, 6)
                 # IMU['sensorData'] = np.array2string(arr)
-                IMU['sensorData'] = base64.binascii.b2a_base64(arr).decode('ascii')
+                IMU['sensorData'] = base64.binascii.b2a_base64(arr)
                 msg = str(IMU)
                 msg = str(len(msg)) + '_' + msg
                 self.send(msg)
-                # time.sleep(0.05)
+                # time.sleep(0.01)
                 # self.recv()
         except:
             print('Connection to Relay Server lost')
