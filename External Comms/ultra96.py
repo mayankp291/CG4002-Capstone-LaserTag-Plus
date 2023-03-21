@@ -20,7 +20,7 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-from slidingwindow import SlidingWindow
+from matrixslidingwindow import MatrixSlidingWindow
 from pynq import Overlay
 from pynq import allocate
 
@@ -32,9 +32,8 @@ prediction_array = []
 NUM_OUTPUT = 1
 NUM_FEATURES = 8
 NUM_INPUT = NUM_FEATURES * 6
-WINDOW_SIZE = 40
-move_detector = SlidingWindow(WINDOW_SIZE)
-# is_move_detection_skipped = False
+WINDOW_SIZE = 5
+move_detector = MatrixSlidingWindow(WINDOW_SIZE)
 prediction_array = []
 
 # DMA BUFFER CONFIG
@@ -386,164 +385,97 @@ class Game_Engine(threading.Thread):
 
     def extract_features(self, input):
 
-        mean_acc_x = np.mean(input[0]).reshape(-1, 1)
-        mean_acc_y = np.mean(input[1]).reshape(-1, 1)
-        mean_acc_z = np.mean(input[2]).reshape(-1, 1)
-        mean_gyro_x = np.mean(input[3]).reshape(-1, 1)
-        mean_gyro_y = np.mean(input[4]).reshape(-1, 1)
-        mean_gyro_z = np.mean(input[5]).reshape(-1, 1)
+        mean_acc_x = np.mean(input[0])
+        mean_acc_y = np.mean(input[1])
+        mean_acc_z = np.mean(input[2])
+        mean_gyro_x = np.mean(input[3])
+        mean_gyro_y = np.mean(input[4])
+        mean_gyro_z = np.mean(input[5])
 
-        sd_acc_x = np.std(input[0]).reshape(-1, 1)
-        sd_acc_y = np.std(input[1]).reshape(-1, 1)
-        sd_acc_z = np.std(input[2]).reshape(-1, 1)
-        sd_gyro_x = np.std(input[3]).reshape(-1, 1)
-        sd_gyro_y = np.std(input[4]).reshape(-1, 1)
-        sd_gyro_z = np.std(input[5]).reshape(-1, 1)
+        sd_acc_x = np.std(input[0])
+        sd_acc_y = np.std(input[1])
+        sd_acc_z = np.std(input[2])
+        sd_gyro_x = np.std(input[3])
+        sd_gyro_y = np.std(input[4])
+        sd_gyro_z = np.std(input[5])
 
-        max_acc_x = np.amax(input[0]).reshape(-1, 1)
-        max_acc_y = np.amax(input[1]).reshape(-1, 1)
-        max_acc_z = np.amax(input[2]).reshape(-1, 1)
-        max_gyro_x = np.amax(input[3]).reshape(-1, 1)
-        max_gyro_y = np.amax(input[4]).reshape(-1, 1)
-        max_gyro_z = np.amax(input[5]).reshape(-1, 1)
+        max_acc_x = np.amax(input[0])
+        max_acc_y = np.amax(input[1])
+        max_acc_z = np.amax(input[2])
+        max_gyro_x = np.amax(input[3])
+        max_gyro_y = np.amax(input[4])
+        max_gyro_z = np.amax(input[5])
 
-        min_acc_x = np.amin(input[0]).reshape(-1, 1)
-        min_acc_y = np.amin(input[1]).reshape(-1, 1)
-        min_acc_z = np.amin(input[2]).reshape(-1, 1)
-        min_gyro_x = np.amin(input[3]).reshape(-1, 1)
-        min_gyro_y = np.amin(input[4]).reshape(-1, 1)
-        min_gyro_z = np.amin(input[5]).reshape(-1, 1)
+        min_acc_x = np.amin(input[0])
+        min_acc_y = np.amin(input[1])
+        min_acc_z = np.amin(input[2])
+        min_gyro_x = np.amin(input[3])
+        min_gyro_y = np.amin(input[4])
+        min_gyro_z = np.amin(input[5])
 
-        rms_acc_x = np.reshape(np.sqrt(np.mean(input[0] ** 2)), (-1, 1))
-        rms_acc_y = np.reshape(np.sqrt(np.mean(input[1] ** 2)), (-1, 1))
-        rms_acc_z = np.reshape(np.sqrt(np.mean(input[2] ** 2)), (-1, 1))
-        rms_gyro_x = np.reshape(np.sqrt(np.mean(input[3] ** 2)), (-1, 1))
-        rms_gyro_y = np.reshape(np.sqrt(np.mean(input[4] ** 2)), (-1, 1))
-        rms_gyro_z = np.reshape(np.sqrt(np.mean(input[5] ** 2)), (-1, 1))
+        rms_acc_x = np.sqrt(np.mean(input[0] ** 2))
+        rms_acc_y = np.sqrt(np.mean(input[1] ** 2))
+        rms_acc_z = np.sqrt(np.mean(input[2] ** 2))
+        rms_gyro_x = np.sqrt(np.mean(input[3] ** 2))
+        rms_gyro_y = np.sqrt(np.mean(input[4] ** 2))
+        rms_gyro_z = np.sqrt(np.mean(input[5] ** 2))
 
-        skew_acc_x = np.reshape(skew(input[0]), (-1, 1))
-        skew_acc_y = np.reshape(skew(input[1]), (-1, 1))
-        skew_acc_z = np.reshape(skew(input[2]), (-1, 1))
-        skew_gyro_x = np.reshape(skew(input[3]), (-1, 1))
-        skew_gyro_y = np.reshape(skew(input[4]), (-1, 1))
-        skew_gyro_z = np.reshape(skew(input[5]), (-1, 1))
+        skew_acc_x = skew(input[0])
+        skew_acc_y = skew(input[1])
+        skew_acc_z = skew(input[2])
+        skew_gyro_x = skew(input[3])
+        skew_gyro_y = skew(input[4])
+        skew_gyro_z = skew(input[5])
 
-        # # Convert to frequency domain
-        # signal_acc_x = fft(input[0], axis=1)
-        # signal_acc_y = fft(input[1], axis=1)
-        # signal_acc_z = fft(input[2], axis=1)
-        # signal_gyro_x = fft(input[3], axis=1)
-        # signal_gyro_y = fft(input[4], axis=1)
-        # signal_gyro_z = fft(input[5], axis=1)
+        mag_acc_x = np.amax(np.abs(fft(input[0])))
+        mag_acc_y = np.amax(np.abs(fft(input[1])))
+        mag_acc_z = np.amax(np.abs(fft(input[2])))
+        mag_gyro_x = np.amax(np.abs(fft(input[3])))
+        mag_gyro_y = np.amax(np.abs(fft(input[4])))
+        mag_gyro_z = np.amax(np.abs(fft(input[5])))
 
-        mag_acc_x = np.reshape(np.amax(np.abs(fft(input[0]))), (-1, 1))
-        mag_acc_y = np.reshape(np.amax(np.abs(fft(input[1]))), (-1, 1))
-        mag_acc_z = np.reshape(np.amax(np.abs(fft(input[2]))), (-1, 1))
-        mag_gyro_x = np.reshape(np.amax(np.abs(fft(input[3]))), (-1, 1))
-        mag_gyro_y = np.reshape(np.amax(np.abs(fft(input[4]))), (-1, 1))
-        mag_gyro_z = np.reshape(np.amax(np.abs(fft(input[5]))), (-1, 1))
+        phase_acc_x = np.amax(np.angle(fft(input[0])))
+        phase_acc_y = np.amax(np.angle(fft(input[1])))
+        phase_acc_z = np.amax(np.angle(fft(input[2])))
+        phase_gyro_x = np.amax(np.angle(fft(input[3])))
+        phase_gyro_y = np.amax(np.angle(fft(input[4])))
+        phase_gyro_z = np.amax(np.angle(fft(input[5])))
 
-        phase_acc_x = np.reshape(np.amax(np.angle(fft(input[0]))), (-1, 1))
-        phase_acc_y = np.reshape(np.amax(np.angle(fft(input[1]))), (-1, 1))
-        phase_acc_z = np.reshape(np.amax(np.angle(fft(input[2]))), (-1, 1))
-        phase_gyro_x = np.reshape(np.amax(np.angle(fft(input[3]))), (-1, 1))
-        phase_gyro_y = np.reshape(np.amax(np.angle(fft(input[4]))), (-1, 1))
-        phase_gyro_z = np.reshape(np.amax(np.angle(fft(input[5]))), (-1, 1))
-        return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+        return np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
                                sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
                                max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
                                min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
                                rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
                                skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
                                mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
-                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z),
-                              axis=1).astype(np.int32)
+                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
 
-    # def AI_actual(self, imu_data):
-    #     mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
-    #     global counter, model, move_detector, is_move_detection_skipped, ol,dma,input_buffer,output_buffer
-    #     move_detector.add_new_value(np.array(imu_data).astype(np.float32))
-
-    #     print("[AI STARTED]")
-    #     # if not move_detector.is_full():
-    #     #     return "none"
-
-    #     features = self.extract_features(move_detector.get_window_matrix())
-    #     print("[FEATURES LEN]", len(features))
-    #     for i in range(len(features)):
-    #         input_buffer[i] = features[i]
-
-    #     run = True
-    #     print("Initial config:\n", dma.register_map)
-    #     while run:
-    #         try:
-    #             dma.sendchannel.transfer(input_buffer)
-    #             dma.recvchannel.transfer(output_buffer)
-    #             dma.sendchannel.wait()
-    #             dma.recvchannel.wait()
-
-    #             action = output_buffer[0]
-    #             print('Predicted action is:', mapping[action])
-    #             # prediction_array.append(action)
-    #             # if action == 0:
-    #             #     return "logout"
-    #             # elif action == 1:
-    #             #     return "shield"
-    #             # elif action == 2:
-    #             #     return "reload"
-    #             # elif action == 3:
-    #             #     return "grenade" 
-    #             # elif action == 4:
-    #             #     return "none"
-                
-    #             run = False
-    #         except RuntimeError as e:
-    #             print(e)
-    #             print("Error config: ", dma.register_map)
-
-        
-    #     # predictions = model.predict(features, verbose=False)
-    #     # predicted_class = np.argmax(predictions[0])
-    #     # prediction_array.append(predicted_class)
-
-    #     # # move_detector.clear()
-        
-
-    #     # if len(prediction_array) > 49:
-    #     #     ans = np.bincount(np.array(prediction_array)).argmax()
-    #     #     print('Predicted class:', ans, mapping[ans])
-    #     #     prediction_array.clear()
-    #     #     time.sleep(3)
 
     def AI_actual(self, imu_data):
-        global counter, prediction_array, model, move_detector, is_move_detection_skipped, ol,dma,input_buffer,output_buffer, NUM_INPUT
-        move_detector.fill(imu_data)
-
-        if not move_detector.is_full():
-            return "none"
-
-        # move_detector.update_threshold()
-
-        # if not move_detector.is_start_of_move():
-        #     return "none"
+        global counter, prediction_array, model, move_detector, ol,dma,input_buffer,output_buffer, NUM_INPUT
         
-        # if not is_move_detection_skipped:
-        #     start_index = move_detector.is_start_of_move()
-        #     if start_index >= 0:
-        #         for i in range(start_index):
-        #             move_detector.remove_old_value()
-        #             is_move_detection_skipped = True
+        move_detector.add_new_matrix(imu_data)
+
+        # Alternate method where we use hard-coded threshold values instead
+        # if not move_detector.is_move_detected():
+        #     return None
+
+        start_move_matrix = move_detector.get_window_matrix()
+
+        if start_move_matrix is None:
+            return None
         
-        # is_move_detection_skipped = False
+        if move_detector.is_full():
+            move_detector.remove_old_value()
+
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        features = self.extract_features(move_detector.get_window_matrix())
+        features = self.extract_features(start_move_matrix)
 
         for i in range(NUM_INPUT):
-            input_buffer[i] = features[0][i]
+            input_buffer[i] = features[i]
 
         run = True
 
-        # print("Initial config:\n", dma.register_map)
         while run:
             try:
                 dma.sendchannel.transfer(input_buffer)
@@ -555,50 +487,15 @@ class Game_Engine(threading.Thread):
 
                 prediction_array.append(action)
                 print('Predicted class:', action, mapping[action])
-                # if action == 0:
-                #     return "logout"
-                # elif action == 1:
-                #     return "shield"
-                # elif action == 2:
-                #     return "reload"
-                # elif action == 3:
-                #     return "grenade" 
-                # elif action == 4:
-                #     return "idle"
                 
                 run = False
                 if not mapping[action] == 'idle':
                     action_queue.put(mapping[action])
 
-                # if len(prediction_array) > 1:
-                #     ans = np.bincount(np.array(prediction_array)).argmax()
-                #     print('Predicted class:', ans, mapping[ans])
-                #     prediction_array.clear()
-                    # time.sleep(3)
-
             except RuntimeError as e:
                 print(e)
                 print("Error config: ", dma.register_map)
 
-
-
-    def AI_random(self, imu_data):
-        # TODO send through DMA
-        # print(imu_data)
-        # AI_actions = ['shoot']
-        # AI_actions = ['logout']
-        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
-        # AI_actions = ['reload', 'shield', 'shoot']
-        action = random.choice(AI_actions)
-        players = ['p1', 'p2']
-        player = random.choice(players)
-        action_queue.put(action)
-        # action_queue.put((player, action))
-
-    
-
-    def eval_check(self, player_State):
-        pass
 
 # MQTT Client to send data to AWS IOT Core
 class MQTT_Client(threading.Thread):
