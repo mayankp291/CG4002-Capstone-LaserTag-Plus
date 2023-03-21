@@ -20,9 +20,30 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
+from slidingwindow import SlidingWindow
+from pynq import Overlay
+from pynq import allocate
+
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
+
+prediction_array = []
+NUM_OUTPUT = 1
+NUM_FEATURES = 8
+NUM_INPUT = NUM_FEATURES * 6
+WINDOW_SIZE = 40
+move_detector = SlidingWindow(WINDOW_SIZE)
+# is_move_detection_skipped = False
+prediction_array = []
+
+# DMA BUFFER CONFIG
+ol = Overlay('design_1_wrapper.bit')
+dma = ol.axi_dma_0
+input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
+output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+
+
 
 beetleID_mapping = {
     1: "IMU", #imu1
@@ -142,13 +163,17 @@ class Relay_Server(threading.Thread):
                 else:
                     # convert data to dict {'playerID':, 'beetleID':, 'sensorData':}
                     data = literal_eval(data)
-                    print("====================================")
-                    print("[RELAY SERVER] {} wrote:".format(client_address), data)
-                    print("====================================\n")
+                    
+
                     ### process incoming data
                     # playerid, data
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
+
+                    if not data_device=="IMU":
+                        print("====================================")
+                        print("[RELAY SERVER] {} wrote:".format(client_address), data)
+                        print("====================================\n")
 
                     if data_device == "IMU":
                         # add an IMU PACKET to the queue (playerID, sensorData)
@@ -158,7 +183,7 @@ class Relay_Server(threading.Thread):
                         # convert string to numpy array of ints
                         # new_array = np.fromstring(arrayyy, dtype=float).reshape((40, 6))
                         new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(40, 6)
-                        print(new_array, new_array.shape)
+                        # print(new_array, new_array.shape)
                         imu_queue.put(new_array)
                         print("IMU RECV")
                         # grenadeSendRelay.set()
@@ -167,14 +192,16 @@ class Relay_Server(threading.Thread):
                         # action_packet = (data["playerID"], "shoot_p2_hits")
                         # action_queue.put(action_packet)
                         print("VEST RECV")
-                        action_queue.put("shoot_p2_hits")
+                        ## always hit for now
+                        # action_queue.put("shoot_p2_hits")
 
                     elif data_device == "GUN":
                         # shot by player
                         # action_packet = (data["playerID"], "shoot")
                         # action_queue.put(action_packet)
                         print("SHOOT RECV")
-                        action_queue.put("shoot")
+                        # action_queue.put("shoot")
+                        action_queue.put("shoot_p2_hits")
                     elif data_device == "TEST":
                         action = data["sensorData"]
                         action_queue.put(action)
@@ -183,6 +210,7 @@ class Relay_Server(threading.Thread):
                 if reloadSendRelay.is_set():
                     dic = {"playerId": 1, "action": "reload"}
                     dic = str(dic)
+                    
                     reloadSendRelay.clear()
                     request.sendall(dic.encode("utf8"))
                     print("RELOAD SENT")
@@ -237,9 +265,11 @@ class Game_Engine(threading.Thread):
             
             if not imu_queue.empty():
                 imu_data = imu_queue.get()
-                self.AI_random(imu_data)
+                # self.AI_random(imu_data)
+                a = self.AI_actual(imu_data)
+                # print("[AI]", a)
 
-            if not action_queue.empty():
+            if not action_queue.empty():                    
                 action = action_queue.get()
                 print("[ACTION]", action)
                 # Update action for player 1
@@ -252,6 +282,7 @@ class Game_Engine(threading.Thread):
                 if action == 'reload':
                     if player_state['p1']['bullets'] <= 0:
                         player_state['p1']['bullets'] = 6
+                    reloadSendRelay.set()
 
                 elif action == 'grenade':
                     # update grenade for player 1
@@ -261,8 +292,10 @@ class Game_Engine(threading.Thread):
                 elif action == 'grenade_p2_hits':
                     if isPlayerTwoShieldActivated:
                         player_state['p2']['shield_health'] -= 30
+
                     else:
                         player_state['p2']['hp'] -= 30
+                        grenadeSendRelay.set()
                         print("[STATUS] ", player_state)       
                 elif action == 'shield':
                     if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
@@ -272,6 +305,8 @@ class Game_Engine(threading.Thread):
                         isPlayerOneShieldActivated = True
                         startTimeOne = time.time()
                 elif action == 'shoot_p2_hits':
+                    if player_state['p1']['bullets'] > 0:
+                        player_state['p1']['bullets'] -= 1
                     if isPlayerTwoShieldActivated:
                         player_state['p2']['shield_health'] -= 10
                     else:
@@ -315,7 +350,7 @@ class Game_Engine(threading.Thread):
                     player_state['p1']['action'] = 'shoot'
                     eval_queue.put(player_state)
                 elif action == 'grenade':
-                    if player_state['p1']['num_grenades'] > 0:
+                    if player_state['p1']['grenades'] > 0:
                         viz_queue.put(('CHECK', player_state))
                     else:
                         eval_queue.put(deepcopy(player_state))
@@ -348,7 +383,203 @@ class Game_Engine(threading.Thread):
                     player_state['p2']['num_shield'] = 3
                     player_state['p2']['shield_time'] = 0
                     player_state['p2']['shield_health'] = 0
-  
+
+    def extract_features(self, input):
+
+        mean_acc_x = np.mean(input[0]).reshape(-1, 1)
+        mean_acc_y = np.mean(input[1]).reshape(-1, 1)
+        mean_acc_z = np.mean(input[2]).reshape(-1, 1)
+        mean_gyro_x = np.mean(input[3]).reshape(-1, 1)
+        mean_gyro_y = np.mean(input[4]).reshape(-1, 1)
+        mean_gyro_z = np.mean(input[5]).reshape(-1, 1)
+
+        sd_acc_x = np.std(input[0]).reshape(-1, 1)
+        sd_acc_y = np.std(input[1]).reshape(-1, 1)
+        sd_acc_z = np.std(input[2]).reshape(-1, 1)
+        sd_gyro_x = np.std(input[3]).reshape(-1, 1)
+        sd_gyro_y = np.std(input[4]).reshape(-1, 1)
+        sd_gyro_z = np.std(input[5]).reshape(-1, 1)
+
+        max_acc_x = np.amax(input[0]).reshape(-1, 1)
+        max_acc_y = np.amax(input[1]).reshape(-1, 1)
+        max_acc_z = np.amax(input[2]).reshape(-1, 1)
+        max_gyro_x = np.amax(input[3]).reshape(-1, 1)
+        max_gyro_y = np.amax(input[4]).reshape(-1, 1)
+        max_gyro_z = np.amax(input[5]).reshape(-1, 1)
+
+        min_acc_x = np.amin(input[0]).reshape(-1, 1)
+        min_acc_y = np.amin(input[1]).reshape(-1, 1)
+        min_acc_z = np.amin(input[2]).reshape(-1, 1)
+        min_gyro_x = np.amin(input[3]).reshape(-1, 1)
+        min_gyro_y = np.amin(input[4]).reshape(-1, 1)
+        min_gyro_z = np.amin(input[5]).reshape(-1, 1)
+
+        rms_acc_x = np.reshape(np.sqrt(np.mean(input[0] ** 2)), (-1, 1))
+        rms_acc_y = np.reshape(np.sqrt(np.mean(input[1] ** 2)), (-1, 1))
+        rms_acc_z = np.reshape(np.sqrt(np.mean(input[2] ** 2)), (-1, 1))
+        rms_gyro_x = np.reshape(np.sqrt(np.mean(input[3] ** 2)), (-1, 1))
+        rms_gyro_y = np.reshape(np.sqrt(np.mean(input[4] ** 2)), (-1, 1))
+        rms_gyro_z = np.reshape(np.sqrt(np.mean(input[5] ** 2)), (-1, 1))
+
+        skew_acc_x = np.reshape(skew(input[0]), (-1, 1))
+        skew_acc_y = np.reshape(skew(input[1]), (-1, 1))
+        skew_acc_z = np.reshape(skew(input[2]), (-1, 1))
+        skew_gyro_x = np.reshape(skew(input[3]), (-1, 1))
+        skew_gyro_y = np.reshape(skew(input[4]), (-1, 1))
+        skew_gyro_z = np.reshape(skew(input[5]), (-1, 1))
+
+        # # Convert to frequency domain
+        # signal_acc_x = fft(input[0], axis=1)
+        # signal_acc_y = fft(input[1], axis=1)
+        # signal_acc_z = fft(input[2], axis=1)
+        # signal_gyro_x = fft(input[3], axis=1)
+        # signal_gyro_y = fft(input[4], axis=1)
+        # signal_gyro_z = fft(input[5], axis=1)
+
+        mag_acc_x = np.reshape(np.amax(np.abs(fft(input[0]))), (-1, 1))
+        mag_acc_y = np.reshape(np.amax(np.abs(fft(input[1]))), (-1, 1))
+        mag_acc_z = np.reshape(np.amax(np.abs(fft(input[2]))), (-1, 1))
+        mag_gyro_x = np.reshape(np.amax(np.abs(fft(input[3]))), (-1, 1))
+        mag_gyro_y = np.reshape(np.amax(np.abs(fft(input[4]))), (-1, 1))
+        mag_gyro_z = np.reshape(np.amax(np.abs(fft(input[5]))), (-1, 1))
+
+        phase_acc_x = np.reshape(np.amax(np.angle(fft(input[0]))), (-1, 1))
+        phase_acc_y = np.reshape(np.amax(np.angle(fft(input[1]))), (-1, 1))
+        phase_acc_z = np.reshape(np.amax(np.angle(fft(input[2]))), (-1, 1))
+        phase_gyro_x = np.reshape(np.amax(np.angle(fft(input[3]))), (-1, 1))
+        phase_gyro_y = np.reshape(np.amax(np.angle(fft(input[4]))), (-1, 1))
+        phase_gyro_z = np.reshape(np.amax(np.angle(fft(input[5]))), (-1, 1))
+        return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+                               sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
+                               max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
+                               min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
+                               rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
+                               skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+                               mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z),
+                              axis=1).astype(np.int32)
+
+    # def AI_actual(self, imu_data):
+    #     mapping = {0: 'LOGOUT', 1: 'SHIELD', 2: 'RELOAD', 3: 'GRENADE', 4: 'IDLE'}
+    #     global counter, model, move_detector, is_move_detection_skipped, ol,dma,input_buffer,output_buffer
+    #     move_detector.add_new_value(np.array(imu_data).astype(np.float32))
+
+    #     print("[AI STARTED]")
+    #     # if not move_detector.is_full():
+    #     #     return "none"
+
+    #     features = self.extract_features(move_detector.get_window_matrix())
+    #     print("[FEATURES LEN]", len(features))
+    #     for i in range(len(features)):
+    #         input_buffer[i] = features[i]
+
+    #     run = True
+    #     print("Initial config:\n", dma.register_map)
+    #     while run:
+    #         try:
+    #             dma.sendchannel.transfer(input_buffer)
+    #             dma.recvchannel.transfer(output_buffer)
+    #             dma.sendchannel.wait()
+    #             dma.recvchannel.wait()
+
+    #             action = output_buffer[0]
+    #             print('Predicted action is:', mapping[action])
+    #             # prediction_array.append(action)
+    #             # if action == 0:
+    #             #     return "logout"
+    #             # elif action == 1:
+    #             #     return "shield"
+    #             # elif action == 2:
+    #             #     return "reload"
+    #             # elif action == 3:
+    #             #     return "grenade" 
+    #             # elif action == 4:
+    #             #     return "none"
+                
+    #             run = False
+    #         except RuntimeError as e:
+    #             print(e)
+    #             print("Error config: ", dma.register_map)
+
+        
+    #     # predictions = model.predict(features, verbose=False)
+    #     # predicted_class = np.argmax(predictions[0])
+    #     # prediction_array.append(predicted_class)
+
+    #     # # move_detector.clear()
+        
+
+    #     # if len(prediction_array) > 49:
+    #     #     ans = np.bincount(np.array(prediction_array)).argmax()
+    #     #     print('Predicted class:', ans, mapping[ans])
+    #     #     prediction_array.clear()
+    #     #     time.sleep(3)
+
+    def AI_actual(self, imu_data):
+        global counter, prediction_array, model, move_detector, is_move_detection_skipped, ol,dma,input_buffer,output_buffer, NUM_INPUT
+        move_detector.fill(imu_data)
+
+        if not move_detector.is_full():
+            return "none"
+
+        # move_detector.update_threshold()
+
+        # if not move_detector.is_start_of_move():
+        #     return "none"
+        
+        # if not is_move_detection_skipped:
+        #     start_index = move_detector.is_start_of_move()
+        #     if start_index >= 0:
+        #         for i in range(start_index):
+        #             move_detector.remove_old_value()
+        #             is_move_detection_skipped = True
+        
+        # is_move_detection_skipped = False
+        mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
+        features = self.extract_features(move_detector.get_window_matrix())
+
+        for i in range(NUM_INPUT):
+            input_buffer[i] = features[0][i]
+
+        run = True
+
+        # print("Initial config:\n", dma.register_map)
+        while run:
+            try:
+                dma.sendchannel.transfer(input_buffer)
+                dma.recvchannel.transfer(output_buffer)
+                dma.sendchannel.wait()
+                dma.recvchannel.wait()
+
+                action = output_buffer[0]
+
+                prediction_array.append(action)
+                print('Predicted class:', action, mapping[action])
+                # if action == 0:
+                #     return "logout"
+                # elif action == 1:
+                #     return "shield"
+                # elif action == 2:
+                #     return "reload"
+                # elif action == 3:
+                #     return "grenade" 
+                # elif action == 4:
+                #     return "idle"
+                
+                run = False
+                if not mapping[action] == 'idle':
+                    action_queue.put(mapping[action])
+
+                # if len(prediction_array) > 1:
+                #     ans = np.bincount(np.array(prediction_array)).argmax()
+                #     print('Predicted class:', ans, mapping[ans])
+                #     prediction_array.clear()
+                    # time.sleep(3)
+
+            except RuntimeError as e:
+                print(e)
+                print("Error config: ", dma.register_map)
+
 
 
     def AI_random(self, imu_data):
@@ -554,7 +785,8 @@ class Evaluation_Client(threading.Thread):
 
 
 def main():
-    eval_client = Evaluation_Client('localhost', 11001, 2)
+    eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
+    # eval_client = Evaluation_Client('localhost', 11001, 2)
     eval_client.daemon = True
     eval_client.start()
 
@@ -566,7 +798,7 @@ def main():
     mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "localhost", 11000
+    HOST, PORT = "192.168.95.235", 11000
     server = Relay_Server(HOST, PORT)
     server.daemon = True
     server.start()
