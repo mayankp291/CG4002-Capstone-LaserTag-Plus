@@ -474,28 +474,31 @@ if __name__ == '__main__':
         receivingBuffer1 = b''
         receivingBuffer2 = b''
         receivingBuffer3 = b''
+        receivingBuffer4 = b''
+        receivingBuffer5 = b''
+        receivingBuffer6 = b''
         # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer)
         # IMU2_Beetle.executeCommunications()
 
         # Player 1 (IMU)
-        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
 
-        Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock)
+        Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
         Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications())
 
-        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
+        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
         Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
 
         # # Player 2
-        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer4)
         IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
-        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
+        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer5)
         Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
-        Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock)
+        Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
 
         # relay_thread = Relay_Client('172.20.10.2', 11000)
