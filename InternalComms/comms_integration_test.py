@@ -593,10 +593,11 @@ if __name__ == '__main__':
         # Vest1_Thread.daemon = True
         # IMU2_Thread.daemon = True
 
-        tunnel_ultra96()
+        # tunnel_ultra96()
         # Create a socket and connect to the server
         sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect(('localhost', 11000))
+        # sock.connect(('localhost', 11000))
+        sock.connect(('192.168.95.235', 11000))
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
