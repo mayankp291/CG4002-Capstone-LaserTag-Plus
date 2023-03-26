@@ -419,7 +419,7 @@ def main():
     # plt.show()
 
     answer = input("Do you want to save current params and test data? Y/N:")
-
+    model.save('my_mlp_model')
     if answer.lower() == "y":
         # Extract weights and biases to text file
         extract_params(model, "params.txt")
