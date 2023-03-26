@@ -20,7 +20,6 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-from matrixslidingwindow import MatrixSlidingWindow
 from pynq import Overlay
 from pynq import allocate
 
@@ -32,9 +31,7 @@ prediction_array = []
 NUM_OUTPUT = 1
 NUM_FEATURES = 8
 NUM_INPUT = NUM_FEATURES * 6
-WINDOW_SIZE = 5
-move_detector = MatrixSlidingWindow(WINDOW_SIZE)
-prediction_array = []
+SAMPLE_SIZE = 40
 
 # DMA BUFFER CONFIG
 ol = Overlay('design_1_wrapper.bit')
@@ -181,7 +178,7 @@ class Relay_Server(threading.Thread):
                         arr = data["sensorData"]
                         # convert string to numpy array of ints
                         # new_array = np.fromstring(arrayyy, dtype=float).reshape((40, 6))
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(40, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         imu_queue.put(new_array)
                         print("IMU RECV")
@@ -451,25 +448,51 @@ class Game_Engine(threading.Thread):
                                phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
 
 
+    def detect_start_of_move(self, imu_data):
+
+        # define threshold values as hard-coded values
+        x_thresh = 13000
+        y_thresh = 5000
+        z_thresh = 19000
+
+        np_imu_data = np.array(imu_data)
+
+        # compare each data point in window to threshold
+        for j in range(np_imu_data.shape[0]):
+            acc_vals = np_imu_data[j, :3]
+
+            if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
+                # potential start of move action identified
+                # check next few data points to confirm start of move action
+                for k in range(j+1, j+4):
+                    try:
+                        next_acc_vals = np_imu_data[k, :3]
+
+                    except IndexError:
+                        # if index is out of range, move to next window
+                        break
+
+                    if not ((abs(next_acc_vals[0]) > x_thresh) or (abs(next_acc_vals[1]) > y_thresh) or (abs(next_acc_vals[2]) > z_thresh)):
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    np_imu_data = np_imu_data[j:]
+
+                    return np_imu_data.T
+
+        return None
+
     def AI_actual(self, imu_data):
-        global counter, prediction_array, model, move_detector, ol,dma,input_buffer,output_buffer, NUM_INPUT
+        global prediction_array, ol,dma, input_buffer, output_buffer, NUM_INPUT
         
-        move_detector.add_new_matrix(imu_data)
+        parsed_imu_data = self.detect_start_of_move(imu_data)
 
-        # Alternate method where we use hard-coded threshold values instead
-        # if not move_detector.is_move_detected():
-        #     return None
-
-        start_move_matrix = move_detector.get_window_matrix()
-
-        if start_move_matrix is None:
+        if parsed_imu_data is None:
             return None
-        
-        if move_detector.is_full():
-            move_detector.remove_old_value()
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        features = self.extract_features(start_move_matrix)
+        features = self.extract_features(parsed_imu_data)
 
         for i in range(NUM_INPUT):
             input_buffer[i] = features[i]

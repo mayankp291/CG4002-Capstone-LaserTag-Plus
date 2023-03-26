@@ -22,6 +22,9 @@ import sshtunnel
 # timeouts in seconds
 CONNECTION_TIMEOUT = 3
 
+# Size of sample of data points
+SAMPLE_SIZE = 40
+
 # load environment variables
 load_dotenv()
 SOC_USERNAME = os.getenv("SOC_USERNAME")
@@ -490,7 +493,7 @@ class Relay_Client_Send(threading.Thread):
                     motiondata = msg['sensorData']
                     row = list(motiondata.values())
                     imu_raw.append(row)
-                    if len(imu_raw) == 40:
+                    if len(imu_raw) == SAMPLE_SIZE:
                         numpy_imu_raw = np.array(imu_raw, dtype=np.int32)
                         encoding = base64.binascii.b2a_base64(numpy_imu_raw)
                         msg['sensorData'] = encoding
