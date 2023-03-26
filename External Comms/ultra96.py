@@ -451,9 +451,9 @@ class Game_Engine(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 13000
-        y_thresh = 5000
-        z_thresh = 19000
+        x_thresh = 18000
+        y_thresh = 12000
+        z_thresh = 21000
 
         np_imu_data = np.array(imu_data)
 
@@ -482,6 +482,7 @@ class Game_Engine(threading.Thread):
                     return np_imu_data.T
 
         return None
+
 
     def AI_actual(self, imu_data):
         global prediction_array, ol,dma, input_buffer, output_buffer, NUM_INPUT
