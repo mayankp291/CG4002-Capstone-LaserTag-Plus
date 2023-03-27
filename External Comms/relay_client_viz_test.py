@@ -25,11 +25,11 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         try: 
-            match = {1:"shoot", 2:"grenade", 3:"shield", 4:"reload", 5:"shoot_p2_hits"}	
+            match = {1:"shoot", 2:"grenade", 3:"shield", 4:"reload", 5:"shoot_p1_hits", 6:"shoot_p2_hits", 7:"logout"}	
             while True:
                 print(match)
                 a = input("Press any button to send data")
-                test['sensorData'] = match[int(a)]
+                test['sensorData'] = (match[int(a[0])], match[int(a[1])])
                 msg = str(test)
                 # msg = str(IMU)
                 # msg = str(len(msg)) + '_' + msg
