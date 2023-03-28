@@ -20,8 +20,8 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-# from pynq import Overlay
-# from pynq import allocate
+from pynq import Overlay
+from pynq import allocate
 
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
@@ -562,13 +562,11 @@ class AI_Thread(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 19300
-        y_thresh = 13000
-        z_thresh = 20000
+        x_thresh = 15300
+        y_thresh = 10000
+        z_thresh = 10000
 
-        # x_thresh = 18000
-        # y_thresh = 12000
-        # z_thresh = 21000
+        # x_thresh = y_thresh = z_thresh = 6000
 
         np_imu_data = np.array(imu_data)
 
