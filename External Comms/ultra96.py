@@ -42,12 +42,12 @@ output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
 
 
 beetleID_mapping = {
-    1: "IMU", #imu1
-    2: "VEST", #VEST1
-    3: "GUN", #GUN1
-    4: "IMU", #IMU2
-    5: "VEST", #vest2
-    6: "GUN", #gun2
+    1: "IMU1", #imu1
+    2: "VEST1", #VEST1
+    3: "GUN1", #GUN1
+    4: "IMU2", #IMU2
+    5: "VEST2", #vest2
+    6: "GUN2", #gun2
     7: "TEST"
 }
 
@@ -187,33 +187,45 @@ class Relay_Server(threading.Thread):
                         print("[RELAY SERVER] {} wrote:".format(client_address), data)
                         print("====================================\n")
 
-                    if data_device == "IMU":
+                    if data_device == "IMU1" or data_device == "IMU2":
                         # add an IMU PACKET to the queue (playerID, sensorData)
                         # imu_packet = (data["playerID"], data["sensorData"])
                         # imu_queue.put(imu_packet)
                         arr = data["sensorData"]
                         # convert string to numpy array of ints
-                        # new_array = np.fromstring(arrayyy, dtype=float).reshape((40, 6))
                         new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
-                        imu_queue.put(new_array)
-                        print("IMU RECV")
+                        ### TODO ADD PLAYER IDENTIFIER
+                        if data_device == "IMU1":
+                            imu_queue.put(new_array)
+                            print("IMU 1 RECV")
+                        else:
+                            imu_queue.put(new_array)
+                            print("IMU 2 RECV")
+                        
                         # grenadeSendRelay.set()
-                    elif data_device == "VEST":
-                        # got shot damage
-                        # action_packet = (data["playerID"], "shoot_p2_hits")
-                        # action_queue.put(action_packet)
-                        print("VEST RECV")
+                    
+                    elif data_device == "VEST1":
+                        print("VEST 1 RECV")
                         action_p1_queue.put("shoot_p2_hits")
                         isPlayerOneShootActivated.clear()
+                    
+                    elif data_device == "VEST2":
+                        print("VEST 2 RECV")
+                        action_p2_queue.put("shoot_p1_hits")
+                        isPlayerTwoShootActivated.clear()
 
-
-                    elif data_device == "GUN":
+                    elif data_device == "GUN1":
                         # shot by player
                         # action_packet = (data["playerID"], "shoot")
                         # action_queue.put(action_packet)
-                        print("SHOOT RECV")
+                        print("GUN 1 RECV")
                         action_p1_queue.put("shoot")
+
+                    elif data_device == "GUN2":
+                        print("GUN 2 RECV")
+                        action_p2_queue.put("shoot")
+                    
                     elif data_device == "TEST":
                         action_p1 = data["sensorData"][0]
                         action_p2 = data["sensorData"][1]
@@ -459,19 +471,6 @@ class Game_Engine(threading.Thread):
                 else:
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     eval_queue.put(deepcopy(player_state))
-
-    def AI_random(self, imu_data):
-        # TODO send through DMA
-        # print(imu_data)
-        # AI_actions = ['shoot']
-        # AI_actions = ['logout']
-        AI_actions = ['reload', 'grenade', 'shield', 'shoot']
-        # AI_actions = ['reload', 'shield', 'shoot']
-        action = random.choice(AI_actions)
-        players = ['p1', 'p2']
-        player = random.choice(players)
-        # action_queue.put(action)
-        # action_queue.put((player, action))
 
     def eval_check(self, player_State):
         pass
