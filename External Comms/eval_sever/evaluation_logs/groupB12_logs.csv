@@ -1,0 +1,9 @@
+timestamp,id,p1_action,gt_p1_action,p2_action,gt_p2_action,response_time,is_p1_action_correct,is_p2_action_correct
+1679926826.9354944,9365,grenade,grenade,reload,reload,13.222230911254883,True,True
+1679927221.7104404,7875,reload,reload,reload,reload,8.325223445892334,True,True
+1679927347.912191,1938,grenade,grenade,reload,reload,52.14584946632385,True,True
+1679927521.0615625,1938,None,None,None,None,60.015563011169434,True,True
+1679928643.7612917,6226,shoot,reload,reload,shoot,20.528268814086914,False,False
+1679928724.3109138,6226,shield,shield,shoot_p1_misses,shoot,27.79394769668579,True,False
+1679928922.2847812,4904,reload,reload,shield,shield,7.714766979217529,True,True
+1679928944.370715,4904,shoot,shoot,reload,reload,14.210325241088867,True,True

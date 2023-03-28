@@ -7,7 +7,7 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import base64
-from multiprocessing import Process, Queue, Lock
+from multiprocessing import Process, Queue, Lock, queues
 import json
 import paho.mqtt.client as paho
 from paho import mqtt
@@ -20,8 +20,8 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-from pynq import Overlay
-from pynq import allocate
+# from pynq import Overlay
+# from pynq import allocate
 
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
@@ -34,10 +34,10 @@ NUM_INPUT = NUM_FEATURES * 6
 SAMPLE_SIZE = 40
 
 # DMA BUFFER CONFIG
-ol = Overlay('design_1_wrapper.bit')
-dma = ol.axi_dma_0
-input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
-output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+# ol = Overlay('design_1_wrapper.bit')
+# dma = ol.axi_dma_0
+# input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
+# output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
 
 
 
@@ -284,15 +284,12 @@ class Game_Engine(threading.Thread):
                 if time_elapsed >= 3:
                     action_p1_queue.put('shoot_p2_misses')
                     isPlayerOneShootActivated.clear()
-                    print('P1', action_p1_queue.qsize())
-
             
             if isPlayerTwoShootActivated.is_set():
                 time_elapsed = time.time() - startTimeTwoShoot
                 if time_elapsed >= 3:
                     action_p2_queue.put('shoot_p1_misses')
                     isPlayerTwoShootActivated.clear()
-                    print('P2', action_p2_queue.qsize())
 
             if not imu_queue.empty():
                 imu_data = imu_queue.get()
@@ -300,7 +297,9 @@ class Game_Engine(threading.Thread):
                 a = self.AI_actual(imu_data)
                 # print("[AI]", a)
 
-            if ((not action_p1_queue.empty()) and (not action_p2_queue.empty())):
+            if ((not action_p1_queue.empty()) and (not action_p2_queue.empty())) or (shootGrenadeActivated.is_set() 
+                and (not isPlayerOneGrenadeActivated.is_set()) and (not isPlayerTwoGrenadeActivated.is_set()) 
+                and (not isPlayerOneShootActivated.is_set()) and (not isPlayerTwoShootActivated.is_set())):
                 action_p1 = 'none'
                 action_p2 = 'none'
                 if shootGrenadeActivated.is_set():
@@ -329,12 +328,10 @@ class Game_Engine(threading.Thread):
                     if player_state['p1']['grenades'] > 0:
                         player_state['p1']['grenades'] -= 1
                         isPlayerOneGrenadeActivated.set()
-                        shootGrenadeActivated.set()
                     # send check for player 2
                 elif action_p1 == 'grenade_p2_hits':
                     if isPlayerTwoShieldActivated:
                         player_state['p2']['shield_health'] -= 30
-
                     else:
                         player_state['p2']['hp'] -= 30
                         grenadeSendRelay.set()
@@ -364,7 +361,7 @@ class Game_Engine(threading.Thread):
                     if player_state['p2']['bullets'] <= 0:
                         player_state['p2']['bullets'] = 6
                 elif action_p2 == 'grenade':
-                    # update grenade for player 1
+                    # update grenade for player 2
                     if player_state['p2']['grenades'] > 0:
                         player_state['p2']['grenades'] -= 1
                         isPlayerTwoGrenadeActivated.set()
@@ -432,7 +429,7 @@ class Game_Engine(threading.Thread):
                 # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
                 if shootGrenadeActivated.is_set():
                     player_state_cp = deepcopy(player_state)
-                    if ((action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses') or (action_p2 == 'shoot_p1_hits') or (action_p1 == 'shoot_p1_misses')) and (not isPlayerOneShootActivated) and (not isPlayerTwoShootActivated):
+                    if ((action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses') or (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses')):
                         if (action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses'):
                             player_state['p1']['action'] = 'shoot'
                         else:
@@ -441,11 +438,12 @@ class Game_Engine(threading.Thread):
                             player_state['p2']['action'] = 'shoot'
                         else:
                             player_state_cp['p2']['action'] = 'none'
-                    if ((action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses') or (action_p2 == 'grenade_p1_hits') or (action_p1 == 'grenade_p1_misses')) and (isPlayerOneGrenadeActivated or isPlayerTwoGrenadeActivated):
+                    if ((action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses') or (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses')):
                         if (action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses'):
                             player_state['p1']['action'] = 'grenade'
                         else:
                             player_state_cp['p1']['action'] = 'none'
+                            
                         if (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses'):
                             player_state['p2']['action'] = 'grenade'
                         else:
@@ -459,6 +457,16 @@ class Game_Engine(threading.Thread):
                 else:
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     eval_queue.put(deepcopy(player_state))
+                try:
+                    while True:
+                        action_p1_queue.get_nowait()
+                except queues.Empty:
+                    pass
+                try:
+                    while True:
+                        action_p2_queue.get_nowait()
+                except queues.Empty:
+                    pass
 
     def AI_random(self, imu_data):
         # TODO send through DMA
@@ -610,7 +618,8 @@ class Game_Engine(threading.Thread):
                 
                 run = False
                 if not mapping[action] == 'idle':
-                    action_queue.put(mapping[action])
+                    # action_queue.put(mapping[action])
+                    pass
 
             except RuntimeError as e:
                 print(e)
@@ -789,12 +798,15 @@ class Evaluation_Client(threading.Thread):
                 print("[EVAL UPDATE] Updated player state from Evaluation Server", player_state)
                 print('=====================================')
                 ### update event flags
-                if player_state['p1']['action'] == 'grenade':
-                    grenadeSendRelay.set()
-                if player_state['p1']['action'] == 'reload':
-                    reloadSendRelay.set()
-
-            
+                # if player_state['p1']['action'] == 'grenade':
+                #     grenadeSendRelay.set()
+                # if player_state['p1']['action'] == 'reload':
+                #     reloadSendRelay.set()
+                try:
+                    while True:
+                        eval_queue.get_nowait()
+                except queues.Empty:
+                    pass
             except:
                 print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
                 self.close()
@@ -813,8 +825,8 @@ class Evaluation_Client(threading.Thread):
 
 
 def main():
-    eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
-    # eval_client = Evaluation_Client('localhost', 11001, 2)
+    # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
+    eval_client = Evaluation_Client('localhost', 11001, 2)
     eval_client.daemon = True
     eval_client.start()
 
@@ -826,7 +838,8 @@ def main():
     mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     server.daemon = True
     server.start()

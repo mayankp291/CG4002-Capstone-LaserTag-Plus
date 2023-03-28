@@ -25,7 +25,7 @@ class Relay_Client(threading.Thread):
 
     def run(self):
         try: 
-            match = {1:"shoot", 2:"grenade", 3:"shield", 4:"reload", 5:"shoot_p1_hits", 6:"shoot_p2_hits", 7:"logout"}	
+            match = {0:"logout", 1:"shoot", 2:"grenade", 3:"shield", 4:"reload", 5:"shoot_p2_hits", 6:"shoot_p1_hits"}	
             while True:
                 print(match)
                 a = input("Press any button to send data")
