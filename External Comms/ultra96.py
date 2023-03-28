@@ -480,9 +480,21 @@ class Game_Engine(threading.Thread):
                 except queues.Empty:
                     pass
 
-    def eval_check(self, player_State):
-        pass
 
+
+class AI_Thread(threading.Thread):
+    def __init__(self):
+        super().__init__()
+
+    
+    def run(self):
+        while True:
+            if not imu_queue.empty():
+                imu_data = imu_queue.get()
+                # self.AI_random(imu_data)
+                a = self.AI_actual(imu_data)
+                # print("[AI]", a)
+    
     def extract_features(self, input):
 
         mean_acc_x = np.mean(input[0])
@@ -554,9 +566,13 @@ class Game_Engine(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 18000
-        y_thresh = 12000
-        z_thresh = 21000
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 20000
+
+        # x_thresh = 18000
+        # y_thresh = 12000
+        # z_thresh = 21000
 
         np_imu_data = np.array(imu_data)
 
@@ -580,7 +596,7 @@ class Game_Engine(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    np_imu_data = np_imu_data[j:]
+                    # np_imu_data = np_imu_data[j:]
 
                     return np_imu_data.T
 
@@ -617,12 +633,13 @@ class Game_Engine(threading.Thread):
                 
                 run = False
                 if not mapping[action] == 'idle':
-                    # action_queue.put(mapping[action])
-                    pass
+                    action_queue.put(mapping[action])
 
             except RuntimeError as e:
                 print(e)
                 print("Error config: ", dma.register_map)
+
+
 
 
 # MQTT Client to send data to AWS IOT Core
@@ -828,6 +845,10 @@ def main():
     eval_client = Evaluation_Client('localhost', 11001, 2)
     eval_client.daemon = True
     eval_client.start()
+
+    ai_thread = AI_Thread()
+    ai_thread.daemon = True
+    ai_thread.start()
 
     game_engine = Game_Engine() 
     game_engine.daemon = True
