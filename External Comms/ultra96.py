@@ -487,6 +487,11 @@ class Game_Engine(threading.Thread):
 class AI_Thread(threading.Thread):
     def __init__(self):
         super().__init__()
+        # DMA BUFFER CONFIG
+        self.ol = Overlay('design_1_wrapper.bit')
+        self.dma = self.ol.axi_dma_0
+        self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
+        self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
 
     
     def run(self):
@@ -606,7 +611,7 @@ class AI_Thread(threading.Thread):
 
 
     def AI_actual(self, imu_data):
-        global prediction_array, ol,dma, input_buffer, output_buffer, NUM_INPUT
+        global prediction_array, NUM_INPUT
         
         parsed_imu_data = self.detect_start_of_move(imu_data)
 
@@ -623,12 +628,12 @@ class AI_Thread(threading.Thread):
 
         while run:
             try:
-                dma.sendchannel.transfer(input_buffer)
-                dma.recvchannel.transfer(output_buffer)
-                dma.sendchannel.wait()
-                dma.recvchannel.wait()
+                self.dma.sendchannel.transfer(self.input_buffer)
+                self.dma.recvchannel.transfer(self.output_buffer)
+                self.dma.sendchannel.wait()
+                self.dma.recvchannel.wait()
 
-                action = output_buffer[0]
+                action = self.output_buffer[0]
 
                 prediction_array.append(action)
                 print('Predicted class:', action, mapping[action])
@@ -639,9 +644,7 @@ class AI_Thread(threading.Thread):
 
             except RuntimeError as e:
                 print(e)
-                print("Error config: ", dma.register_map)
-
-
+                print("Error config: ", self.dma.register_map)
 
 
 # MQTT Client to send data to AWS IOT Core
