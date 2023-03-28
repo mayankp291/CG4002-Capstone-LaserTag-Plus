@@ -295,11 +295,11 @@ class Game_Engine(threading.Thread):
                     action_p2_queue.put('shoot_p1_misses')
                     isPlayerTwoShootActivated.clear()
 
-            if not imu_queue.empty():
-                imu_data = imu_queue.get()
-                # self.AI_random(imu_data)
-                a = self.AI_actual(imu_data)
-                # print("[AI]", a)
+            # if not imu_queue.empty():
+            #     imu_data = imu_queue.get()
+            #     # self.AI_random(imu_data)
+            #     a = self.AI_actual(imu_data)
+            #     # print("[AI]", a)
 
             if ((not action_p1_queue.empty()) and (not action_p2_queue.empty())) or (shootGrenadeActivated.is_set() 
                 and (not isPlayerOneGrenadeActivated.is_set()) and (not isPlayerTwoGrenadeActivated.is_set()) 
