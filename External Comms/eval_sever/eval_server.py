@@ -24,7 +24,7 @@ from PlayerState import PlayerStateBase
 
 
 # Global flags
-DISABLE_GUI             = True     # the server will not display any GUI
+DISABLE_GUI             = False     # the server will not display any GUI
 SINGLE_PLAYER_MODE      = False     # the server is for 1-player test
 DEBUG_FLAG              = False
 CLOSE_WINDOW            = False     # close the GUI
