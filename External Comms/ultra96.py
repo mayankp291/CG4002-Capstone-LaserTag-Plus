@@ -33,13 +33,6 @@ NUM_FEATURES = 8
 NUM_INPUT = NUM_FEATURES * 6
 SAMPLE_SIZE = 40
 
-# DMA BUFFER CONFIG
-# ol = Overlay('design_1_wrapper.bit')
-# dma = ol.axi_dma_0
-# input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
-# output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
-
-
 
 beetleID_mapping = {
     1: "IMU1", #imu1
@@ -190,19 +183,15 @@ class Relay_Server(threading.Thread):
                         print("====================================\n")
 
                     if data_device == "IMU1" or data_device == "IMU2":
-                        # add an IMU PACKET to the queue (playerID, sensorData)
-                        # imu_packet = (data["playerID"], data["sensorData"])
-                        # imu_queue.put(imu_packet)
                         arr = data["sensorData"]
                         # convert string to numpy array of ints
                         new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
-                        ### TODO ADD PLAYER IDENTIFIER
                         if data_device == "IMU1":
-                            imu_queue.put(new_array)
+                            imu_queue.put(('p1', new_array))
                             print("IMU 1 RECV")
                         else:
-                            imu_queue.put(new_array)
+                            imu_queue.put(('p2', new_array))
                             print("IMU 2 RECV")
                         
                         # grenadeSendRelay.set()
@@ -497,10 +486,9 @@ class AI_Thread(threading.Thread):
     def run(self):
         while True:
             if not imu_queue.empty():
-                imu_data = imu_queue.get()
-                # self.AI_random(imu_data)
+                ### get player id (p1 or p2)
+                player, imu_data = imu_queue.get()
                 a = self.AI_actual(imu_data)
-                # print("[AI]", a)
     
     def extract_features(self, input):
 
