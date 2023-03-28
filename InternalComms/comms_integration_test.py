@@ -40,6 +40,8 @@ Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 dataBuffer = mp.Queue()
 
+gameQueue = mp.Queue()
+
 # serialSvc = dev.getServiceByUUID(
 #     "0000dfb0-0000-1000-8000-00805f9b34fb")
 # serialChar = serialSvc.getCharacteristics(
@@ -536,14 +538,19 @@ class Relay_Client_Recv(threading.Thread):
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
-                    action = data['action']
-                    playerID = data["playerId"]
-                    if playerID == 1 and action == 'reload':
+                    gameQueue.put(data)
+                    action_p1 = data['p1']['action']
+                    action_p2 = data['p2']['action']
+                    # playerID = data["playerId"]
+
+                    if action_p1 == 'reload':
                         isReloadFlagGun1.set()
                     # if playerID == 2 and isReload == 1:
                     #     isReloadFlagGun2.set()
-                    if playerID == 1 and action == 'grenade':
+                    if action_p2 == 'grenade':
                         doesGrenadeHitFlagVest2.set()
+
+
         except:
             print('Connection to Relay Server lost')
             # self.relaySocket.close()

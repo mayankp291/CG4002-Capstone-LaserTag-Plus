@@ -11,6 +11,34 @@ import datetime
 from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectError
 import csv
 
+### format for packet
+dic = {"playerId": 1, "action": "reload"}
+
+player_state = {
+    "p1":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    },
+    "p2":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    }
+}
+
 # the peripheral class is used to connect and disconnect
 
 # timeouts in seconds
@@ -19,6 +47,8 @@ CONNECTION_TIMEOUT = 3
 Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 dataBuffer = mp.Queue()
+
+gameQueue = mp.Queue()
 
 # serialSvc = dev.getServiceByUUID(
 #     "0000dfb0-0000-1000-8000-00805f9b34fb")
@@ -355,6 +385,46 @@ class BeetleConnectionThread:
                 self.isGrenadeHit = True
                 doesGrenadeHitFlagVest2.clear()
 
+    def checkBulletCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == GUN_PLAYER_1:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p1 = data['p1']['bullets']
+                self.serialChar.write(bytes(bullets_p1, encoding="utf-8"))
+
+            if self.beetleId == GUN_PLAYER_2:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p2 = data['p2']['bullets']
+                self.serialChar.write(bytes(bullets_p2, encoding="utf-8"))
+
+        # bullets_p1 = data['p1']['bullets']
+        # hp_p1 = data['p1']['hp']
+        # bullets_p2 = data['p2']['bullets']
+        # hp_p2 = data['p2']['hp']
+
+
+    def checkHealthCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == GUN_PLAYER_1:
+                print('writing hp to beetle', self.beetleId)
+                hp_p1 = data['p1']['hp']
+                self.serialChar.write(bytes(hp_p1, encoding="utf-8"))
+
+            if self.beetleId == GUN_PLAYER_2:
+                print('writing hp to beetle', self.beetleId)
+                hp_p2 = data['p2']['hp']
+                self.serialChar.write(bytes(hp_p2, encoding="utf-8"))
+
 
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
@@ -391,9 +461,11 @@ class BeetleConnectionThread:
                     print('comes here and has handshaked')
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload()
+                        self.checkBulletCount()
 
                     if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
                         self.checkForGrenadeHit()
+                        self.checkHealthCount()
 
                     self.dev.waitForNotifications(1)
 
