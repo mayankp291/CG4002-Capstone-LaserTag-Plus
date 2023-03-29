@@ -180,7 +180,7 @@ class Relay_Server(threading.Thread):
 
                     if not data_device=="IMU":
                         print("====================================")
-                        print("[RELAY SERVER] {} wrote:".format(client_address), data)
+                        print("[RELAY SERVER] {} wrote:".format(client_address))
                         print("====================================\n")
 
                     if data_device == "IMU1" or data_device == "IMU2":
@@ -562,11 +562,11 @@ class AI_Thread(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 15300
-        y_thresh = 10000
-        z_thresh = 10000
+        x_thresh = 18300
+        y_thresh = 11000
+        z_thresh = 17000
 
-        # x_thresh = y_thresh = z_thresh = 6000
+        # x_thresh = y_thresh = z_thresh = 9000
 
         np_imu_data = np.array(imu_data)
 
@@ -590,7 +590,7 @@ class AI_Thread(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    # np_imu_data = np_imu_data[j:]
+                    np_imu_data = np_imu_data[j:]
 
                     return np_imu_data.T
 
@@ -853,8 +853,8 @@ def main():
     mqtt.daemon = True
     mqtt.start()
 
-    # HOST, PORT = "192.168.95.235", 11000
-    HOST, PORT = "localhost", 11000    
+    HOST, PORT = "192.168.95.235", 11000
+    # HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     server.daemon = True
     server.start()
