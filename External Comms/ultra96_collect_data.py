@@ -600,15 +600,58 @@ class Collection_Thread(threading.Thread):
     def AI_actual(self, player, imu_data):
         global prediction_array, NUM_INPUT
         
+        
         parsed_imu_data = self.detect_start_of_move(imu_data)
+    
 
         if parsed_imu_data is None:
             print("No move detected")
             return None
         
-        print("Collected for shield")
+        mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
+        action = 1
+        print(f"Collected for {mapping[action]}")
+
+        print(np.array(parsed_imu_data).shape)
+        a = input("Save data? (y/n): ")
+        if a == "y":
+            parsed_imu_data = list(parsed_imu_data)
+            file1 = open("../dataCollect/aX.txt", "a")
+            file2 = open("../dataCollect/aY.txt", "a")
+            file3 = open("../dataCollect/aZ.txt", "a")
+            file4 = open("../dataCollect/gX.txt", "a")
+            file5 = open("../dataCollect/gY.txt", "a")
+            file6 = open("../dataCollect/gZ.txt", "a")
+            file7 = open("../dataCollect/action.txt", "a")
+            
+            # convert list to comma-separated string
+            data_str1 = ','.join(str(item) for item in parsed_imu_data[0])
+            data_str2 = ','.join(str(item) for item in parsed_imu_data[1])
+            data_str3 = ','.join(str(item) for item in parsed_imu_data[2])
+            data_str4 = ','.join(str(item) for item in parsed_imu_data[3])
+            data_str5 = ','.join(str(item) for item in parsed_imu_data[4])
+            data_str6 = ','.join(str(item) for item in parsed_imu_data[5])
+
+            # print(data_str1)
+            # Write some data to each file
+            file1.write(data_str1 + "\n")
+            file2.write(data_str2 + "\n")
+            file3.write(data_str3 + "\n")
+            file4.write(data_str4 + "\n")
+            file5.write(data_str5 + "\n")
+            file6.write(data_str6 + "\n")
+            # 3 GRENADE
+            file7.write(f"{action}\n")
+
+            # Close all the files
+            file1.close()
+            file2.close()
+            file3.close()
+            file4.close()
+            file5.close()
+            file6.close()
+
         
-        # mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
         # features = self.extract_features(parsed_imu_data)
 
         # for i in range(NUM_INPUT):
