@@ -526,6 +526,8 @@ class Relay_Client_Send(threading.Thread):
             sys.exit()
 
 
+### stop the thread in case of exception
+## thread.stop()
 class Relay_Client_Recv(threading.Thread):
     def __init__(self, sock) -> None:
         super().__init__()
