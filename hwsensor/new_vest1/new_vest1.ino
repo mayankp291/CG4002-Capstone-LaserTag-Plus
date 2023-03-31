@@ -229,6 +229,10 @@ void loop(void) {
         if(serialRead == 'G') {
             isGrenadeHit = true;
         }
+        if(serialRead!= 'G' && serialRead != 'A' && serialRead != 'S') {
+            int received_hp = int(serialRead);
+            healthPoint = received_hp;
+        }
 
        if(dummy_is_shot == true) {
             hasSent = false;

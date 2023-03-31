@@ -42,7 +42,7 @@ player_state = {
 # the peripheral class is used to connect and disconnect
 
 # timeouts in seconds
-CONNECTION_TIMEOUT = 3
+CONNECTION_TIMEOUT = 1
 
 Service_UUID =  "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
@@ -325,7 +325,7 @@ class BeetleConnectionThread:
         # while True:
         try:
             self.dev = Peripheral(self.macAddress)
-            print("Connected to Beetle: ", self.macAddress)
+            print("Connected to Beetle: ", self.beetleId)
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
@@ -395,12 +395,13 @@ class BeetleConnectionThread:
             if self.beetleId == GUN_PLAYER_1:
                 print('writing bullets to beetle', self.beetleId)
                 bullets_p1 = data['p1']['bullets']
-                self.serialChar.write(bytes(bullets_p1, encoding="utf-8"))
+                self.serialChar.write(bytes(chr(bullets_p1), encoding="utf-8"))
 
             if self.beetleId == GUN_PLAYER_2:
                 print('writing bullets to beetle', self.beetleId)
                 bullets_p2 = data['p2']['bullets']
-                self.serialChar.write(bytes(bullets_p2, encoding="utf-8"))
+                print("bullets were updated", bullets_p2)
+                self.serialChar.write(bytes(chr(bullets_p2), encoding="utf-8"))
 
         # bullets_p1 = data['p1']['bullets']
         # hp_p1 = data['p1']['hp']
@@ -536,6 +537,16 @@ def testGrenadeHitThread():
         doesGrenadeHitFlagVest2.set()
         print('setting grenade flags')
 
+def testBulletUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'bullets': 6}
+                }
+
+        gameQueue.put(data)
+        # data['p1']['hp']
+
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
@@ -558,7 +569,7 @@ if __name__ == '__main__':
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
 
         Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications())
+        Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args = ())
 
         Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
         Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args = ())
@@ -571,12 +582,13 @@ if __name__ == '__main__':
         Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
-        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications())
+        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args = ())
 
         # relay_thread = Relay_Client('172.20.10.2', 11000)
 
-        ReloadThread = threading.Thread(target = testReloadThread, args = ())
-        GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
+        # ReloadThread = threading.Thread(target = testReloadThread, args = ())
+        # GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
+        UpdateBulletThread = threading.Thread(target = testBulletUpdateThread, args = ())
 
         IMU1_Thread.start()
         Vest1_Thread.start()
@@ -587,10 +599,12 @@ if __name__ == '__main__':
         Gun2_Thread.start()
 
         # relay_thread.start()
-        ReloadThread.start()
-        GrenadeThread.start()
 
-        IMU1_Thread.join()
+        UpdateBulletThread.start()
+        # ReloadThread.start()
+        # GrenadeThread.start()
+
+        # IMU1_Thread.join()
         Vest1_Thread.join()
         Gun1_Thread.join()
 
@@ -598,8 +612,9 @@ if __name__ == '__main__':
         Vest2_Thread.join()
         Gun2_Thread.join()
 
-        ReloadThread.join()
-        GrenadeThread.join()
+        UpdateBulletThread.join()
+        # ReloadThread.join()
+        # GrenadeThread.join()
         # relay_thread.join()
 
     except (KeyboardInterrupt, SystemExit):

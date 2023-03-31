@@ -200,7 +200,7 @@ void loop(void) {
         }
 
         if(serialRead!= 'R' && serialRead != 'A' && serialRead != 'S') {
-            int received_bullets = int(serialRead) - 48;
+            int received_bullets = int(serialRead);
             bullets = received_bullets;
         }
 

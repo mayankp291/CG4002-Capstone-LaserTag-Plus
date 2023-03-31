@@ -200,6 +200,11 @@ void loop(void) {
            isReloading = true;
         }
 
+        if(serialRead!= 'R' && serialRead != 'A' && serialRead != 'S') {
+            int received_bullets = int(serialRead);
+            bullets = received_bullets;
+        }
+
 
 //        if(hasHandshake == false) {
 //
