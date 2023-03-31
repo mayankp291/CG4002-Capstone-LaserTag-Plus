@@ -320,11 +320,27 @@ class Game_Engine(threading.Thread):
                     action_p2 = action_p2_queue.get()
                 print("[PLAYER_1_ACTION]", action_p1)
                 print("[PLAYER_2_ACTION]", action_p2)
-                # Update action for player 1
+                # Update action for player 1 and 2
                 if action_p1 != 'none':
                     player_state['p1']['action'] = action_p1
                 if action_p2 != 'none':
                     player_state['p2']['action'] = action_p2
+
+                # Update shield action for both players
+                if action_p1 == 'shield':
+                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
+                        player_state['p1']['num_shield'] -= 1
+                        player_state['p1']['shield_time'] = 10
+                        player_state['p1']['shield_health'] = 30
+                        isPlayerOneShieldActivated = True
+                        startTimeOne = time.time()
+                if action_p2 == 'shield':
+                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
+                        player_state['p2']['num_shield'] -= 1
+                        player_state['p2']['shield_time'] = 10
+                        player_state['p2']['shield_health'] = 30
+                        isPlayerTwoShieldActivated = True
+                        startTimeTwo = time.time()
                 
                 # Update player 1 state (active player) 
                 if action_p1 == 'reload':
@@ -342,15 +358,6 @@ class Game_Engine(threading.Thread):
                         player_state['p2']['shield_health'] -= 30
                     else:
                         player_state['p2']['hp'] -= 30
-                        grenadeSendRelayP1.set()
-                        print("[STATUS] ", player_state)       
-                elif action_p1 == 'shield':
-                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
-                        player_state['p1']['num_shield'] -= 1
-                        player_state['p1']['shield_time'] = 10
-                        player_state['p1']['shield_health'] = 30
-                        isPlayerOneShieldActivated = True
-                        startTimeOne = time.time()
                 elif action_p1 == 'shoot_p2_hits':
                     if isPlayerTwoShieldActivated:
                         player_state['p2']['shield_health'] -= 10
@@ -380,13 +387,6 @@ class Game_Engine(threading.Thread):
                     else:
                         player_state['p1']['hp'] -= 30
                         print("[STATUS] ", player_state)       
-                elif action_p2 == 'shield':
-                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
-                        player_state['p2']['num_shield'] -= 1
-                        player_state['p2']['shield_time'] = 10
-                        player_state['p2']['shield_health'] = 30
-                        isPlayerTwoShieldActivated = True
-                        startTimeTwo = time.time()
                 elif action_p2 == 'shoot_p1_hits':
                     if isPlayerOneShieldActivated:
                         player_state['p1']['shield_health'] -= 10
@@ -400,13 +400,13 @@ class Game_Engine(threading.Thread):
                         isPlayerTwoShootActivated.set()
                         startTimeTwoShoot = time.time()
 
-                if player_state['p1']['shield_health'] <= 0:
+                if player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
                     isPlayerOneShieldActivated = False
                     player_state['p1']['hp'] += player_state['p1']['shield_health']
                     player_state['p1']['shield_health'] = 0
                     player_state['p1']['shield_time'] = 0
             
-                if player_state['p2']['shield_health'] <= 0:
+                if player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
                     isPlayerTwoShieldActivated = False
                     player_state['p2']['hp'] += player_state['p2']['shield_health']
                     player_state['p2']['shield_health'] = 0
