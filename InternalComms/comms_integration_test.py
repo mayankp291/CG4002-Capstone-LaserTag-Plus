@@ -586,13 +586,13 @@ if __name__ == '__main__':
         Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
         # # Player 2
-        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
+        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
 
         # Player 1 (IMU)
-        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
+        # IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
         # relay_thread = Relay_Client('172.20.10.2', 11000)
 
 
@@ -606,8 +606,8 @@ if __name__ == '__main__':
         # tunnel_ultra96()
         # Create a socket and connect to the server
         sock = socket(AF_INET, SOCK_STREAM)
-        # sock.connect(('localhost', 11000))
-        sock.connect(('192.168.95.235', 11000))
+        sock.connect(('localhost', 11000))
+        # sock.connect(('192.168.95.235', 11000))
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
@@ -616,19 +616,19 @@ if __name__ == '__main__':
         send_thread.start()
         recv_thread.start()
         # Vest1_Thread.start()
-        # IMU2_Thread.start()
+        IMU2_Thread.start()
 
         # Vest1_Thread.join()
-        # IMU2_Thread.join()
+        IMU2_Thread.join()
 
         Gun1_Thread.start()
-        IMU1_Thread.start()
+        # IMU1_Thread.start()
         Vest2_Thread.start()
         # relay_thread.start()
         # ReloadThread.start()
 
         Gun1_Thread.join()
-        IMU1_Thread.join()
+        # IMU1_Thread.join()
 
         # ReloadThread.join()
         Vest2_Thread.join()

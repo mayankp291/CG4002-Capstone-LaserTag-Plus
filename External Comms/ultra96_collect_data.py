@@ -20,8 +20,8 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-from pynq import Overlay
-from pynq import allocate
+# from pynq import Overlay
+# from pynq import allocate
 
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
@@ -178,7 +178,7 @@ class Relay_Server(threading.Thread):
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
 
-                    if not data_device=="IMU":
+                    if not (data_device=="IMU1" or data_device == "IMU 2"):
                         print("====================================")
                         print("[RELAY SERVER] {} wrote:".format(client_address))
                         print("====================================\n")
@@ -316,27 +316,11 @@ class Game_Engine(threading.Thread):
                     action_p2 = action_p2_queue.get()
                 print("[PLAYER_1_ACTION]", action_p1)
                 print("[PLAYER_2_ACTION]", action_p2)
-                # Update action for player 1 and 2
+                # Update action for player 1
                 if action_p1 != 'none':
                     player_state['p1']['action'] = action_p1
                 if action_p2 != 'none':
                     player_state['p2']['action'] = action_p2
-
-                # Update shield action for both players
-                if action_p1 == 'shield':
-                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
-                        player_state['p1']['num_shield'] -= 1
-                        player_state['p1']['shield_time'] = 10
-                        player_state['p1']['shield_health'] = 30
-                        isPlayerOneShieldActivated = True
-                        startTimeOne = time.time()
-                if action_p2 == 'shield':
-                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
-                        player_state['p2']['num_shield'] -= 1
-                        player_state['p2']['shield_time'] = 10
-                        player_state['p2']['shield_health'] = 30
-                        isPlayerTwoShieldActivated = True
-                        startTimeTwo = time.time()
                 
                 # Update player 1 state (active player) 
                 if action_p1 == 'reload':
@@ -354,6 +338,15 @@ class Game_Engine(threading.Thread):
                         player_state['p2']['shield_health'] -= 30
                     else:
                         player_state['p2']['hp'] -= 30
+                        grenadeSendRelay.set()
+                        print("[STATUS] ", player_state)       
+                elif action_p1 == 'shield':
+                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
+                        player_state['p1']['num_shield'] -= 1
+                        player_state['p1']['shield_time'] = 10
+                        player_state['p1']['shield_health'] = 30
+                        isPlayerOneShieldActivated = True
+                        startTimeOne = time.time()
                 elif action_p1 == 'shoot_p2_hits':
                     if isPlayerTwoShieldActivated:
                         player_state['p2']['shield_health'] -= 10
@@ -383,6 +376,13 @@ class Game_Engine(threading.Thread):
                     else:
                         player_state['p1']['hp'] -= 30
                         print("[STATUS] ", player_state)       
+                elif action_p2 == 'shield':
+                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
+                        player_state['p2']['num_shield'] -= 1
+                        player_state['p2']['shield_time'] = 10
+                        player_state['p2']['shield_health'] = 30
+                        isPlayerTwoShieldActivated = True
+                        startTimeTwo = time.time()
                 elif action_p2 == 'shoot_p1_hits':
                     if isPlayerOneShieldActivated:
                         player_state['p1']['shield_health'] -= 10
@@ -396,13 +396,13 @@ class Game_Engine(threading.Thread):
                         isPlayerTwoShootActivated.set()
                         startTimeTwoShoot = time.time()
 
-                if player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
+                if player_state['p1']['shield_health'] <= 0:
                     isPlayerOneShieldActivated = False
                     player_state['p1']['hp'] += player_state['p1']['shield_health']
                     player_state['p1']['shield_health'] = 0
                     player_state['p1']['shield_time'] = 0
             
-                if player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
+                if player_state['p2']['shield_health'] <= 0:
                     isPlayerTwoShieldActivated = False
                     player_state['p2']['hp'] += player_state['p2']['shield_health']
                     player_state['p2']['shield_health'] = 0
@@ -474,14 +474,15 @@ class Game_Engine(threading.Thread):
 
 
 
-class AI_Thread(threading.Thread):
+class Collection_Thread(threading.Thread):
     def __init__(self):
         super().__init__()
+        self.counter = 0
         # DMA BUFFER CONFIG
-        self.ol = Overlay('design_1_wrapper.bit')
-        self.dma = self.ol.axi_dma_0
-        self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
-        self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+        # self.ol = Overlay('design_1_wrapper.bit')
+        # self.dma = self.ol.axi_dma_0
+        # self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
+        # self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
 
     
     def run(self):
@@ -562,11 +563,11 @@ class AI_Thread(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 18300
-        y_thresh = 11000
-        z_thresh = 17000
+        x_thresh = 19300
+        y_thresh = 15000
+        z_thresh = 18000
 
-        # x_thresh = y_thresh = z_thresh = 9000
+        # x_thresh = y_thresh = z_thresh = 6000
 
         np_imu_data = np.array(imu_data)
 
@@ -590,7 +591,7 @@ class AI_Thread(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    np_imu_data = np_imu_data[j:]
+                    # np_imu_data = np_imu_data[j:]
 
                     return np_imu_data.T
 
@@ -600,41 +601,89 @@ class AI_Thread(threading.Thread):
     def AI_actual(self, player, imu_data):
         global prediction_array, NUM_INPUT
         
+        
         parsed_imu_data = self.detect_start_of_move(imu_data)
+    
 
         if parsed_imu_data is None:
+            print("No move detected")
             return None
-
+        
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        features = self.extract_features(parsed_imu_data)
+        action = 0
+        print(f"Collected for {mapping[action]}")
 
-        for i in range(NUM_INPUT):
-            self.input_buffer[i] = features[i]
+        print(np.array(parsed_imu_data).shape)
 
-        run = True
+        self.counter += 1
+        print(self.counter)
 
-        while run:
-            try:
-                self.dma.sendchannel.transfer(self.input_buffer)
-                self.dma.recvchannel.transfer(self.output_buffer)
-                self.dma.sendchannel.wait()
-                self.dma.recvchannel.wait()
+        parsed_imu_data = list(parsed_imu_data)
+        file1 = open("../dataCollect/aX.txt", "a")
+        file2 = open("../dataCollect/aY.txt", "a")
+        file3 = open("../dataCollect/aZ.txt", "a")
+        file4 = open("../dataCollect/gX.txt", "a")
+        file5 = open("../dataCollect/gY.txt", "a")
+        file6 = open("../dataCollect/gZ.txt", "a")
+        file7 = open("../dataCollect/action.txt", "a")
+        
+        # convert list to comma-separated string
+        data_str1 = ','.join(str(item) for item in parsed_imu_data[0])
+        data_str2 = ','.join(str(item) for item in parsed_imu_data[1])
+        data_str3 = ','.join(str(item) for item in parsed_imu_data[2])
+        data_str4 = ','.join(str(item) for item in parsed_imu_data[3])
+        data_str5 = ','.join(str(item) for item in parsed_imu_data[4])
+        data_str6 = ','.join(str(item) for item in parsed_imu_data[5])
 
-                action = self.output_buffer[0]
+        # print(data_str1)
+        # Write some data to each file
+        file1.write(data_str1 + "\n")
+        file2.write(data_str2 + "\n")
+        file3.write(data_str3 + "\n")
+        file4.write(data_str4 + "\n")
+        file5.write(data_str5 + "\n")
+        file6.write(data_str6 + "\n")
+        # 3 GRENADE
+        file7.write(f"{action}\n")
 
-                prediction_array.append(action)
-                print('Predicted class:', action, mapping[action])
+        # Close all the files
+        file1.close()
+        file2.close()
+        file3.close()
+        file4.close()
+        file5.close()
+        file6.close()
+
+        
+        # features = self.extract_features(parsed_imu_data)
+
+        # for i in range(NUM_INPUT):
+        #     self.input_buffer[i] = features[i]
+
+        # run = True
+
+        # while run:
+        #     try:
+        #         self.dma.sendchannel.transfer(self.input_buffer)
+        #         self.dma.recvchannel.transfer(self.output_buffer)
+        #         self.dma.sendchannel.wait()
+        #         self.dma.recvchannel.wait()
+
+        #         action = self.output_buffer[0]
+
+        #         prediction_array.append(action)
+        #         print('Predicted class:', action, mapping[action])
                 
-                run = False
-                if not mapping[action] == 'idle':
-                    if player == 'p1':
-                        action_p1_queue.put(mapping[action])
-                    else:
-                        action_p2_queue.put(mapping[action])
+        #         run = False
+        #         if not mapping[action] == 'idle':
+        #             if player == 'p1':
+        #                 action_p1_queue.put(mapping[action])
+        #             else:
+        #                 action_p2_queue.put(mapping[action])
 
-            except RuntimeError as e:
-                print(e)
-                print("Error config: ", self.dma.register_map)
+        #     except RuntimeError as e:
+        #         print(e)
+        #         print("Error config: ", self.dma.register_map)
 
 
 # MQTT Client to send data to AWS IOT Core
@@ -841,9 +890,9 @@ def main():
     eval_client.daemon = True
     eval_client.start()
 
-    ai_thread = AI_Thread()
-    ai_thread.daemon = True
-    ai_thread.start()
+    collection_thread = Collection_Thread()
+    collection_thread.daemon = True
+    collection_thread.start()
 
     game_engine = Game_Engine() 
     game_engine.daemon = True
@@ -853,8 +902,8 @@ def main():
     mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     server.daemon = True
     server.start()
