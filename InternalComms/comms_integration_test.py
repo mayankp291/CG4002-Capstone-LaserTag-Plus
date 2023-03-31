@@ -538,17 +538,16 @@ class Relay_Client_Recv(threading.Thread):
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
+                    ### UPDATE BULLETS AND HEALTH AFTER EVERY ACTION
+                    ### ACTION IS RELOAD IF VALID RELOAD STATE, IGNORE OTHER ACTIONS
                     gameQueue.put(data)
                     action_p1 = data['p1']['action']
                     action_p2 = data['p2']['action']
-                    # playerID = data["playerId"]
-
+                    # RELOAD FLAGS SET HERE
                     if action_p1 == 'reload':
                         isReloadFlagGun1.set()
-                    # if playerID == 2 and isReload == 1:
-                    #     isReloadFlagGun2.set()
-                    if action_p2 == 'grenade':
-                        doesGrenadeHitFlagVest2.set()
+                    if action_p2 == 'reload':
+                        isReloadFlagGun2.set()
 
 
         except:
