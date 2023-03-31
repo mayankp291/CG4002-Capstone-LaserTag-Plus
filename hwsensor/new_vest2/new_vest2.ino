@@ -8,7 +8,7 @@
 
 #define PIN_RECV 2
 #define LED_COUNT 7
-const int ledPin = 4;
+const int ledPin = 3;
 
 
 int healthPoint = 100;
@@ -229,6 +229,10 @@ void loop(void) {
          }
         if(serialRead == 'G') {
             isGrenadeHit = true;
+        }
+        if(serialRead!= 'G' && serialRead != 'A' && serialRead != 'S') {
+            int received_hp = int(serialRead);
+            healthPoint = received_hp;
         }
 
        if(dummy_is_shot == true) {
