@@ -120,7 +120,39 @@ player_state_intcomms = {
     }
 }
 
+class Relay_Server_Send(threading.Thread):
+    def __init__(self, sock):
+        super().__init__()
+        self.sock = sock
+    
+    def run(self):
+        while True:
+            send_data = intcomms_queue.get()
+            ### send RELOAD only if bullets are 0
+            # both reload action and 0 bullets
+            if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
+                reloadSendRelayP1.clear()
+                reloadSendRelayP2.clear()
+            # p1 0 bullets and p2 non zero bullets
+            elif reloadSendRelayP1.is_set():
+                reloadSendRelayP1.clear()
+                send_data['p2']['action'] = 'none'
+            # p2 0 bullets and p1 non zero bullets
+            elif reloadSendRelayP2.is_set():
+                reloadSendRelayP2.clear()
+                send_data['p1']['action'] = 'none'
+            self.send(send_data)
+
+    def send(self, data):
+        try:
+            self.sock.sendall(data.encode("utf-8"))
+            print('Sent to Relay Laptop: {}'.format(data))
+        except:
+            print('Connection to Relay Laptop lost')
+            # self.relaySocket.close()
+
 # TCP Server to receive data from the Relay Laptops
+# TODO Spawn thread to handle sending data to the relay laptop
 class Relay_Server(threading.Thread):
     def __init__(self, host, port):
         super().__init__()
@@ -148,6 +180,8 @@ class Relay_Server(threading.Thread):
     ###
     def handle_client(self, request, client_address):
         try:
+            sending_thread = Relay_Server_Send(request)
+            sending_thread.start()
             while True:
                 # receive data from client
                 # (protocol) len(data)_data
@@ -254,22 +288,22 @@ class Relay_Server(threading.Thread):
 
                 ### SENDING TO INT COMMS
                 ### TODO: make this new thread
-                if intcomms_queue.qsize > 0:
-                    send_data = intcomms_queue.get()
-                    ### send RELOAD only if bullets are 0
-                    # both reload action and 0 bullets
-                    if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
-                        reloadSendRelayP1.clear()
-                        reloadSendRelayP2.clear()
-                    # p1 0 bullets and p2 non zero bullets
-                    elif reloadSendRelayP1.is_set():
-                        reloadSendRelayP1.clear()
-                        send_data['p2']['action'] = 'none'
-                    # p2 0 bullets and p1 non zero bullets
-                    elif reloadSendRelayP2.is_set():
-                        reloadSendRelayP2.clear()
-                        send_data['p1']['action'] = 'none'
-                    request.sendall(send_data.encode("utf8"))
+                # if intcomms_queue.qsize > 0:
+                #     send_data = intcomms_queue.get()
+                #     ### send RELOAD only if bullets are 0
+                #     # both reload action and 0 bullets
+                #     if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
+                #         reloadSendRelayP1.clear()
+                #         reloadSendRelayP2.clear()
+                #     # p1 0 bullets and p2 non zero bullets
+                #     elif reloadSendRelayP1.is_set():
+                #         reloadSendRelayP1.clear()
+                #         send_data['p2']['action'] = 'none'
+                #     # p2 0 bullets and p1 non zero bullets
+                #     elif reloadSendRelayP2.is_set():
+                #         reloadSendRelayP2.clear()
+                #         send_data['p1']['action'] = 'none'
+                #     request.sendall(send_data.encode("utf8"))
 
 
         except Exception as e:
