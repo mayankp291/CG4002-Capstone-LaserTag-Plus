@@ -579,11 +579,11 @@ if __name__ == '__main__':
         # IMU2_Beetle.executeCommunications()
 
         # # Devices 234
-        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
-        Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
+        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
+        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
 
-        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
-        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
+        # Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
+        # Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
 
         # # Player 2
         IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
@@ -621,9 +621,9 @@ if __name__ == '__main__':
         # Vest1_Thread.join()
         IMU2_Thread.join()
 
-        Gun1_Thread.start()
+        # Gun1_Thread.start()
         # IMU1_Thread.start()
-        Vest2_Thread.start()
+        # Vest2_Thread.start()
         # relay_thread.start()
         # ReloadThread.start()
 
@@ -631,7 +631,7 @@ if __name__ == '__main__':
         # IMU1_Thread.join()
 
         # ReloadThread.join()
-        Vest2_Thread.join()
+        # Vest2_Thread.join()
         send_thread.join()
         recv_thread.join()
         # relay_thread.join()
