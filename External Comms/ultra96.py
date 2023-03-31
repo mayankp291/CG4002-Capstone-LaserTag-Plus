@@ -54,6 +54,7 @@ action_p1_queue = Queue()
 action_p2_queue = Queue()
 viz_queue = Queue()
 eval_queue = Queue()
+intcomms_queue = Queue()
 
 reloadSendRelayP1 = threading.Event()
 reloadSendRelayP1.clear() 
@@ -101,6 +102,21 @@ player_state = {
         "shield_health": 0,
         "num_deaths": 0,
         "num_shield": 3
+    }
+}
+
+player_state_intcomms = {
+    "p1":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+    },
+    "p2":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
     }
 }
 
@@ -236,22 +252,25 @@ class Relay_Server(threading.Thread):
                         action_p1_queue.put(action_p1)
                         action_p2_queue.put(action_p2)
 
-                # RELOAD 1 SEND TO RELAY
-                if reloadSendRelayP1.is_set():
-                    dic = {"playerId": 1, "action": "reload"}
-                    dic = str(dic)
-                    
-                    reloadSendRelayP1.clear()
-                    request.sendall(dic.encode("utf8"))
-                    print("RELOAD SENT")
+                ### SENDING TO INT COMMS
+                ### TODO: make this new thread
+                if intcomms_queue.qsize > 0:
+                    send_data = intcomms_queue.get()
+                    ### send RELOAD only if bullets are 0
+                    # both reload action and 0 bullets
+                    if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
+                        reloadSendRelayP1.clear()
+                        reloadSendRelayP2.clear()
+                    # p1 0 bullets and p2 non zero bullets
+                    elif reloadSendRelayP1.is_set():
+                        reloadSendRelayP1.clear()
+                        send_data['p2']['action'] = 'none'
+                    # p2 0 bullets and p1 non zero bullets
+                    elif reloadSendRelayP2.is_set():
+                        reloadSendRelayP2.clear()
+                        send_data['p1']['action'] = 'none'
+                    request.sendall(send_data.encode("utf8"))
 
-                # GRENADE SEND TO RELAY
-                if grenadeSendRelayP1.is_set():
-                    dic = {"playerId": 1, "action": "grenade"}
-                    dic = str(dic)
-                    grenadeSendRelayP1.clear()
-                    request.sendall(dic.encode("utf8"))
-                    print("GRENADE SENT")
 
         except Exception as e:
             print("Client disconnected")
@@ -375,6 +394,7 @@ class Game_Engine(threading.Thread):
                 if action_p2 == 'reload':
                     if player_state['p2']['bullets'] <= 0:
                         player_state['p2']['bullets'] = 6
+                        reloadSendRelayP2.set()
                 elif action_p2 == 'grenade':
                     # update grenade for player 2
                     if player_state['p2']['grenades'] > 0:
@@ -806,6 +826,15 @@ class Evaluation_Client(threading.Thread):
                 recv_dict['p1']['action'] = 'none'
                 recv_dict['p2']['action'] = 'none'
                 viz_queue.put(('STATE', recv_dict))
+                ### UPDATE INT COMMS STATE
+                player_state_intcomms['p1']['action'] = recv_dict['p1']['action']
+                player_state_intcomms['p2']['action'] = recv_dict['p2']['action']
+                player_state_intcomms['p1']['hp'] = recv_dict['p1']['hp']
+                player_state_intcomms['p2']['hp'] = recv_dict['p2']['hp']
+                player_state_intcomms['p1']['bullets'] = recv_dict['p1']['bullets']
+                player_state_intcomms['p2']['bullets'] = recv_dict['p2']['bullets']
+                intcomms_queue.put(player_state_intcomms)
+
                 print('=====================================')
                 print("[EVAL SERVER] Received message from Evaluation Server", msg)
                 print('=====================================')
