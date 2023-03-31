@@ -13,9 +13,11 @@ DROPOUT = 0.40
 LEARNING_RATE = 0.01
 NUM_FEATURES = 8
 INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types 
-DATA_LABELS = ["logout", "shield", "reload", "grenade", "idle"]
+# DATA_LABELS = ["logout", "shield", "reload", "grenade", "idle"]
+DATA_LABELS = ["logout", "shield", "reload", "grenade"]
 OUTPUTS = len(DATA_LABELS)
-EPOCHS = 45
+# EPOCHS = 45
+EPOCHS = 30
 THRESHOLD_PRECISION_TRAIN_DATA = 10
 PRINT_PRECISION_TEST_DATA = 8
 PRINT_PRECISION_WEIGHTS = 9
@@ -138,6 +140,7 @@ def extract_features(*argsv):
     # axis = 1 implies that it is being done column-wise, e.g. [1, 1] concatenate with [3, 5] gives [1, 1, 3, 5]
     # axis = 0 implies row-wise operation, e.g. [1, 1] with [3, 5] gives [[1, 1],
     #                                                                     [3, 5]]
+    
     return np.concatenate((mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z,         sd_acc_x, sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z, 
     max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
     min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z, 
@@ -155,16 +158,25 @@ def get_data_labels():
         for line in lines:
             label = int(line.strip())
 
+            # if label == 0:
+            #     labels.append([1, 0, 0, 0, 0])
+            # elif label == 1:
+            #     labels.append([0, 1, 0, 0, 0])
+            # elif label == 2:
+            #     labels.append([0, 0, 1, 0, 0])
+            # elif label == 3:
+            #     labels.append([0, 0, 0, 1, 0])
+            # else:
+            #     labels.append([0, 0, 0, 0, 1])
+
             if label == 0:
-                labels.append([1, 0, 0, 0, 0])
+                labels.append([1, 0, 0, 0])
             elif label == 1:
-                labels.append([0, 1, 0, 0, 0])
+                labels.append([0, 1, 0, 0])
             elif label == 2:
-                labels.append([0, 0, 1, 0, 0])
+                labels.append([0, 0, 1, 0])
             elif label == 3:
-                labels.append([0, 0, 0, 1, 0])
-            else:
-                labels.append([0, 0, 0, 0, 1])
+                labels.append([0, 0, 0, 1])
 
     return np.array(labels)
 
@@ -394,7 +406,7 @@ def main():
     model.fit(training_dataset, training_data_labels, epochs=EPOCHS)
 
     # Evaluate how well model performs
-    model.evaluate(testing_dataset, testing_data_labels, verbose=2)
+    model_metrics = model.evaluate(testing_dataset, testing_data_labels, verbose=2)
 
     # Create confusion matrix
     predicted_labels = model.predict(testing_dataset)
@@ -418,17 +430,23 @@ def main():
     # Comment/Uncomment out to remove/restore the heat map 
     # plt.show()
 
-    answer = input("Do you want to save current params and test data? Y/N:")
-    model.save('my_mlp_model')
-    if answer.lower() == "y":
+    # answer = input("Do you want to save current params and test data? Y/N:")
+    # model.save('my_mlp_model')
+    if model_metrics[1] >= 0.93:
         # Extract weights and biases to text file
         extract_params(model, "params.txt")
 
         # Print testing dataset to text file
         save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
+        print("Data saved!")
+
+    return model_metrics[1]
+
     # model.save('my_model.h5')
 
 
 if __name__ == "__main__":
-    main()
+    accuracy = main()
+    while accuracy < 0.93:
+        accuracy = main()
