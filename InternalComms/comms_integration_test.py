@@ -14,7 +14,7 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 import csv
 import numpy as np
 import base64
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import sshtunnel
 
 # the peripheral class is used to connect and disconnect
@@ -26,15 +26,15 @@ CONNECTION_TIMEOUT = 3
 SAMPLE_SIZE = 40
 
 # load environment variables
-load_dotenv()
-SOC_USERNAME = os.getenv("SOC_USERNAME")
-SOC_PASSWORD = os.getenv("SOC_PASSWORD")
-SOC_IP = os.getenv("SOC_IP")
-PORT_BIND = int(os.getenv("PORT"))
-
-ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
-ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
-ULTRA96_IP = os.getenv("ULTRA96_IP")
+# load_dotenv()
+# SOC_USERNAME = os.getenv("SOC_USERNAME")
+# SOC_PASSWORD = os.getenv("SOC_PASSWORD")
+# SOC_IP = os.getenv("SOC_IP")
+# PORT_BIND = int(os.getenv("PORT"))
+#
+# ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
+# ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
+# ULTRA96_IP = os.getenv("ULTRA96_IP")
 
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
@@ -445,31 +445,31 @@ beetleID_mapping = {
     7: "TEST"
 }
 
-def tunnel_ultra96():
-    # open tunnel to soc.comp.nus.edu.sg server
-        tunnel_soc = sshtunnel.open_tunnel(
-            ssh_address_or_host = (SOC_IP, 22),
-            remote_bind_address = (ULTRA96_IP, 22),
-            ssh_username = SOC_USERNAME,
-            ssh_password = SOC_PASSWORD,
-            block_on_close = False
-            )
-        tunnel_soc.start()
-        
-        print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
-
-        # open tunnel from soc.comp.nus.edu.sg server to ultra96
-        tunnel_ultra96 = sshtunnel.open_tunnel(
-            ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
-            # bind port from localhost to ultra96
-            remote_bind_address=('localhost', PORT_BIND),
-            ssh_username = ULTRA96_USERNAME,
-            ssh_password = ULTRA96_PASSWORD,
-            local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
-            block_on_close = False
-            )
-        tunnel_ultra96.start()
-        print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
+# def tunnel_ultra96():
+#     # open tunnel to soc.comp.nus.edu.sg server
+#         tunnel_soc = sshtunnel.open_tunnel(
+#             ssh_address_or_host = (SOC_IP, 22),
+#             remote_bind_address = (ULTRA96_IP, 22),
+#             ssh_username = SOC_USERNAME,
+#             ssh_password = SOC_PASSWORD,
+#             block_on_close = False
+#             )
+#         tunnel_soc.start()
+#
+#         print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
+#
+#         # open tunnel from soc.comp.nus.edu.sg server to ultra96
+#         tunnel_ultra96 = sshtunnel.open_tunnel(
+#             ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
+#             # bind port from localhost to ultra96
+#             remote_bind_address=('localhost', PORT_BIND),
+#             ssh_username = ULTRA96_USERNAME,
+#             ssh_password = ULTRA96_PASSWORD,
+#             local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
+#             block_on_close = False
+#             )
+#         tunnel_ultra96.start()
+#         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
 
 
@@ -575,65 +575,75 @@ if __name__ == '__main__':
         receivingBuffer1 = b''
         receivingBuffer2 = b''
         receivingBuffer3 = b''
+        receivingBuffer4 = b''
+        receivingBuffer5 = b''
+        receivingBuffer6 = b''
         # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer)
         # IMU2_Beetle.executeCommunications()
 
-        # # Devices 234
-        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer1)
+        # Player 1 (IMU)
+        IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
+        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
+
+        Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
+        Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args=())
+
+        Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
         Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
 
-        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer2)
-        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args = ())
-
         # # Player 2
-        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args = ())
+        IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer4)
+        IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args=())
 
-        # Player 1 (IMU)
-        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer3)
-        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        # IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
-        # relay_thread = Relay_Client('172.20.10.2', 11000)
+        Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer5)
+        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args=())
 
+        Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
+        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
 
-        # ReloadThread = threading.Thread(target = testReloadThread, args = ())
-        # GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
-
-        # Gun1_Thread.daemon = True
-        # Vest1_Thread.daemon = True
-        # IMU2_Thread.daemon = True
-
-        # tunnel_ultra96()
-        # Create a socket and connect to the server
         sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect(('localhost', 11000))
-        # sock.connect(('192.168.95.235', 11000))
+        # sock.connect(('localhost', 11000))
+        sock.connect(('192.168.95.235', 11000))
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
 
-        
         send_thread.start()
         recv_thread.start()
-        # Vest1_Thread.start()
-        IMU2_Thread.start()
 
-        # Vest1_Thread.join()
-        IMU2_Thread.join()
-
+        IMU1_Thread.start()
+        Vest1_Thread.start()
         Gun1_Thread.start()
-        # IMU1_Thread.start()
+
+        IMU2_Thread.start()
         Vest2_Thread.start()
+        Gun2_Thread.start()
+
+        # relay_thread.start()
+
+        # UpdateBulletThread.start()
+        # ReloadThread.start()
+        # GrenadeThread.start()
+        send_thread.join()
+        recv_thread.join()
+
+        IMU1_Thread.join()
+        Vest1_Thread.join()
+        Gun1_Thread.join()
+
+        IMU2_Thread.join()
+        Vest2_Thread.join()
+        Gun2_Thread.join()
+
+        # tunnel_ultra96()
+        # Create a socket and connect to the server
+
+
         # relay_thread.start()
         # ReloadThread.start()
 
-        Gun1_Thread.join()
-        # IMU1_Thread.join()
 
-        # ReloadThread.join()
-        Vest2_Thread.join()
-        send_thread.join()
-        recv_thread.join()
         # relay_thread.join()
 
         # while True: time.sleep(100)
