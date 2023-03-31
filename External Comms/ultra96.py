@@ -55,10 +55,14 @@ action_p2_queue = Queue()
 viz_queue = Queue()
 eval_queue = Queue()
 
-reloadSendRelay = threading.Event()
-reloadSendRelay.clear() 
-grenadeSendRelay = threading.Event()
-grenadeSendRelay.clear()
+reloadSendRelayP1 = threading.Event()
+reloadSendRelayP1.clear() 
+reloadSendRelayP2 = threading.Event()
+reloadSendRelayP2.clear()
+grenadeSendRelayP1 = threading.Event()
+grenadeSendRelayP1.clear()
+grenadeSendRelayP2 = threading.Event()
+grenadeSendRelayP2.clear()
 # isPlayerOneActivated = threading.Event()
 # isPlayerOneActivated.clear()
 # isPlayerTwoActivated = threading.Event()
@@ -232,20 +236,20 @@ class Relay_Server(threading.Thread):
                         action_p1_queue.put(action_p1)
                         action_p2_queue.put(action_p2)
 
-                # RELOAD SEND TO RELAY
-                if reloadSendRelay.is_set():
+                # RELOAD 1 SEND TO RELAY
+                if reloadSendRelayP1.is_set():
                     dic = {"playerId": 1, "action": "reload"}
                     dic = str(dic)
                     
-                    reloadSendRelay.clear()
+                    reloadSendRelayP1.clear()
                     request.sendall(dic.encode("utf8"))
                     print("RELOAD SENT")
 
                 # GRENADE SEND TO RELAY
-                if grenadeSendRelay.is_set():
+                if grenadeSendRelayP1.is_set():
                     dic = {"playerId": 1, "action": "grenade"}
                     dic = str(dic)
-                    grenadeSendRelay.clear()
+                    grenadeSendRelayP1.clear()
                     request.sendall(dic.encode("utf8"))
                     print("GRENADE SENT")
 
@@ -326,7 +330,7 @@ class Game_Engine(threading.Thread):
                 if action_p1 == 'reload':
                     if player_state['p1']['bullets'] <= 0:
                         player_state['p1']['bullets'] = 6
-                        reloadSendRelay.set()
+                        reloadSendRelayP1.set()
                 elif action_p1 == 'grenade':
                     # update grenade for player 1
                     if player_state['p1']['grenades'] > 0:
@@ -338,7 +342,7 @@ class Game_Engine(threading.Thread):
                         player_state['p2']['shield_health'] -= 30
                     else:
                         player_state['p2']['hp'] -= 30
-                        grenadeSendRelay.set()
+                        grenadeSendRelayP1.set()
                         print("[STATUS] ", player_state)       
                 elif action_p1 == 'shield':
                     if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
