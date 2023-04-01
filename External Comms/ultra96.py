@@ -49,7 +49,8 @@ beetleID_mapping = {
 
 MQTT_USERNAME = "capstonekillingus"
 MQTT_PASSWORD = "capstonekillingus"
-imu_queue = Queue()
+imu_queue_p1 = Queue()
+imu_queue_p2 = Queue()
 action_p1_queue = Queue()
 action_p2_queue = Queue()
 viz_queue = Queue()
@@ -243,10 +244,10 @@ class Relay_Server(threading.Thread):
                         new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
-                            imu_queue.put(('p1', new_array))
+                            imu_queue_p1.put(('p1', new_array))
                             print("IMU 1 RECV")
                         else:
-                            imu_queue.put(('p2', new_array))
+                            imu_queue_p2.put(('p2', new_array))
                             print("IMU 2 RECV")
                         
                         # grenadeSendRelay.set()
@@ -544,11 +545,13 @@ class AI_Thread(threading.Thread):
     
     def run(self):
         while True:
-            if not imu_queue.empty():
+            if not imu_queue_p1.empty() and not imu_queue_p2.empty():
                 ### get player id (p1 or p2)
-                player, imu_data = imu_queue.get()
-                a = self.AI_actual(player, imu_data)
-    
+                player, imu_data = imu_queue_p1.get()
+                self.AI_actual(player, imu_data)
+
+                player, imu_data = imu_queue_p2.get()
+                self.AI_actual(player, imu_data)
     def extract_features(self, input):
 
         mean_acc_x = np.mean(input[0])
