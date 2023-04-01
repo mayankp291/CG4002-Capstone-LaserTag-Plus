@@ -702,12 +702,44 @@ class AI_Thread(threading.Thread):
                 return np_imu_data.T
 
         return None
+    
+
+    def detect_start_of_move3(self, imu_data):
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(imu_data)
+
+        # Sliding window approach with window size of 5
+        window_size = 5
+        for j in range(0, np_imu_data.shape[0] - window_size + 1, window_size):
+            acc_vals = np_imu_data[j:j+window_size, :3]
+            
+            # Check if any of the values in the window exceed the threshold
+            if (np.abs(acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                # potential start of move action identified
+                # Check next few windows to confirm start of move action
+                for k in range(j+window_size, j+window_size*4, window_size):
+                    next_acc_vals = np_imu_data[k:k+window_size, :3]
+                    if not (np.abs(next_acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    np_imu_data = np_imu_data[j:]
+                    return np_imu_data.T
+
+        return None
+
 
 
     def AI_actual(self, player, imu_data):
         global prediction_array, NUM_INPUT
 
         parsed_imu_data = self.detect_start_of_move2(imu_data)
+
+        # parsed_imu_data = self.detect_start_of_move3(imu_data)
         
         # parsed_imu_data = self.detect_start_of_move(imu_data)
 
