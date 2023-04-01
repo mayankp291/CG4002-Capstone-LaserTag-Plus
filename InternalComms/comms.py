@@ -199,7 +199,7 @@ class MyDelegate(DefaultDelegate):
                     sendData = {
                         "playerID": self.playerId,
                         "beetleID": self.deviceId,
-                        "motionData": {
+                        "sensorData": {
                             "aX": unpackedPacket[2],
                             "aY": unpackedPacket[3],
                             "aZ": unpackedPacket[4],

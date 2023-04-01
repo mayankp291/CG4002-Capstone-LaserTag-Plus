@@ -14,27 +14,27 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 import csv
 import numpy as np
 import base64
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import sshtunnel
 
-# the peripheral class is used to connect and disconnect
-
-# timeouts in seconds
-CONNECTION_TIMEOUT = 3
-
-# Size of sample of data points
-SAMPLE_SIZE = 40
 
 # load environment variables
-# load_dotenv()
-# SOC_USERNAME = os.getenv("SOC_USERNAME")
-# SOC_PASSWORD = os.getenv("SOC_PASSWORD")
-# SOC_IP = os.getenv("SOC_IP")
-# PORT_BIND = int(os.getenv("PORT"))
-#
-# ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
-# ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
-# ULTRA96_IP = os.getenv("ULTRA96_IP")
+load_dotenv()
+
+
+SOC_USERNAME = os.getenv("SOC_USERNAME")
+SOC_PASSWORD = os.getenv("SOC_PASSWORD")
+SOC_IP = os.getenv("SOC_IP")
+PORT_BIND = int(os.getenv("PORT"))
+
+ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
+ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
+ULTRA96_IP = os.getenv("ULTRA96_IP")
+# the peripheral class is used to connect and disconnect
+SAMPLE_SIZE = 40
+
+# timeouts in seconds
+CONNECTION_TIMEOUT = 1
 
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
@@ -311,7 +311,7 @@ class BeetleConnectionThread:
         # while True:
         try:
             self.dev = Peripheral(self.macAddress)
-            print("Connected to Beetle: ", self.macAddress)
+            print("Connected to Beetle: ", self.beetleId)
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
@@ -370,6 +370,47 @@ class BeetleConnectionThread:
                 self.isGrenadeHit = True
                 doesGrenadeHitFlagVest2.clear()
 
+    def checkBulletCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == GUN_PLAYER_1:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p1 = data['p1']['bullets']
+                self.serialChar.write(bytes(chr(bullets_p1), encoding="utf-8"))
+
+            if self.beetleId == GUN_PLAYER_2:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p2 = data['p2']['bullets']
+                print("bullets were updated", bullets_p2)
+                self.serialChar.write(bytes(chr(bullets_p2), encoding="utf-8"))
+
+        # bullets_p1 = data['p1']['bullets']
+        # hp_p1 = data['p1']['hp']
+        # bullets_p2 = data['p2']['bullets']
+        # hp_p2 = data['p2']['hp']
+
+
+    def checkHealthCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == VEST_PLAYER_1:
+                print('writing hp to beetle', self.beetleId)
+                hp_p1 = data['p1']['hp']
+                self.serialChar.write(bytes(hp_p1, encoding="utf-8"))
+
+            if self.beetleId == VEST_PLAYER_2:
+                print('writing hp to beetle', self.beetleId)
+                hp_p2 = data['p2']['hp']
+                self.serialChar.write(bytes(hp_p2, encoding="utf-8"))
+
 
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
@@ -407,9 +448,11 @@ class BeetleConnectionThread:
                     print('comes here and has handshaked')
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload()
+                        self.checkBulletCount()
 
                     if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
                         self.checkForGrenadeHit()
+                        self.checkHealthCount()
 
                     self.dev.waitForNotifications(1)
 
@@ -445,31 +488,31 @@ beetleID_mapping = {
     7: "TEST"
 }
 
-# def tunnel_ultra96():
-#     # open tunnel to soc.comp.nus.edu.sg server
-#         tunnel_soc = sshtunnel.open_tunnel(
-#             ssh_address_or_host = (SOC_IP, 22),
-#             remote_bind_address = (ULTRA96_IP, 22),
-#             ssh_username = SOC_USERNAME,
-#             ssh_password = SOC_PASSWORD,
-#             block_on_close = False
-#             )
-#         tunnel_soc.start()
-#
-#         print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
-#
-#         # open tunnel from soc.comp.nus.edu.sg server to ultra96
-#         tunnel_ultra96 = sshtunnel.open_tunnel(
-#             ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
-#             # bind port from localhost to ultra96
-#             remote_bind_address=('localhost', PORT_BIND),
-#             ssh_username = ULTRA96_USERNAME,
-#             ssh_password = ULTRA96_PASSWORD,
-#             local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
-#             block_on_close = False
-#             )
-#         tunnel_ultra96.start()
-#         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
+def tunnel_ultra96():
+    # open tunnel to soc.comp.nus.edu.sg server
+        tunnel_soc = sshtunnel.open_tunnel(
+            ssh_address_or_host = (SOC_IP, 22),
+            remote_bind_address = (ULTRA96_IP, 22),
+            ssh_username = SOC_USERNAME,
+            ssh_password = SOC_PASSWORD,
+            block_on_close = False
+            )
+        tunnel_soc.start()
+
+        print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
+
+        # open tunnel from soc.comp.nus.edu.sg server to ultra96
+        tunnel_ultra96 = sshtunnel.open_tunnel(
+            ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
+            # bind port from localhost to ultra96
+            remote_bind_address=('localhost', PORT_BIND),
+            ssh_username = ULTRA96_USERNAME,
+            ssh_password = ULTRA96_PASSWORD,
+            local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
+            block_on_close = False
+            )
+        tunnel_ultra96.start()
+        print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
 
 
@@ -566,10 +609,39 @@ def testReloadThread():
         isReloadFlagGun1.set()
         print('setting reload flags')
 
+def testGrenadeHitThread():
+    while True:
+        time.sleep(5)
+        doesGrenadeHitFlagVest1.set()
+        doesGrenadeHitFlagVest2.set()
+        print('setting grenade flags')
+
+def testBulletUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'bullets': 6}
+                }
+
+        gameQueue.put(data)
+        # data['p1']['hp']
+def testHealthUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'hp': 100
+        }}
 
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
+
+        tunnel_ultra96()
+
+        sock = socket(AF_INET, SOCK_STREAM)
+        sock.connect(('localhost', 11000))
+
+        # sock.connect(('192.168.95.235', 11000))
 
         # using a multiprocessing queue FIFO
         # dataBuffer = mp.Queue()
@@ -603,9 +675,7 @@ if __name__ == '__main__':
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
 
-        sock = socket(AF_INET, SOCK_STREAM)
-        # sock.connect(('localhost', 11000))
-        sock.connect(('192.168.95.235', 11000))
+
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
@@ -637,17 +707,8 @@ if __name__ == '__main__':
         Vest2_Thread.join()
         Gun2_Thread.join()
 
-        # tunnel_ultra96()
+
         # Create a socket and connect to the server
-
-
-
-
-
-        # ReloadThread.join()
-        # Vest2_Thread.join()
-        send_thread.join()
-        recv_thread.join()
 
 
     except (KeyboardInterrupt, SystemExit):
