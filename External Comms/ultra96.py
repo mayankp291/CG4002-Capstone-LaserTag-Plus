@@ -267,11 +267,13 @@ class Relay_Server(threading.Thread):
                         # action_packet = (data["playerID"], "shoot")
                         # action_queue.put(action_packet)
                         print("GUN 1 RECV")
-                        action_p1_queue.put("shoot")
+                        if evalServerConnected.is_set():
+                            action_p1_queue.put("shoot")
 
                     elif data_device == "GUN2":
                         print("GUN 2 RECV")
-                        action_p2_queue.put("shoot")
+                        if evalServerConnected.is_set():
+                            action_p2_queue.put("shoot")
                     
                     elif data_device == "TEST":
                         action_p1 = data["sensorData"][0]
@@ -517,6 +519,8 @@ class Game_Engine(threading.Thread):
                 elif (action_p1 == 'shoot') or (action_p2 == 'shoot') or (action_p1 == 'grenade') or (action_p2 == 'grenade'):
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     shootGrenadeActivated.set()
+                elif (action_p1 == 'logout') and (action_p2 == 'logout'):
+                    eval_queue.put(deepcopy(player_state))
                 else:
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     eval_queue.put(deepcopy(player_state))
@@ -689,9 +693,11 @@ class AI_Thread(threading.Thread):
                 run = False
                 if not mapping[action] == 'idle':
                     if player == 'p1':
-                        action_p1_queue.put(mapping[action])
+                        if evalServerConnected.is_set():
+                            action_p1_queue.put(mapping[action])
                     else:
-                        action_p2_queue.put(mapping[action])
+                        if evalServerConnected.is_set():
+                            action_p2_queue.put(mapping[action])
 
             except RuntimeError as e:
                 print(e)
@@ -791,6 +797,7 @@ class Evaluation_Client(threading.Thread):
         try:
             self.clientSocket = socket(AF_INET, SOCK_STREAM)
             self.clientSocket.connect((self.eval_ip, self.eval_port))
+            evalServerConnected.set()
             print('Connected to Evaluation Server', self.eval_ip, self.eval_port)
         except:
             print('Failed to connect to Evaluation Server', self.eval_ip, self.eval_port)
