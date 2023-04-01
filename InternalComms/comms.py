@@ -20,22 +20,12 @@ player_state = {
         "hp": 100,
         "action": "none",
         "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
     },
     "p2":
     {
         "hp": 100,
         "action": "none",
         "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
     }
 }
 

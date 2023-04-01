@@ -564,7 +564,7 @@ class Collection_Thread(threading.Thread):
 
         # define threshold values as hard-coded values
         x_thresh = 19300
-        y_thresh = 15000
+        y_thresh = 13000
         z_thresh = 18000
 
         # x_thresh = y_thresh = z_thresh = 6000
@@ -898,9 +898,9 @@ def main():
     game_engine.daemon = True
     game_engine.start()
 
-    mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    mqtt.daemon = True
-    mqtt.start()
+    # mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
+    # mqtt.daemon = True
+    # mqtt.start()
 
     # HOST, PORT = "192.168.95.235", 11000
     HOST, PORT = "localhost", 11000    
@@ -908,7 +908,9 @@ def main():
     server.daemon = True
     server.start()
 
-    mqtt.client.loop_forever()
+    # mqtt.client.loop_forever()
+    while True:
+        pass
 
 if __name__ == "__main__":
     main()
