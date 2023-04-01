@@ -8,7 +8,7 @@
 
 #define PIN_RECV 3
 #define LED_COUNT 7
-const int ledPin = A2;
+const int ledPin = A3;
 
 
 int healthPoint = 100;
@@ -105,6 +105,7 @@ void clearLEDs() {
 
 void led() {
     int color = 0x800080;
+//    Serial.println(healthPoint);
     if(healthPoint == 100) {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0x008000);
     } else if(healthPoint == 90) {
@@ -119,6 +120,9 @@ void led() {
     } else if(healthPoint == 60) {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDAA520);
       color = 0x800080;
+    } else if(healthPoint == 50){
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
+      color = 0xCCDDFF;
     } else if(healthPoint == 40) {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
       color = 0xADD8E6;
@@ -185,7 +189,7 @@ int shotsCount = 0;
 int count = 0;
 
 void loop(void) {
-  if(healthPoint <= 0) {
+  if(healthPoint < 0) {
       healthPoint = 100;
   }
 

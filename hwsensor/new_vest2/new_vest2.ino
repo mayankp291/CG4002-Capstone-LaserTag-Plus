@@ -119,6 +119,9 @@ void led() {
     } else if(healthPoint == 60) {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xDAA520);
       color = 0x800080;
+    } else if(healthPoint == 50){
+      for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
+      color = 0xCCDDFF;
     } else if(healthPoint == 40) {
       for(int i = 0; i < LED_COUNT; i++) leds.setPixelColor(i, 0xFFDEAD);
       color = 0xADD8E6;
