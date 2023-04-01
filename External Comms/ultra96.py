@@ -627,9 +627,20 @@ class AI_Thread(threading.Thread):
     def detect_start_of_move(self, imu_data):
 
         # define threshold values as hard-coded values
-        x_thresh = 18300
-        y_thresh = 11000
-        z_thresh = 17000
+        ## OLD
+        # x_thresh = 18300
+        # y_thresh = 11000
+        # z_thresh = 17000
+        
+        # ## NEW
+        # x_thresh = 19300
+        # y_thresh = 15000
+        # z_thresh = 18000
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
 
         # x_thresh = y_thresh = z_thresh = 9000
 
