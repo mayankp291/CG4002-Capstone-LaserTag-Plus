@@ -556,6 +556,7 @@ class AI_Thread(threading.Thread):
 
                 player, imu_data = imu_queue_p2.get()
                 self.AI_actual(player, imu_data)
+                
     def extract_features(self, input):
 
         mean_acc_x = np.mean(input[0])
@@ -666,17 +667,45 @@ class AI_Thread(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    np_imu_data = np_imu_data[j:]
+                    # np_imu_data = np_imu_data[j:]
 
                     return np_imu_data.T
 
         return None
 
 
+    def detect_start_of_move2(self, imu_data):
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(imu_data)
+
+        # compare each data point in window to threshold
+        abs_acc_vals = np.abs(np_imu_data[:, :3])
+        mask = (abs_acc_vals > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+        idx = np.argmax(mask)
+        if mask[idx]:
+            # potential start of move action identified
+            # check next few data points to confirm start of move action
+            k = min(idx+4, np_imu_data.shape[0])
+            mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+            if not mask.any():
+                # confirmed start of move action
+                # np_imu_data = np_imu_data[idx:]
+                return np_imu_data.T
+
+        return None
+
+
     def AI_actual(self, player, imu_data):
         global prediction_array, NUM_INPUT
+
+        parsed_imu_data = self.detect_start_of_move2(imu_data)
         
-        parsed_imu_data = self.detect_start_of_move(imu_data)
+        # parsed_imu_data = self.detect_start_of_move(imu_data)
 
         if parsed_imu_data is None:
             return None
