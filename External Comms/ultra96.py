@@ -691,7 +691,11 @@ class AI_Thread(threading.Thread):
             # potential start of move action identified
             # check next few data points to confirm start of move action
             k = min(idx+4, np_imu_data.shape[0])
-            mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+
+            # Try the below two lines for mask and see if either one is correct
+            mask = (abs_acc_vals[idx+1:k] > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+
+            # mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
             if not mask.any():
                 # confirmed start of move action
                 # np_imu_data = np_imu_data[idx:]
