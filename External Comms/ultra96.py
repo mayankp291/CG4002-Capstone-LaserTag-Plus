@@ -1020,25 +1020,20 @@ class Evaluation_Client(Process):
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
     eval_client = Evaluation_Client('localhost', 11001, 2)
-    # eval_client.daemon = True
     eval_client.start()
 
     ai_thread = AI_Thread()
-    # ai_thread.daemon = False
     ai_thread.start()
 
     game_engine = Game_Engine() 
-    # game_engine.daemon = True
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    # mqtt.daemon = True
     mqtt.start()
 
     # HOST, PORT = "192.168.95.235", 11000
     HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
-    # server.daemon = True
     server.start()
 
     eval_client.join()
