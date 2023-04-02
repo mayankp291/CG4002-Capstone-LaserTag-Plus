@@ -553,13 +553,18 @@ class AI_Thread(threading.Thread):
     
     def run(self):
         while True:
-            if not imu_queue_p1.empty() and not imu_queue_p2.empty():
+            if not imu_queue_p1.empty() or not imu_queue_p2.empty():
                 ### get player id (p1 or p2)
-                player, imu_data = imu_queue_p1.get()
-                self.AI_actual(player, imu_data)
-
-                player, imu_data = imu_queue_p2.get()
-                self.AI_actual(player, imu_data)
+                try:
+                    player, imu_data = imu_queue_p1.get_nowait()
+                    self.AI_actual(player, imu_data)
+                except:
+                    pass
+                try:
+                    player, imu_data = imu_queue_p2.get_nowait()
+                    self.AI_actual(player, imu_data)
+                except:
+                    pass
                 
     def extract_features(self, input):
 
