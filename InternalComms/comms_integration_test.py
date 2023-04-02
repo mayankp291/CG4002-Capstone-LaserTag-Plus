@@ -17,6 +17,18 @@ import base64
 from dotenv import load_dotenv
 import sshtunnel
 
+
+import atexit
+import os
+
+def cleanup():
+    os.killpg(0, signal.SIGTERM)
+
+atexit.register(cleanup)
+
+# Your Python code here
+
+
 # the peripheral class is used to connect and disconnect
 
 # timeouts in seconds
@@ -473,7 +485,7 @@ def tunnel_ultra96():
 
 
 
-class Relay_Client_Send(threading.Thread):
+class Relay_Client_Send(mp.Process):
     def __init__(self, sock) -> None:
         super().__init__()
         self.sock = sock
@@ -528,7 +540,7 @@ class Relay_Client_Send(threading.Thread):
 
 ### stop the thread in case of exception
 ## thread.stop()
-class Relay_Client_Recv(threading.Thread):
+class Relay_Client_Recv(mp.Process):
     def __init__(self, sock) -> None:
         super().__init__()
         self.sock = sock
@@ -583,25 +595,45 @@ if __name__ == '__main__':
         # IMU2_Beetle.executeCommunications()
 
         # Player 1 (IMU)
+        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
+        # # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        # IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
+
+        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
+        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args=())
+
+        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
+        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
+
+        # # # Player 2
+        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer4)
+        # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args=())
+
+        # Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer5)
+        # Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args=())
+
+        # Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
+        # Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
+
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
+        IMU1_Thread = mp.Process(target=IMU1_Beetle.executeCommunications, args=())
 
         Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args=())
+        Vest1_Thread = mp.Process(target=Vest1_Beetle.executeCommunications, args=())
 
         Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
-        Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
+        Gun1_Thread = mp.Process(target=Gun1_Beetle.executeCommunications, args=())
 
         # # Player 2
         IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer4)
-        IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args=())
+        IMU2_Thread = mp.Process(target=IMU2_Beetle.executeCommunications, args=())
 
         Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer5)
-        Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args=())
+        Vest2_Thread = mp.Process(target=Vest2_Beetle.executeCommunications, args=())
 
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
-        Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
+        Gun2_Thread = mp.Process(target=Gun2_Beetle.executeCommunications, args=())
 
         tunnel_ultra96()
         sock = socket(AF_INET, SOCK_STREAM)
