@@ -157,7 +157,7 @@ class Relay_Server_Send(threading.Thread):
 
 # TCP Server to receive data from the Relay Laptops
 # TODO Spawn thread to handle sending data to the relay laptop
-class Relay_Server(threading.Thread):
+class Relay_Server(Process):
     def __init__(self, host, port):
         super().__init__()
         self.host = host
@@ -167,7 +167,7 @@ class Relay_Server(threading.Thread):
         self.server.bind((self.host, self.port))
 
     def run(self):
-        self.server.listen(5)
+        self.server.listen(1)
         print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
         while True:
             client, address = self.server.accept()
@@ -236,10 +236,10 @@ class Relay_Server(threading.Thread):
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
 
-                    if not data_device=="IMU":
-                        print("====================================")
-                        print("[RELAY SERVER] {} wrote:".format(client_address))
-                        print("====================================\n")
+                    # if not data_device=="IMU1" and not data_device=="IMU2":
+                    #     print("====================================")
+                    #     print("[RELAY SERVER] {} wrote:".format(client_address))
+                    #     print("====================================\n")
 
                     if data_device == "IMU1" or data_device == "IMU2":
                         # convert string to numpy array of ints
@@ -319,7 +319,7 @@ class Relay_Server(threading.Thread):
             traceback.print_exc()
 
 
-class Game_Engine(threading.Thread):
+class Game_Engine(Process):
     def __init__(self):
         super().__init__()
     
@@ -540,7 +540,7 @@ class Game_Engine(threading.Thread):
 
 
 
-class AI_Thread(threading.Thread):
+class AI_Thread(Process):
     def __init__(self):
         super().__init__()
         # DMA BUFFER CONFIG
@@ -555,24 +555,25 @@ class AI_Thread(threading.Thread):
     
     def run(self):
         while True:
-            # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
+            if not imu_queue_p1.empty() or not imu_queue_p2.empty():
             #     ### get player id (p1 or p2)
-            #     try:
-            #         self.player, self.imu_data = imu_queue_p1.get_nowait()
-            #         self.AI_actual()
-            #         # player, imu_data = imu_queue_p1.get_nowait()
-            #         # self.AI_actual(player, imu_data)
-            #     except:
-            #         pass
-            #     try:
-            #         self.player, self.imu_data = imu_queue_p2.get_nowait()
-            #         self.AI_actual()
-            #         # player, imu_data = imu_queue_p2.get_nowait()
-            #         # self.AI_actual(player, imu_data)
-            #     except:
-            #         pass
-            self.player, self.imu_data = imu_queue_p1.get()
-            self.AI_actual()
+                try:
+                    self.player, self.imu_data = imu_queue_p1.get_nowait()
+                    self.AI_actual()
+                    # player, imu_data = imu_queue_p1.get_nowait()
+                    # self.AI_actual(player, imu_data)
+                except:
+                    pass
+                try:
+                    self.player, self.imu_data = imu_queue_p2.get_nowait()
+                    self.AI_actual()
+                    # player, imu_data = imu_queue_p2.get_nowait()
+                    # self.AI_actual(player, imu_data)
+                except:
+                    pass
+            # if imu_queue_p1.empty
+            # self.player, self.imu_data = imu_queue_p1.get()
+            # self.AI_actual()
                 
     def extract_features(self):
 
@@ -809,7 +810,7 @@ class AI_Thread(threading.Thread):
 
 
 # MQTT Client to send data to AWS IOT Core
-class MQTT_Client(threading.Thread):
+class MQTT_Client(Process):
     def __init__(self, pub_topic, sub_topic, client_id, group) -> None:
         super().__init__()
         self.pub_topic = pub_topic
@@ -887,7 +888,7 @@ class MQTT_Client(threading.Thread):
             print(message.payload)
         
 # Client to send data to the Evaluation Server
-class Evaluation_Client(threading.Thread):
+class Evaluation_Client(Process):
     
     IV = b'PLSPLSPLSPLSWORK'
     KEY = b'PLSPLSPLSPLSWORK'
@@ -1023,7 +1024,7 @@ def main():
     eval_client.start()
 
     ai_thread = AI_Thread()
-    ai_thread.daemon = False
+    # ai_thread.daemon = False
     ai_thread.start()
 
     game_engine = Game_Engine() 
