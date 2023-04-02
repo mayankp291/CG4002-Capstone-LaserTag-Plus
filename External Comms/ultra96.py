@@ -769,7 +769,7 @@ class AI_Thread(threading.Thread):
                 action = self.output_buffer[0]
 
                 prediction_array.append(action)
-                print('Predicted class:', action, mapping[action])
+                print('Predicted class:', player, action, mapping[action])
                 
                 run = False
                 if not mapping[action] == 'idle':
@@ -1000,7 +1000,7 @@ def main():
     eval_client.start()
 
     ai_thread = AI_Thread()
-    ai_thread.daemon = True
+    ai_thread.daemon = False
     ai_thread.start()
 
     game_engine = Game_Engine() 
@@ -1011,8 +1011,8 @@ def main():
     # mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     # server.daemon = True
     server.start()
