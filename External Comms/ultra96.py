@@ -125,6 +125,8 @@ class Relay_Server_Send(threading.Thread):
     def __init__(self, sock):
         super().__init__()
         self.sock = sock
+        print("[RELAY_SEND] Ready to send data to Relay")
+
     
     def run(self):
         while True:
@@ -146,8 +148,9 @@ class Relay_Server_Send(threading.Thread):
 
     def send(self, data):
         try:
+            data = str(data)
             self.sock.sendall(data.encode("utf-8"))
-            print('Sent to Relay Laptop: {}'.format(data))
+            print('[RELAY_SEND] Sent to Relay Laptop: {}'.format(data))
         except:
             print('Connection to Relay Laptop lost')
             # self.relaySocket.close()
@@ -254,12 +257,12 @@ class Relay_Server(threading.Thread):
                     
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
-                        action_p1_queue.put("shoot_p2_hits")
+                        action_p2_queue.put("shoot_p1_hits")
                         isPlayerOneShootActivated.clear()
                     
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
-                        action_p2_queue.put("shoot_p1_hits")
+                        action_p1_queue.put("shoot_p2_hits")
                         isPlayerTwoShootActivated.clear()
 
                     elif data_device == "GUN1":
@@ -292,6 +295,7 @@ class Relay_Server(threading.Thread):
                 ### SENDING TO INT COMMS
                 ### TODO: make this new thread
                 # if intcomms_queue.qsize > 0:
+                # if not intcomms_queue.empty():
                 #     send_data = intcomms_queue.get()
                 #     ### send RELOAD only if bullets are 0
                 #     # both reload action and 0 bullets
@@ -744,6 +748,7 @@ class AI_Thread(threading.Thread):
         # parsed_imu_data = self.detect_start_of_move(imu_data)
 
         if parsed_imu_data is None:
+            print("No move detected")
             return None
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
@@ -991,7 +996,7 @@ class Evaluation_Client(threading.Thread):
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
     eval_client = Evaluation_Client('localhost', 11001, 2)
-    eval_client.daemon = True
+    # eval_client.daemon = True
     eval_client.start()
 
     ai_thread = AI_Thread()
@@ -999,17 +1004,17 @@ def main():
     ai_thread.start()
 
     game_engine = Game_Engine() 
-    game_engine.daemon = True
+    # game_engine.daemon = True
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    mqtt.daemon = True
+    # mqtt.daemon = True
     mqtt.start()
 
     HOST, PORT = "192.168.95.235", 11000
     # HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
-    server.daemon = True
+    # server.daemon = True
     server.start()
 
     mqtt.client.loop_forever()
