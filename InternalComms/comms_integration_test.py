@@ -14,7 +14,7 @@ from bluepy.btle import DefaultDelegate, Peripheral, Scanner, BTLEDisconnectErro
 import csv
 import numpy as np
 import base64
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import sshtunnel
 
 # the peripheral class is used to connect and disconnect
@@ -26,15 +26,15 @@ CONNECTION_TIMEOUT = 3
 SAMPLE_SIZE = 40
 
 # load environment variables
-# load_dotenv()
-# SOC_USERNAME = os.getenv("SOC_USERNAME")
-# SOC_PASSWORD = os.getenv("SOC_PASSWORD")
-# SOC_IP = os.getenv("SOC_IP")
-# PORT_BIND = int(os.getenv("PORT"))
-#
-# ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
-# ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
-# ULTRA96_IP = os.getenv("ULTRA96_IP")
+load_dotenv()
+SOC_USERNAME = os.getenv("SOC_USERNAME")
+SOC_PASSWORD = os.getenv("SOC_PASSWORD")
+SOC_IP = os.getenv("SOC_IP")
+PORT_BIND = int(os.getenv("PORT"))
+
+ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
+ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
+ULTRA96_IP = os.getenv("ULTRA96_IP")
 
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
@@ -445,31 +445,31 @@ beetleID_mapping = {
     7: "TEST"
 }
 
-# def tunnel_ultra96():
-#     # open tunnel to soc.comp.nus.edu.sg server
-#         tunnel_soc = sshtunnel.open_tunnel(
-#             ssh_address_or_host = (SOC_IP, 22),
-#             remote_bind_address = (ULTRA96_IP, 22),
-#             ssh_username = SOC_USERNAME,
-#             ssh_password = SOC_PASSWORD,
-#             block_on_close = False
-#             )
-#         tunnel_soc.start()
-#
-#         print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
-#
-#         # open tunnel from soc.comp.nus.edu.sg server to ultra96
-#         tunnel_ultra96 = sshtunnel.open_tunnel(
-#             ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
-#             # bind port from localhost to ultra96
-#             remote_bind_address=('localhost', PORT_BIND),
-#             ssh_username = ULTRA96_USERNAME,
-#             ssh_password = ULTRA96_PASSWORD,
-#             local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
-#             block_on_close = False
-#             )
-#         tunnel_ultra96.start()
-#         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
+def tunnel_ultra96():
+    # open tunnel to soc.comp.nus.edu.sg server
+        tunnel_soc = sshtunnel.open_tunnel(
+            ssh_address_or_host = (SOC_IP, 22),
+            remote_bind_address = (ULTRA96_IP, 22),
+            ssh_username = SOC_USERNAME,
+            ssh_password = SOC_PASSWORD,
+            block_on_close = False
+            )
+        tunnel_soc.start()
+
+        print('Tunnel into SOC Server successful, at port: ' + str(tunnel_soc.local_bind_port))
+
+        # open tunnel from soc.comp.nus.edu.sg server to ultra96
+        tunnel_ultra96 = sshtunnel.open_tunnel(
+            ssh_address_or_host = ('localhost', tunnel_soc.local_bind_port),
+            # bind port from localhost to ultra96
+            remote_bind_address=('localhost', PORT_BIND),
+            ssh_username = ULTRA96_USERNAME,
+            ssh_password = ULTRA96_PASSWORD,
+            local_bind_address = ('localhost', PORT_BIND), #localhost to bind it to
+            block_on_close = False
+            )
+        tunnel_ultra96.start()
+        print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
 
 
@@ -603,9 +603,10 @@ if __name__ == '__main__':
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
 
+        tunnel_ultra96()
         sock = socket(AF_INET, SOCK_STREAM)
-        # sock.connect(('localhost', 11000))
-        sock.connect(('192.168.95.235', 11000))
+        sock.connect(('localhost', 11000))
+        # sock.connect(('192.168.95.235', 11000))
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
@@ -639,9 +640,6 @@ if __name__ == '__main__':
 
         # tunnel_ultra96()
         # Create a socket and connect to the server
-
-
-
 
 
         # ReloadThread.join()
