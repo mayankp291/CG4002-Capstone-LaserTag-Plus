@@ -1219,7 +1219,8 @@ class Evaluation_Client(Process):
                     print('no more data from the client')
                     self.stop()
                 msg = data.decode("utf8")  # Decode raw bytes to UTF-8
-                recv_dict = literal_eval(msg)
+                # recv_dict = literal_eval(msg)
+                recv_dict = json.loads(msg)
                 # player_state = recv_dict
                 action_p1 = 'none'
                 action_p2 = 'none'
