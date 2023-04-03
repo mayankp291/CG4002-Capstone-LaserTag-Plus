@@ -20,8 +20,8 @@ from copy import deepcopy
 import numpy as np
 from scipy.stats import skew
 from scipy.fftpack import fft
-# from pynq import Overlay
-# from pynq import allocate
+from pynq import Overlay
+from pynq import allocate
 
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
@@ -925,9 +925,9 @@ def main():
     eval_client.daemon = True
     eval_client.start()
 
-    # ai_thread = AI_Thread()
-    # ai_thread.daemon = True
-    # ai_thread.start()
+    ai_thread = AI_Thread()
+    ai_thread.daemon = True
+    ai_thread.start()
 
     game_engine = Game_Engine() 
     game_engine.daemon = True
@@ -937,8 +937,8 @@ def main():
     mqtt.daemon = True
     mqtt.start()
 
-    # HOST, PORT = "192.168.95.235", 11000
-    HOST, PORT = "localhost", 11000    
+    HOST, PORT = "192.168.95.235", 11000
+    # HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     server.daemon = True
     server.start()
