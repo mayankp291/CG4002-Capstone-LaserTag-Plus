@@ -51,6 +51,8 @@ ULTRA96_IP = os.getenv("ULTRA96_IP")
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 dataBuffer = mp.Queue()
+imu1Buffer = mp.Queue()
+imu2Buffer = mp.Queue()
 
 gameQueue = mp.Queue()
 
@@ -225,7 +227,11 @@ class MyDelegate(DefaultDelegate):
                     print(sendData)
                     # self.savedata(sendData)
                     self.lock.acquire()
-                    dataBuffer.put(sendData)
+                    # dataBuffer.put(sendData)
+                    if self.deviceId == 1:
+                        imu1Buffer.put(sendData)
+                    if self.deviceId == 4:
+                        imu2Buffer.put(sendData)
                     self.lock.release()
                 if packetType == 'B' or packetType == 'H':
                     expectedPacketFormat = ("bb?16xb")
@@ -483,8 +489,6 @@ def tunnel_ultra96():
         tunnel_ultra96.start()
         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
-
-
 class Relay_Client_Send(mp.Process):
     def __init__(self, sock) -> None:
         super().__init__()
@@ -497,6 +501,104 @@ class Relay_Client_Send(mp.Process):
             while True:
                 # time.sleep(10)
                 msg = dataBuffer.get()
+                print("[BUFFER] ", msg)
+                # msg = literal_eval(msg)
+                beetle = msg['beetleID']
+                packet_type = beetleID_mapping[beetle]
+                print(beetle, packet_type)
+
+                if packet_type == 'IMU':
+                    motiondata = msg['sensorData']
+                    row = list(motiondata.values())
+                    imu_raw.append(row)
+                    if len(imu_raw) == SAMPLE_SIZE:
+                        numpy_imu_raw = np.array(imu_raw, dtype=np.int32)
+                        encoding = base64.binascii.b2a_base64(numpy_imu_raw)
+                        msg['sensorData'] = encoding
+                        # msg = numpy_imu_raw.toString()
+                        msg = str(msg)
+                        msg = str(len(msg)) + '_' + msg
+                        imu_raw.clear()
+                        print(numpy_imu_raw)
+                        print(msg)
+                        self.send(msg)
+                else:
+                    msg = str(msg)
+                    msg = str(len(msg)) + '_' + msg
+                    self.send(msg)
+
+
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+class Relay_Client_Send_IMU1(mp.Process):
+    def __init__(self, sock) -> None:
+        super().__init__()
+        self.sock = sock
+
+    def run(self):
+        try:
+            global beetleID_mapping
+            imu_raw = []
+            while True:
+                # time.sleep(10)
+                msg = imu1Buffer.get()
+                print("[BUFFER] ", msg)
+                # msg = literal_eval(msg)
+                beetle = msg['beetleID']
+                packet_type = beetleID_mapping[beetle]
+                print(beetle, packet_type)
+
+                if packet_type == 'IMU':
+                    motiondata = msg['sensorData']
+                    row = list(motiondata.values())
+                    imu_raw.append(row)
+                    if len(imu_raw) == SAMPLE_SIZE:
+                        numpy_imu_raw = np.array(imu_raw, dtype=np.int32)
+                        encoding = base64.binascii.b2a_base64(numpy_imu_raw)
+                        msg['sensorData'] = encoding
+                        # msg = numpy_imu_raw.toString()
+                        msg = str(msg)
+                        msg = str(len(msg)) + '_' + msg
+                        imu_raw.clear()
+                        print(numpy_imu_raw)
+                        print(msg)
+                        self.send(msg)
+                else:
+                    msg = str(msg)
+                    msg = str(len(msg)) + '_' + msg
+                    self.send(msg)
+
+
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+    def send(self, msg):
+        try:
+            self.sock.send(msg.encode("utf-8"))
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+
+
+
+class Relay_Client_Send_IMU2(mp.Process):
+    def __init__(self, sock) -> None:
+        super().__init__()
+        self.sock = sock
+
+    def run(self):
+        try:
+            global beetleID_mapping
+            imu_raw = []
+            while True:
+                # time.sleep(10)
+                msg = imu2Buffer.get()
                 print("[BUFFER] ", msg)
                 # msg = literal_eval(msg)
                 beetle = msg['beetleID']
@@ -636,13 +738,25 @@ if __name__ == '__main__':
         Gun2_Thread = mp.Process(target=Gun2_Beetle.executeCommunications, args=())
 
         tunnel_ultra96()
+        HOST, PORT = 'localhost', 11000
+        # HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect(('localhost', 11000))
-        # sock.connect(('192.168.95.235', 11000))
+        sock.connect((HOST, PORT))
+
+        sock2 = socket(AF_INET, SOCK_STREAM)
+        sock2.connect((HOST, PORT))
+
+        sock3 = socket(AF_INET, SOCK_STREAM)
+        sock3.connect((HOST, PORT))
 
         send_thread = Relay_Client_Send(sock)
         recv_thread = Relay_Client_Recv(sock)
 
+        send_imu1_thread = Relay_Client_Send_IMU1(sock2)
+        send_imu2_thread = Relay_Client_Send_IMU2(sock3)
+
+        send_imu1_thread.start()
+        send_imu2_thread.start()
         send_thread.start()
         recv_thread.start()
 
@@ -661,6 +775,8 @@ if __name__ == '__main__':
         # GrenadeThread.start()
         send_thread.join()
         recv_thread.join()
+        send_imu1_thread.join()
+        # send_imu2_thread.join()
 
         IMU1_Thread.join()
         Vest1_Thread.join()
@@ -676,9 +792,7 @@ if __name__ == '__main__':
 
         # ReloadThread.join()
         # Vest2_Thread.join()
-        send_thread.join()
-        recv_thread.join()
-
+  
 
     except (KeyboardInterrupt, SystemExit):
         print("Ended Comms")
