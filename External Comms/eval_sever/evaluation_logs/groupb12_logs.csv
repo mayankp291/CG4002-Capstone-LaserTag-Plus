@@ -36,3 +36,14 @@ timestamp,id,p1_action,gt_p1_action,p2_action,gt_p2_action,response_time,is_p1_a
 1680521259.501685,8302,logout,reload,shoot,grenade,3.9245986938476562,False,False
 1680521280.6946998,8302,shoot,shoot,shoot,grenade,11.740816116333008,True,False
 1680521560.017079,7812,None,None,None,None,60.00175714492798,True,True
+1680533627.1306329,4803,shoot,shoot,shoot,shield,14.314667463302612,True,False
+1680533652.8780992,4803,shoot,shield,shoot_p1_misses,shield,8.423162937164307,False,False
+1680533680.7775981,4803,shoot,shoot,shoot,shoot,18.466647148132324,True,True
+1680533798.6334436,4803,shoot,shield,shoot,shoot,5.406089544296265,False,True
+1680535067.598834,368,shoot,shoot,shoot,shoot,26.595491409301758,True,True
+1680535097.996284,368,shoot,shoot,shoot_p1_misses,shield,6.444623231887817,True,False
+1680535117.800307,368,shoot,shield,shoot,grenade,15.689979791641235,False,False
+1680535398.9298246,8722,none,shoot,none,shoot,7.743901014328003,False,False
+1680535418.2865229,8722,shoot,shield,shoot,shield,5.044094085693359,False,False
+1680535830.1716685,6532,none,shoot,none,grenade,28.78674840927124,False,False
+1680535933.3295248,6532,None,None,None,None,60.00135922431946,True,True

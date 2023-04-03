@@ -91,7 +91,49 @@ isPlayerOneShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
 isPlayerTwoShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
-player_state = {
+# player_state = {
+#     "p1":
+#     {
+#         "hp": 100,
+#         "action": "none",
+#         "bullets": 6,
+#         "grenades": 2,
+#         "shield_time": 0,
+#         "shield_health": 0,
+#         "num_deaths": 0,
+#         "num_shield": 3
+#     },
+#     "p2":
+#     {
+#         "hp": 100,
+#         "action": "none",
+#         "bullets": 6,
+#         "grenades": 2,
+#         "shield_time": 0,
+#         "shield_health": 0,
+#         "num_deaths": 0,
+#         "num_shield": 3
+#     }
+# }
+
+player_state_intcomms = {
+    "p1":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+    },
+    "p2":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+    }
+}
+
+
+class Player:
+    player_state = {
     "p1":
     {
         "hp": 100,
@@ -116,20 +158,7 @@ player_state = {
     }
 }
 
-player_state_intcomms = {
-    "p1":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-    },
-    "p2":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-    }
-}
+
 
 class Relay_Server_Send(threading.Thread):
     def __init__(self, sock):
@@ -329,32 +358,32 @@ class Relay_Server(Process):
             traceback.print_exc()
 
 
-class Game_Engine(threading.Thread):
+class Game_Engine(Process):
     def __init__(self):
         super().__init__()
     
     def run(self):
-        global player_state
+        # global player_state
         isPlayerOneShieldActivated = False
         isPlayerTwoShieldActivated = False
         startTimeOne = 0
         startTimeOneShoot = 0
         startTimeTwoShoot = 0
         startTimeTwo = 0
-        viz_queue.put(('STATE', player_state))
+        viz_queue.put(('STATE', Player.player_state))
         while True:
             if isPlayerOneShieldActivated:
-                player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
-                if player_state['p1']['shield_time'] <= 0:
-                    player_state['p1']['shield_time'] = 0
-                    player_state['p1']['shield_health'] = 0
+                Player.player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
+                if Player.player_state['p1']['shield_time'] <= 0:
+                    Player.player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['shield_health'] = 0
                     isPlayerOneShieldActivated = False
 
             if isPlayerTwoShieldActivated:
-                player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
-                if player_state['p2']['shield_time'] <= 0:
-                    player_state['p2']['shield_time'] = 0
-                    player_state['p2']['shield_health'] = 0
+                Player.player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
+                if Player.player_state['p2']['shield_time'] <= 0:
+                    Player.player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['shield_health'] = 0
                     isPlayerTwoShieldActivated = False
 
             if isPlayerOneShootActivated.is_set():
@@ -392,152 +421,152 @@ class Game_Engine(threading.Thread):
                 print("[PLAYER_2_ACTION]", action_p2)
                 # Update action for player 1 and 2
                 if action_p1 != 'none':
-                    player_state['p1']['action'] = action_p1
+                    Player.player_state['p1']['action'] = action_p1
                 if action_p2 != 'none':
-                    player_state['p2']['action'] = action_p2
+                    Player.player_state['p2']['action'] = action_p2
 
                 # Update shield action for both players
                 if action_p1 == 'shield':
-                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
-                        player_state['p1']['num_shield'] -= 1
-                        player_state['p1']['shield_time'] = 10
-                        player_state['p1']['shield_health'] = 30
+                    if Player.player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
+                        Player.player_state['p1']['num_shield'] -= 1
+                        Player.player_state['p1']['shield_time'] = 10
+                        Player.player_state['p1']['shield_health'] = 30
                         isPlayerOneShieldActivated = True
                         startTimeOne = time.time()
                 if action_p2 == 'shield':
-                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
-                        player_state['p2']['num_shield'] -= 1
-                        player_state['p2']['shield_time'] = 10
-                        player_state['p2']['shield_health'] = 30
+                    if Player.player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
+                        Player.player_state['p2']['num_shield'] -= 1
+                        Player.player_state['p2']['shield_time'] = 10
+                        Player.player_state['p2']['shield_health'] = 30
                         isPlayerTwoShieldActivated = True
                         startTimeTwo = time.time()
                 
                 # Update player 1 state (active player) 
                 if action_p1 == 'reload':
-                    if player_state['p1']['bullets'] <= 0:
-                        player_state['p1']['bullets'] = 6
+                    if Player.player_state['p1']['bullets'] <= 0:
+                        Player.player_state['p1']['bullets'] = 6
                         reloadSendRelayP1.set()
                 elif action_p1 == 'grenade':
                     # update grenade for player 1
-                    if player_state['p1']['grenades'] > 0:
-                        player_state['p1']['grenades'] -= 1
+                    if Player.player_state['p1']['grenades'] > 0:
+                        Player.player_state['p1']['grenades'] -= 1
                         isPlayerOneGrenadeActivated.set()
                     # send check for player 2
                 elif action_p1 == 'grenade_p2_hits':
                     if isPlayerTwoShieldActivated:
-                        player_state['p2']['shield_health'] -= 30
+                        Player.player_state['p2']['shield_health'] -= 30
                     else:
-                        player_state['p2']['hp'] -= 30
+                        Player.player_state['p2']['hp'] -= 30
                 elif action_p1 == 'shoot_p2_hits':
                     if isPlayerTwoShieldActivated:
-                        player_state['p2']['shield_health'] -= 10
+                        Player.player_state['p2']['shield_health'] -= 10
                     else:
-                        player_state['p2']['hp'] -= 10
+                        Player.player_state['p2']['hp'] -= 10
                 elif action_p1 == 'shoot_p2_misses':
                     pass
                 elif action_p1 == 'shoot':
-                    if player_state['p1']['bullets'] > 0:
-                        player_state['p1']['bullets'] -= 1
+                    if Player.player_state['p1']['bullets'] > 0:
+                        Player.player_state['p1']['bullets'] -= 1
                         isPlayerOneShootActivated.set()
                         startTimeOneShoot = time.time()
                 
                 # Update player 2 state (active player) 
                 if action_p2 == 'reload':
-                    if player_state['p2']['bullets'] <= 0:
-                        player_state['p2']['bullets'] = 6
+                    if Player.player_state['p2']['bullets'] <= 0:
+                        Player.player_state['p2']['bullets'] = 6
                         reloadSendRelayP2.set()
                 elif action_p2 == 'grenade':
                     # update grenade for player 2
-                    if player_state['p2']['grenades'] > 0:
-                        player_state['p2']['grenades'] -= 1
+                    if Player.player_state['p2']['grenades'] > 0:
+                        Player.player_state['p2']['grenades'] -= 1
                         isPlayerTwoGrenadeActivated.set()
                     # send check for player 2
                 elif action_p2 == 'grenade_p1_hits':
                     if isPlayerOneShieldActivated:
-                        player_state['p1']['shield_health'] -= 30
+                        Player.player_state['p1']['shield_health'] -= 30
                     else:
-                        player_state['p1']['hp'] -= 30
-                        print("[STATUS] ", player_state)       
+                        Player.player_state['p1']['hp'] -= 30
+                        print("[STATUS] ", Player.player_state)       
                 elif action_p2 == 'shoot_p1_hits':
                     if isPlayerOneShieldActivated:
-                        player_state['p1']['shield_health'] -= 10
+                        Player.player_state['p1']['shield_health'] -= 10
                     else:
-                        player_state['p1']['hp'] -= 10
+                        Player.player_state['p1']['hp'] -= 10
                 elif action_p2 == 'shoot_p2_misses':
                     pass
                 elif action_p2 == 'shoot':
-                    if player_state['p2']['bullets'] > 0:
-                        player_state['p2']['bullets'] -= 1
+                    if Player.player_state['p2']['bullets'] > 0:
+                        Player.player_state['p2']['bullets'] -= 1
                         isPlayerTwoShootActivated.set()
                         startTimeTwoShoot = time.time()
 
-                if player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
+                if Player.player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
                     isPlayerOneShieldActivated = False
-                    player_state['p1']['hp'] += player_state['p1']['shield_health']
-                    player_state['p1']['shield_health'] = 0
-                    player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['hp'] += Player.player_state['p1']['shield_health']
+                    Player.player_state['p1']['shield_health'] = 0
+                    Player.player_state['p1']['shield_time'] = 0
             
-                if player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
+                if Player.player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
                     isPlayerTwoShieldActivated = False
-                    player_state['p2']['hp'] += player_state['p2']['shield_health']
-                    player_state['p2']['shield_health'] = 0
-                    player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['hp'] += Player.player_state['p2']['shield_health']
+                    Player.player_state['p2']['shield_health'] = 0
+                    Player.player_state['p2']['shield_time'] = 0
             
                 # rebirth for player 2
-                if player_state['p2']['hp'] <= 0:
+                if Player.player_state['p2']['hp'] <= 0:
                     # reset player 2 stats
-                    player_state['p2']['hp'] = 100
-                    player_state['p2']['num_deaths'] += 1
-                    player_state['p2']['bullets'] = 6
-                    player_state['p2']['grenades'] = 2
-                    player_state['p2']['num_shield'] = 3
-                    player_state['p2']['shield_time'] = 0
-                    player_state['p2']['shield_health'] = 0
+                    Player.player_state['p2']['hp'] = 100
+                    Player.player_state['p2']['num_deaths'] += 1
+                    Player.player_state['p2']['bullets'] = 6
+                    Player.player_state['p2']['grenades'] = 2
+                    Player.player_state['p2']['num_shield'] = 3
+                    Player.player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['shield_health'] = 0
 
                 # rebirth for player 1
-                if player_state['p1']['hp'] <= 0:
+                if Player.player_state['p1']['hp'] <= 0:
                     # reset player 1 stats
-                    player_state['p1']['hp'] = 100
-                    player_state['p1']['num_deaths'] += 1
-                    player_state['p1']['bullets'] = 6
-                    player_state['p1']['grenades'] = 2
-                    player_state['p1']['num_shield'] = 3
-                    player_state['p1']['shield_time'] = 0
-                    player_state['p1']['shield_health'] = 0
+                    Player.player_state['p1']['hp'] = 100
+                    Player.player_state['p1']['num_deaths'] += 1
+                    Player.player_state['p1']['bullets'] = 6
+                    Player.player_state['p1']['grenades'] = 2
+                    Player.player_state['p1']['num_shield'] = 3
+                    Player.player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['shield_health'] = 0
                 
-                # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
+                # print("[PLAYER STATE FROM GAME ENGINE]", Player.player_state)
                 if shootGrenadeActivated.is_set():
-                    player_state_cp = deepcopy(player_state)
+                    player_state_cp = deepcopy(Player.player_state)
                     if ((action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses') or (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses')):
                         if (action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses'):
-                            player_state['p1']['action'] = 'shoot'
+                            Player.player_state['p1']['action'] = 'shoot'
                         else:
                             player_state_cp['p1']['action'] = 'none'
                         if (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses'):
-                            player_state['p2']['action'] = 'shoot'
+                            Player.player_state['p2']['action'] = 'shoot'
                         else:
                             player_state_cp['p2']['action'] = 'none'
                     if ((action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses') or (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses')):
                         if (action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses'):
-                            player_state['p1']['action'] = 'grenade'
+                            Player.player_state['p1']['action'] = 'grenade'
                         else:
                             player_state_cp['p1']['action'] = 'none'
                             
                         if (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses'):
-                            player_state['p2']['action'] = 'grenade'
+                            Player.player_state['p2']['action'] = 'grenade'
                         else:
                             player_state_cp['p2']['action'] = 'none'
                     viz_queue.put(('CHECK', player_state_cp))
-                    eval_queue.put(deepcopy(player_state))
+                    eval_queue.put(deepcopy(Player.player_state))
                     shootGrenadeActivated.clear()
                 elif (action_p1 == 'shoot' and isPlayerOneShootActivated.is_set()) or (action_p2 == 'shoot' and isPlayerTwoShootActivated.is_set()) or (action_p1 == 'grenade' and isPlayerOneGrenadeActivated.is_set()) or (action_p2 == 'grenade' and isPlayerTwoGrenadeActivated.is_set()):
-                    viz_queue.put(('CHECK', deepcopy(player_state)))
+                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
                     shootGrenadeActivated.set()
                 # elif (action_p1 == 'logout') and (action_p2 == 'logout'):
-                #     eval_queue.put(deepcopy(player_state))
+                #     eval_queue.put(deepcopy(Player.player_state))
                 else:
-                    viz_queue.put(('CHECK', deepcopy(player_state)))
-                    eval_queue.put(deepcopy(player_state))
+                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
+                    eval_queue.put(deepcopy(Player.player_state))
                 try:
                     while True:
                         action_p1_queue.get_nowait()
@@ -548,7 +577,6 @@ class Game_Engine(threading.Thread):
                         action_p2_queue.get_nowait()
                 except queues.Empty:
                     pass
-
 
 
 class AI_Thread_1(Process):
@@ -563,26 +591,19 @@ class AI_Thread_1(Process):
         self.player = None
         self.features = None
 
+
     def run(self):
         while True:
-            self.player, self.imu_data = imu_queue_p1.get()
-            # print(self.player, self.imu_data)
-            self.AI_actual()
-            # time.sleep(1)            
-
-    # def run(self):
-    #     while True:
-    #         # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
-    #         #     ### get player id (p1 or p2)
-    #         try:
-    #             # if aiflag.is_set():
-    #             self.player, self.imu_data = imu_queue_p1.get_nowait()
-    #             self.AI_actual()
-    #             # player, imu_data = imu_queue_p1.get_nowait()
-    #             # self.AI_actual(player, imu_data)
-    #         except:
-    #             pass
-            
+            # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
+            #     ### get player id (p1 or p2)
+            # try:
+            #     # if aiflag.is_set():
+            #     self.player, self.imu_data = imu_queue_p1.get_nowait()
+            #     self.AI_actual()
+            #     # player, imu_data = imu_queue_p1.get_nowait()
+            #     # self.AI_actual(player, imu_data)
+            # except:
+                # pass
             # try:
             #     # if aiflag.is_set():
             #     self.player, self.imu_data = imu_queue_p2.get_nowait()
@@ -591,9 +612,9 @@ class AI_Thread_1(Process):
             #     # self.AI_actual(player, imu_data)
             # except:
             #     pass
-            # # if imu_queue_p1.empty
-            # # self.player, self.imu_data = imu_queue_p1.get()
-            # # self.AI_actual()
+            # if imu_queue_p1.empty
+            self.player, self.imu_data = imu_queue_p1.get()
+            self.AI_actual()
                 
     def extract_features(self):
 
@@ -675,6 +696,48 @@ class AI_Thread_1(Process):
         # x_thresh = 19300
         # y_thresh = 15000
         # z_thresh = 18000
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        # x_thresh = y_thresh = z_thresh = 9000
+
+        # np_imu_data = np.array(self.imu_data)
+
+        # compare each data point in window to threshold
+        for j in range(self.imu_data.shape[0]):
+            acc_vals = self.imu_data[j, :3]
+
+            if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
+                # potential start of move action identified
+                # check next few data points to confirm start of move action
+                for k in range(j+1, j+4):
+                    try:
+                        next_acc_vals = self.imu_data[k, :3]
+
+                    except IndexError:
+                        # if index is out of range, move to next window
+                        break
+
+                    if not ((abs(next_acc_vals[0]) > x_thresh) or (abs(next_acc_vals[1]) > y_thresh) or (abs(next_acc_vals[2]) > z_thresh)):
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    # np_imu_data = np_imu_data[j:]
+                    # print("Start of move action detected", self.imu_data.shape)
+                    self.imu_data = np.transpose(self.imu_data)
+                    # print(self.imu_data.shape)
+                    return 
+                    # return self.imu_data.T
+
+        # return None
+        self.imu_data = None
+
+
+    def detect_start_of_move2(self, imu_data):
 
         ## TEST
         x_thresh = 19300
@@ -786,6 +849,7 @@ class AI_Thread_1(Process):
             except RuntimeError as e:
                 print(e)
                 print("Error config: ", self.dma.register_map)
+
 
 class AI_Thread_2(Process):
     def __init__(self):
@@ -1128,7 +1192,7 @@ class MQTT_Client(Process):
                 action_p2_queue.put('grenade_p1_misses')
                 isPlayerTwoGrenadeActivated.clear() 
             elif message.payload == b'6_CHECK_update':
-                player_state_copy = deepcopy(player_state)
+                Player.player_state_copy = deepcopy(Player.player_state)
                 player_state_copy['p1']['action'] = 'none'
                 player_state_copy['p2']['action'] = 'none'
                 viz_queue.put(('STATE', player_state_copy))
@@ -1162,7 +1226,8 @@ class Evaluation_Client(Process):
         try:
             while True:
                 data = eval_queue.get()
-                self.send(json.dumps(data)) 
+                # self.send(json.dumps(data)) 
+                self.send(json.dumps(Player.player_state))
                 self.receive()
         except:
             print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port)
@@ -1191,7 +1256,7 @@ class Evaluation_Client(Process):
     
     def receive(self):
         if self.clientSocket is not None:
-            global player_state
+            # global player_state
             try:
                 # recv length followed by '_' followed by cypher
                 data = b''
@@ -1231,7 +1296,7 @@ class Evaluation_Client(Process):
                 # if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
                 #     action_p1 = 'logout'
                 #     action_p2 = 'logout'
-                player_state = deepcopy(recv_dict)
+                Player.player_state = deepcopy(recv_dict)
                 recv_dict['p1']['action'] = action_p1
                 recv_dict['p2']['action'] = action_p2
                 viz_queue.put(('STATE', recv_dict))
@@ -1248,7 +1313,7 @@ class Evaluation_Client(Process):
                 print("[EVAL SERVER] Received message from Evaluation Server", msg)
                 print('=====================================')
                 print('=====================================')
-                print("[EVAL UPDATE] Updated player state from Evaluation Server", player_state)
+                print("[EVAL UPDATE] Updated player state from Evaluation Server", Player.player_state)
                 print('=====================================')
                 ### update event flags
                 # if player_state['p1']['action'] == 'grenade':
@@ -1309,8 +1374,8 @@ def main():
     # mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     # server.daemon = True
     server.start()
