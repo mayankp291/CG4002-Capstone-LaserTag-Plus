@@ -529,8 +529,8 @@ class Game_Engine(Process):
                 elif (action_p1 == 'shoot') or (action_p2 == 'shoot') or (action_p1 == 'grenade') or (action_p2 == 'grenade'):
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     shootGrenadeActivated.set()
-                elif (action_p1 == 'logout') and (action_p2 == 'logout'):
-                    eval_queue.put(deepcopy(player_state))
+                # elif (action_p1 == 'logout') and (action_p2 == 'logout'):
+                #     eval_queue.put(deepcopy(player_state))
                 else:
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     eval_queue.put(deepcopy(player_state))
@@ -977,9 +977,19 @@ class Evaluation_Client(Process):
                     self.stop()
                 msg = data.decode("utf8")  # Decode raw bytes to UTF-8
                 recv_dict = literal_eval(msg)
+                # player_state = recv_dict
+                action_p1 = 'none'
+                action_p2 = 'none'
+                if recv_dict['p1']['action'] == 'shield' and recv_dict['p2']['action'] != 'shield':
+                    action_p1 = 'shield'
+                if recv_dict['p2']['action'] == 'shield' and recv_dict['p1']['action'] != 'shield':
+                    action_p2 = 'shield'
+                if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
+                    action_p1 = 'logout'
+                    action_p2 = 'logout'
                 player_state = recv_dict
-                recv_dict['p1']['action'] = 'none'
-                recv_dict['p2']['action'] = 'none'
+                recv_dict['p1']['action'] = action_p1
+                recv_dict['p2']['action'] = action_p2
                 viz_queue.put(('STATE', recv_dict))
                 ### UPDATE INT COMMS STATE
                 player_state_intcomms['p1']['action'] = recv_dict['p1']['action']
