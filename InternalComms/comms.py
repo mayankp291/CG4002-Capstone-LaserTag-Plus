@@ -46,6 +46,7 @@ gameQueue = mp.Queue()
 #     "0000dfb1-0000-1000-8000-00805f9b34fb")[0]
 
 macAddresses = {
+    # 1: "6C:79:B8:D3:6A:A3",  # DUMMY
     1: "D0:39:72:BF:BF:BB", #imu1
     2: "D0:39:72:BF:C6:07", #VEST1
     3: "D0:39:72:BF:C3:BF", #GUN1
@@ -406,12 +407,12 @@ class BeetleConnectionThread:
             data = gameQueue.get()
 
         if data:
-            if self.beetleId == GUN_PLAYER_1:
+            if self.beetleId == VEST_PLAYER_1:
                 print('writing hp to beetle', self.beetleId)
                 hp_p1 = data['p1']['hp']
                 self.serialChar.write(bytes(hp_p1, encoding="utf-8"))
 
-            if self.beetleId == GUN_PLAYER_2:
+            if self.beetleId == VEST_PLAYER_2:
                 print('writing hp to beetle', self.beetleId)
                 hp_p2 = data['p2']['hp']
                 self.serialChar.write(bytes(hp_p2, encoding="utf-8"))
@@ -536,6 +537,12 @@ def testBulletUpdateThread():
 
         gameQueue.put(data)
         # data['p1']['hp']
+def testHealthUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'hp': 100
+        }}
 
 if __name__ == '__main__':
     try:
@@ -555,7 +562,7 @@ if __name__ == '__main__':
 
         # Player 1 (IMU)
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
-        # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
+        # # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
         IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args = ())
 
         Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
@@ -574,6 +581,9 @@ if __name__ == '__main__':
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args = ())
 
+        # extra_beetle = BeetleConnectionThread(1, 1, '6C:79:B8:D3:6A:A3', dataBuffer, lock, receivingBuffer1)
+        # extra_thread = threading.Thread(target=extra_beetle.executeCommunications, args = ())
+
         # relay_thread = Relay_Client('172.20.10.2', 11000)
 
         # ReloadThread = threading.Thread(target = testReloadThread, args = ())
@@ -585,6 +595,7 @@ if __name__ == '__main__':
         Gun1_Thread.start()
 
         IMU2_Thread.start()
+        # extra_thread.start()
         Vest2_Thread.start()
         Gun2_Thread.start()
 
@@ -594,11 +605,12 @@ if __name__ == '__main__':
         # ReloadThread.start()
         # GrenadeThread.start()
 
-        # IMU1_Thread.join()
+        IMU1_Thread.join()
         Vest1_Thread.join()
         Gun1_Thread.join()
 
         IMU2_Thread.join()
+        # extra_thread.join()
         Vest2_Thread.join()
         Gun2_Thread.join()
 

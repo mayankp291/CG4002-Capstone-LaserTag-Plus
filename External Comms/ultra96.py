@@ -22,7 +22,14 @@ from scipy.stats import skew
 from scipy.fftpack import fft
 from pynq import Overlay
 from pynq import allocate
+import atexit
+import os
 
+### kill all child processes on exit
+def cleanup():
+    os.killpg(0, signal.SIGTERM)
+
+atexit.register(cleanup)
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
@@ -49,7 +56,8 @@ beetleID_mapping = {
 
 MQTT_USERNAME = "capstonekillingus"
 MQTT_PASSWORD = "capstonekillingus"
-imu_queue = Queue()
+imu_queue_p1 = Queue()
+imu_queue_p2 = Queue()
 action_p1_queue = Queue()
 action_p2_queue = Queue()
 viz_queue = Queue()
@@ -124,6 +132,8 @@ class Relay_Server_Send(threading.Thread):
     def __init__(self, sock):
         super().__init__()
         self.sock = sock
+        print("[RELAY_SEND] Ready to send data to Relay")
+
     
     def run(self):
         while True:
@@ -145,15 +155,16 @@ class Relay_Server_Send(threading.Thread):
 
     def send(self, data):
         try:
+            data = str(data)
             self.sock.sendall(data.encode("utf-8"))
-            print('Sent to Relay Laptop: {}'.format(data))
+            print('[RELAY_SEND] Sent to Relay Laptop: {}'.format(data))
         except:
             print('Connection to Relay Laptop lost')
             # self.relaySocket.close()
 
 # TCP Server to receive data from the Relay Laptops
 # TODO Spawn thread to handle sending data to the relay laptop
-class Relay_Server(threading.Thread):
+class Relay_Server(Process):
     def __init__(self, host, port):
         super().__init__()
         self.host = host
@@ -163,7 +174,7 @@ class Relay_Server(threading.Thread):
         self.server.bind((self.host, self.port))
 
     def run(self):
-        self.server.listen(5)
+        self.server.listen(1)
         print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
         while True:
             client, address = self.server.accept()
@@ -232,33 +243,32 @@ class Relay_Server(threading.Thread):
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
 
-                    if not data_device=="IMU":
-                        print("====================================")
-                        print("[RELAY SERVER] {} wrote:".format(client_address))
-                        print("====================================\n")
+                    # if not data_device=="IMU1" and not data_device=="IMU2":
+                    #     print("====================================")
+                    #     print("[RELAY SERVER] {} wrote:".format(client_address))
+                    #     print("====================================\n")
 
                     if data_device == "IMU1" or data_device == "IMU2":
-                        arr = data["sensorData"]
                         # convert string to numpy array of ints
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
-                            imu_queue.put(('p1', new_array))
+                            imu_queue_p1.put(('p1', new_array))
                             print("IMU 1 RECV")
                         else:
-                            imu_queue.put(('p2', new_array))
+                            imu_queue_p2.put(('p2', new_array))
                             print("IMU 2 RECV")
                         
                         # grenadeSendRelay.set()
                     
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
-                        action_p1_queue.put("shoot_p2_hits")
+                        action_p2_queue.put("shoot_p1_hits")
                         isPlayerOneShootActivated.clear()
                     
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
-                        action_p2_queue.put("shoot_p1_hits")
+                        action_p1_queue.put("shoot_p2_hits")
                         isPlayerTwoShootActivated.clear()
 
                     elif data_device == "GUN1":
@@ -291,6 +301,7 @@ class Relay_Server(threading.Thread):
                 ### SENDING TO INT COMMS
                 ### TODO: make this new thread
                 # if intcomms_queue.qsize > 0:
+                # if not intcomms_queue.empty():
                 #     send_data = intcomms_queue.get()
                 #     ### send RELOAD only if bullets are 0
                 #     # both reload action and 0 bullets
@@ -315,7 +326,7 @@ class Relay_Server(threading.Thread):
             traceback.print_exc()
 
 
-class Game_Engine(threading.Thread):
+class Game_Engine(Process):
     def __init__(self):
         super().__init__()
     
@@ -536,7 +547,7 @@ class Game_Engine(threading.Thread):
 
 
 
-class AI_Thread(threading.Thread):
+class AI_Thread(Process):
     def __init__(self):
         super().__init__()
         # DMA BUFFER CONFIG
@@ -544,74 +555,92 @@ class AI_Thread(threading.Thread):
         self.dma = self.ol.axi_dma_0
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+        self.imu_data = np.empty((40,6), dtype=np.int32)
+        self.player = None
+        self.features = None
 
     
     def run(self):
         while True:
-            if not imu_queue.empty():
-                ### get player id (p1 or p2)
-                player, imu_data = imu_queue.get()
-                a = self.AI_actual(player, imu_data)
-    
-    def extract_features(self, input):
+            if not imu_queue_p1.empty() or not imu_queue_p2.empty():
+            #     ### get player id (p1 or p2)
+                try:
+                    self.player, self.imu_data = imu_queue_p1.get_nowait()
+                    self.AI_actual()
+                    # player, imu_data = imu_queue_p1.get_nowait()
+                    # self.AI_actual(player, imu_data)
+                except:
+                    pass
+                try:
+                    self.player, self.imu_data = imu_queue_p2.get_nowait()
+                    self.AI_actual()
+                    # player, imu_data = imu_queue_p2.get_nowait()
+                    # self.AI_actual(player, imu_data)
+                except:
+                    pass
+            # if imu_queue_p1.empty
+            # self.player, self.imu_data = imu_queue_p1.get()
+            # self.AI_actual()
+                
+    def extract_features(self):
 
-        mean_acc_x = np.mean(input[0])
-        mean_acc_y = np.mean(input[1])
-        mean_acc_z = np.mean(input[2])
-        mean_gyro_x = np.mean(input[3])
-        mean_gyro_y = np.mean(input[4])
-        mean_gyro_z = np.mean(input[5])
+        mean_acc_x = np.mean(self.imu_data[0])
+        mean_acc_y = np.mean(self.imu_data[1])
+        mean_acc_z = np.mean(self.imu_data[2])
+        mean_gyro_x = np.mean(self.imu_data[3])
+        mean_gyro_y = np.mean(self.imu_data[4])
+        mean_gyro_z = np.mean(self.imu_data[5])
 
-        sd_acc_x = np.std(input[0])
-        sd_acc_y = np.std(input[1])
-        sd_acc_z = np.std(input[2])
-        sd_gyro_x = np.std(input[3])
-        sd_gyro_y = np.std(input[4])
-        sd_gyro_z = np.std(input[5])
+        sd_acc_x = np.std(self.imu_data[0])
+        sd_acc_y = np.std(self.imu_data[1])
+        sd_acc_z = np.std(self.imu_data[2])
+        sd_gyro_x = np.std(self.imu_data[3])
+        sd_gyro_y = np.std(self.imu_data[4])
+        sd_gyro_z = np.std(self.imu_data[5])
 
-        max_acc_x = np.amax(input[0])
-        max_acc_y = np.amax(input[1])
-        max_acc_z = np.amax(input[2])
-        max_gyro_x = np.amax(input[3])
-        max_gyro_y = np.amax(input[4])
-        max_gyro_z = np.amax(input[5])
+        max_acc_x = np.amax(self.imu_data[0])
+        max_acc_y = np.amax(self.imu_data[1])
+        max_acc_z = np.amax(self.imu_data[2])
+        max_gyro_x = np.amax(self.imu_data[3])
+        max_gyro_y = np.amax(self.imu_data[4])
+        max_gyro_z = np.amax(self.imu_data[5])
 
-        min_acc_x = np.amin(input[0])
-        min_acc_y = np.amin(input[1])
-        min_acc_z = np.amin(input[2])
-        min_gyro_x = np.amin(input[3])
-        min_gyro_y = np.amin(input[4])
-        min_gyro_z = np.amin(input[5])
+        min_acc_x = np.amin(self.imu_data[0])
+        min_acc_y = np.amin(self.imu_data[1])
+        min_acc_z = np.amin(self.imu_data[2])
+        min_gyro_x = np.amin(self.imu_data[3])
+        min_gyro_y = np.amin(self.imu_data[4])
+        min_gyro_z = np.amin(self.imu_data[5])
 
-        rms_acc_x = np.sqrt(np.mean(input[0] ** 2))
-        rms_acc_y = np.sqrt(np.mean(input[1] ** 2))
-        rms_acc_z = np.sqrt(np.mean(input[2] ** 2))
-        rms_gyro_x = np.sqrt(np.mean(input[3] ** 2))
-        rms_gyro_y = np.sqrt(np.mean(input[4] ** 2))
-        rms_gyro_z = np.sqrt(np.mean(input[5] ** 2))
+        rms_acc_x = np.sqrt(np.mean(self.imu_data[0] ** 2))
+        rms_acc_y = np.sqrt(np.mean(self.imu_data[1] ** 2))
+        rms_acc_z = np.sqrt(np.mean(self.imu_data[2] ** 2))
+        rms_gyro_x = np.sqrt(np.mean(self.imu_data[3] ** 2))
+        rms_gyro_y = np.sqrt(np.mean(self.imu_data[4] ** 2))
+        rms_gyro_z = np.sqrt(np.mean(self.imu_data[5] ** 2))
 
-        skew_acc_x = skew(input[0])
-        skew_acc_y = skew(input[1])
-        skew_acc_z = skew(input[2])
-        skew_gyro_x = skew(input[3])
-        skew_gyro_y = skew(input[4])
-        skew_gyro_z = skew(input[5])
+        skew_acc_x = skew(self.imu_data[0])
+        skew_acc_y = skew(self.imu_data[1])
+        skew_acc_z = skew(self.imu_data[2])
+        skew_gyro_x = skew(self.imu_data[3])
+        skew_gyro_y = skew(self.imu_data[4])
+        skew_gyro_z = skew(self.imu_data[5])
 
-        mag_acc_x = np.amax(np.abs(fft(input[0])))
-        mag_acc_y = np.amax(np.abs(fft(input[1])))
-        mag_acc_z = np.amax(np.abs(fft(input[2])))
-        mag_gyro_x = np.amax(np.abs(fft(input[3])))
-        mag_gyro_y = np.amax(np.abs(fft(input[4])))
-        mag_gyro_z = np.amax(np.abs(fft(input[5])))
+        mag_acc_x = np.amax(np.abs(fft(self.imu_data[0])))
+        mag_acc_y = np.amax(np.abs(fft(self.imu_data[1])))
+        mag_acc_z = np.amax(np.abs(fft(self.imu_data[2])))
+        mag_gyro_x = np.amax(np.abs(fft(self.imu_data[3])))
+        mag_gyro_y = np.amax(np.abs(fft(self.imu_data[4])))
+        mag_gyro_z = np.amax(np.abs(fft(self.imu_data[5])))
 
-        phase_acc_x = np.amax(np.angle(fft(input[0])))
-        phase_acc_y = np.amax(np.angle(fft(input[1])))
-        phase_acc_z = np.amax(np.angle(fft(input[2])))
-        phase_gyro_x = np.amax(np.angle(fft(input[3])))
-        phase_gyro_y = np.amax(np.angle(fft(input[4])))
-        phase_gyro_z = np.amax(np.angle(fft(input[5])))
+        phase_acc_x = np.amax(np.angle(fft(self.imu_data[0])))
+        phase_acc_y = np.amax(np.angle(fft(self.imu_data[1])))
+        phase_acc_z = np.amax(np.angle(fft(self.imu_data[2])))
+        phase_gyro_x = np.amax(np.angle(fft(self.imu_data[3])))
+        phase_gyro_y = np.amax(np.angle(fft(self.imu_data[4])))
+        phase_gyro_z = np.amax(np.angle(fft(self.imu_data[5])))
 
-        return np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+        self.features = np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
                                sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
                                max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
                                min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
@@ -619,29 +648,40 @@ class AI_Thread(threading.Thread):
                                skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
                                mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
                                phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
+        
 
-
-    def detect_start_of_move(self, imu_data):
+    def detect_start_of_move(self):
 
         # define threshold values as hard-coded values
-        x_thresh = 18300
-        y_thresh = 11000
-        z_thresh = 17000
+        ## OLD
+        # x_thresh = 18300
+        # y_thresh = 11000
+        # z_thresh = 17000
+        
+        # ## NEW
+        # x_thresh = 19300
+        # y_thresh = 15000
+        # z_thresh = 18000
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
 
         # x_thresh = y_thresh = z_thresh = 9000
 
-        np_imu_data = np.array(imu_data)
+        # np_imu_data = np.array(self.imu_data)
 
         # compare each data point in window to threshold
-        for j in range(np_imu_data.shape[0]):
-            acc_vals = np_imu_data[j, :3]
+        for j in range(self.imu_data.shape[0]):
+            acc_vals = self.imu_data[j, :3]
 
             if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
                 # potential start of move action identified
                 # check next few data points to confirm start of move action
                 for k in range(j+1, j+4):
                     try:
-                        next_acc_vals = np_imu_data[k, :3]
+                        next_acc_vals = self.imu_data[k, :3]
 
                     except IndexError:
                         # if index is out of range, move to next window
@@ -652,26 +692,100 @@ class AI_Thread(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    np_imu_data = np_imu_data[j:]
+                    # np_imu_data = np_imu_data[j:]
+                    # print("Start of move action detected", self.imu_data.shape)
+                    self.imu_data = np.transpose(self.imu_data)
+                    # print(self.imu_data.shape)
+                    return 
+                    # return self.imu_data.T
 
+        # return None
+        self.imu_data = None
+
+
+    def detect_start_of_move2(self, imu_data):
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(imu_data)
+
+        # compare each data point in window to threshold
+        abs_acc_vals = np.abs(np_imu_data[:, :3])
+        mask = (abs_acc_vals > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+        idx = np.argmax(mask)
+        if mask[idx]:
+            # potential start of move action identified
+            # check next few data points to confirm start of move action
+            k = min(idx+4, np_imu_data.shape[0])
+
+            # Try the below two lines for mask and see if either one is correct
+            mask = (abs_acc_vals[idx+1:k] > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+
+            # mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+            if not mask.any():
+                # confirmed start of move action
+                # np_imu_data = np_imu_data[idx:]
+                return np_imu_data.T
+
+        return None
+    
+
+    def detect_start_of_move3(self):
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(self.imu_data)
+
+        # Sliding window approach with window size of 5
+        window_size = 5
+        for j in range(0, np_imu_data.shape[0] - window_size + 1, window_size):
+            acc_vals = np_imu_data[j:j+window_size, :3]
+            
+            # Check if any of the values in the window exceed the threshold
+            if (np.abs(acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                # potential start of move action identified
+                # Check next few windows to confirm start of move action
+                for k in range(j+window_size, j+window_size*4, window_size):
+                    next_acc_vals = np_imu_data[k:k+window_size, :3]
+                    if not (np.abs(next_acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    np_imu_data = np_imu_data[j:]
                     return np_imu_data.T
 
         return None
 
 
-    def AI_actual(self, player, imu_data):
-        global prediction_array, NUM_INPUT
-        
-        parsed_imu_data = self.detect_start_of_move(imu_data)
 
-        if parsed_imu_data is None:
+    def AI_actual(self):
+        global prediction_array, NUM_INPUT
+
+        # parsed_imu_data = self.detect_start_of_move2(imu_data)
+
+        # parsed_imu_data = self.detect_start_of_move3(imu_data)
+        
+        # parsed_imu_data = self.detect_start_of_move()
+        self.detect_start_of_move()
+
+        # if parsed_imu_data is None:
+        #     print("No move detected")
+        #     return None
+        if self.imu_data is None:
+            print("No move detected")
             return None
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        features = self.extract_features(parsed_imu_data)
+        self.extract_features()
+        # features = self.extract_features(parsed_imu_data)
 
         for i in range(NUM_INPUT):
-            self.input_buffer[i] = features[i]
+            self.input_buffer[i] = self.features[i]
 
         run = True
 
@@ -685,11 +799,11 @@ class AI_Thread(threading.Thread):
                 action = self.output_buffer[0]
 
                 prediction_array.append(action)
-                print('Predicted class:', action, mapping[action])
+                print('Predicted class:', self.player, action, mapping[action])
                 
                 run = False
                 if not mapping[action] == 'idle':
-                    if player == 'p1':
+                    if self.player == 'p1':
                         if evalServerConnected.is_set():
                             action_p1_queue.put(mapping[action])
                     else:
@@ -702,7 +816,7 @@ class AI_Thread(threading.Thread):
 
 
 # MQTT Client to send data to AWS IOT Core
-class MQTT_Client(threading.Thread):
+class MQTT_Client(Process):
     def __init__(self, pub_topic, sub_topic, client_id, group) -> None:
         super().__init__()
         self.pub_topic = pub_topic
@@ -780,7 +894,7 @@ class MQTT_Client(threading.Thread):
             print(message.payload)
         
 # Client to send data to the Evaluation Server
-class Evaluation_Client(threading.Thread):
+class Evaluation_Client(Process):
     
     IV = b'PLSPLSPLSPLSWORK'
     KEY = b'PLSPLSPLSPLSWORK'
@@ -922,26 +1036,32 @@ class Evaluation_Client(threading.Thread):
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
     eval_client = Evaluation_Client('localhost', 11001, 2)
-    eval_client.daemon = True
+    # eval_client.daemon = True
     eval_client.start()
 
     ai_thread = AI_Thread()
-    ai_thread.daemon = True
+    # ai_thread.daemon = False
     ai_thread.start()
 
     game_engine = Game_Engine() 
-    game_engine.daemon = True
+    # game_engine.daemon = True
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    mqtt.daemon = True
+    # mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
-    server.daemon = True
+    # server.daemon = True
     server.start()
+
+    eval_client.join()
+    ai_thread.join()
+    game_engine.join()
+    mqtt.join()
+    server.join()
 
     mqtt.client.loop_forever()
 
