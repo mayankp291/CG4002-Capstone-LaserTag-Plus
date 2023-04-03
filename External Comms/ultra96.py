@@ -329,11 +329,12 @@ class Relay_Server(Process):
             traceback.print_exc()
 
 
-class Game_Engine(Process):
+class Game_Engine(threading.Thread):
     def __init__(self):
         super().__init__()
     
     def run(self):
+        global player_state
         isPlayerOneShieldActivated = False
         isPlayerTwoShieldActivated = False
         startTimeOne = 0
@@ -529,7 +530,7 @@ class Game_Engine(Process):
                     viz_queue.put(('CHECK', player_state_cp))
                     eval_queue.put(deepcopy(player_state))
                     shootGrenadeActivated.clear()
-                elif (action_p1 == 'shoot') or (action_p2 == 'shoot') or (action_p1 == 'grenade') or (action_p2 == 'grenade'):
+                elif (action_p1 == 'shoot' and isPlayerOneShootActivated.is_set()) or (action_p2 == 'shoot' and isPlayerTwoShootActivated.is_set()) or (action_p1 == 'grenade' and isPlayerOneGrenadeActivated.is_set()) or (action_p2 == 'grenade' and isPlayerTwoGrenadeActivated.is_set()):
                     viz_queue.put(('CHECK', deepcopy(player_state)))
                     shootGrenadeActivated.set()
                 # elif (action_p1 == 'logout') and (action_p2 == 'logout'):
@@ -674,48 +675,6 @@ class AI_Thread_1(Process):
         # x_thresh = 19300
         # y_thresh = 15000
         # z_thresh = 18000
-
-        ## TEST
-        x_thresh = 19300
-        y_thresh = 13000
-        z_thresh = 18000   
-
-        # x_thresh = y_thresh = z_thresh = 9000
-
-        # np_imu_data = np.array(self.imu_data)
-
-        # compare each data point in window to threshold
-        for j in range(self.imu_data.shape[0]):
-            acc_vals = self.imu_data[j, :3]
-
-            if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
-                # potential start of move action identified
-                # check next few data points to confirm start of move action
-                for k in range(j+1, j+4):
-                    try:
-                        next_acc_vals = self.imu_data[k, :3]
-
-                    except IndexError:
-                        # if index is out of range, move to next window
-                        break
-
-                    if not ((abs(next_acc_vals[0]) > x_thresh) or (abs(next_acc_vals[1]) > y_thresh) or (abs(next_acc_vals[2]) > z_thresh)):
-                        # not the start of move action, move to next window
-                        break
-                else:
-                    # confirmed start of move action
-                    # np_imu_data = np_imu_data[j:]
-                    # print("Start of move action detected", self.imu_data.shape)
-                    self.imu_data = np.transpose(self.imu_data)
-                    # print(self.imu_data.shape)
-                    return 
-                    # return self.imu_data.T
-
-        # return None
-        self.imu_data = None
-
-
-    def detect_start_of_move2(self, imu_data):
 
         ## TEST
         x_thresh = 19300
@@ -1268,10 +1227,10 @@ class Evaluation_Client(Process):
                     action_p1 = 'shield'
                 if recv_dict['p2']['action'] == 'shield' and recv_dict['p1']['action'] != 'shield':
                     action_p2 = 'shield'
-                if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
-                    action_p1 = 'logout'
-                    action_p2 = 'logout'
-                player_state = recv_dict
+                # if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
+                #     action_p1 = 'logout'
+                #     action_p2 = 'logout'
+                player_state = deepcopy(recv_dict)
                 recv_dict['p1']['action'] = action_p1
                 recv_dict['p2']['action'] = action_p2
                 viz_queue.put(('STATE', recv_dict))
@@ -1362,7 +1321,7 @@ def main():
     mqtt.join()
     server.join()
 
-    # mqtt.client.loop_forever()
+    mqtt.client.loop_forever()
 
 if __name__ == "__main__":
     main()
