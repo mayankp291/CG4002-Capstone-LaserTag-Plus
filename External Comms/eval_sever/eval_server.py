@@ -24,7 +24,7 @@ from PlayerState import PlayerStateBase
 
 
 # Global flags
-DISABLE_GUI             = True     # the server will not display any GUI
+DISABLE_GUI             = False     # the server will not display any GUI
 SINGLE_PLAYER_MODE      = False     # the server is for 1-player test
 DEBUG_FLAG              = False
 CLOSE_WINDOW            = False     # close the GUI
@@ -78,7 +78,7 @@ class TurnGenerator:
             message_queue.put(self.get_display_position()[1])
 
             # we want to ensure students are in the correct position
-            # _ = input("Press enter when players are in correct position : ")
+            _ = input("Press enter when players are in correct position : ")
         else:
             # we are in single player mode
             # to test the bluetooth disconnection we will ask the student to step out

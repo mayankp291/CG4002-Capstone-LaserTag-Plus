@@ -1,3 +1,14 @@
 timestamp,id,p1_action,gt_p1_action,p2_action,gt_p2_action,response_time,is_p1_action_correct,is_p2_action_correct
 1680346064.071794,3496,shoot_p2_hits,shield,shoot,shoot,23.396334886550903,False,True
 1680346855.0146253,3496,shoot_p2_hits,reload,shoot,grenade,0.002147674560546875,False,False
+1680513701.8038108,2880,shield,grenade,shoot,shoot,11.154133558273315,False,True
+1680513721.9093187,2880,shoot,shoot,shoot,shoot,8.046762228012085,True,True
+1680513729.5021412,2880,shoot_p2_misses,shield,reload,shield,5.015850305557251,False,False
+1680513763.5247867,2880,reload,grenade,reload,reload,0.015523195266723633,False,True
+1680513786.0622368,2880,shoot,shoot,shoot,shoot,8.43874192237854,True,True
+1680513836.2028635,2880,shoot,shoot,reload,reload,43.37529420852661,True,True
+1680513845.6926856,2880,shoot,shield,shoot,shoot,0.008575677871704102,False,True
+1680513857.6556804,2880,shoot_p2_hits,shield,reload,reload,4.433455944061279,False,True
+1680513933.3480957,2880,None,None,None,None,60.01607370376587,True,True
+1680513962.1223686,2880,logout,shoot,grenade,shield,15.99162483215332,False,False
+1680514030.4573855,2880,logout,grenade,grenade,grenade,54.495665073394775,False,True
