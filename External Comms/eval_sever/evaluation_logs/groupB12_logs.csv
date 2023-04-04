@@ -9,3 +9,16 @@ timestamp,id,p1_action,gt_p1_action,p2_action,gt_p2_action,response_time,is_p1_a
 1679928944.370715,4904,shoot,shoot,reload,reload,14.210325241088867,True,True
 1680347081.7080247,765,shoot,shoot,shoot_p1_hits,shield,31.993062019348145,True,False
 1680347533.957644,765,shoot_p2_hits,shield,shoot,grenade,0.002898693084716797,False,False
+1680578962.349436,3855,None,None,None,None,60.00196623802185,True,True
+1680579054.6474993,3855,None,None,None,None,60.00186634063721,True,True
+1680579224.3042428,3855,none,reload,none,grenade,8.843402862548828,False,False
+1680579304.0517569,703,none,shield,none,shoot,10.747710943222046,False,False
+1680579315.9764998,703,shield,grenade,shoot,shoot,0.8932397365570068,False,True
+1680579325.6812012,703,grenade,shoot,shoot,shoot,9.679805278778076,False,True
+1680579349.3255646,703,shoot,shoot,shoot,shield,4.506538152694702,True,False
+1680579366.194026,703,shoot,reload,shield,grenade,0.0026290416717529297,False,False
+1680583529.581963,5514,none,shield,none,grenade,37.34415912628174,False,False
+1680583598.9173632,5514,shield,shoot,grenade,shoot,6.476720809936523,False,False
+1680583616.4129014,5514,shoot,reload,shoot,shield,4.674261093139648,False,False
+1680589318.5866635,6127,none,grenade,none,grenade,36.59961748123169,False,False
+1680589376.827333,6127,grenade,shoot,grenade,reload,50.09347724914551,False,False

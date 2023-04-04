@@ -586,6 +586,14 @@ class Relay_Client_Send(mp.Process):
             print('Connection to Relay Server lost')
             # self.relaySocket.close()
             sys.exit()
+            
+    def send(self, msg):
+        try:
+            self.sock.send(msg.encode("utf-8"))
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
 
 class Relay_Client_Send_IMU1(mp.Process):
     def __init__(self, sock) -> None:
@@ -794,7 +802,9 @@ if __name__ == '__main__':
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = mp.Process(target=Gun2_Beetle.executeCommunications, args=())
 
-        # tunnel_ultra96()
+
+        tunnel_ultra96()
+
         # HOST, PORT = 'localhost', 11000
         HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)

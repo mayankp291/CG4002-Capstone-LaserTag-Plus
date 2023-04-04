@@ -286,10 +286,10 @@ class Relay_Server(Process):
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
                             imu_queue_p1.put(('p1', new_array))
-                            print("IMU 1 RECV")
+                            # print("IMU 1 RECV")
                         else:
                             imu_queue_p2.put(('p2', new_array))
-                            print("IMU 2 RECV")
+                            # print("IMU 2 RECV")
                         
                         # grenadeSendRelay.set()
                     
@@ -358,7 +358,7 @@ class Relay_Server(Process):
             traceback.print_exc()
 
 
-class Game_Engine(Process):
+class Game_Engine(threading.Thread):
     def __init__(self):
         super().__init__()
     
@@ -811,7 +811,7 @@ class AI_Thread_1(Process):
         #     print("No move detected")
         #     return None
         if self.imu_data is None:
-            print("No move detected")
+            # print("No move detected")
             return None
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
@@ -1083,7 +1083,7 @@ class AI_Thread_2(Process):
         #     print("No move detected")
         #     return None
         if self.imu_data is None:
-            print("No move detected")
+            # print("No move detected")
             return None
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
@@ -1130,19 +1130,25 @@ class MQTT_Client(Process):
         self.sub_topic = sub_topic
         self.client_id = client_id
         self.group = group
-        self.client = paho.Client(client_id, protocol=paho.MQTTv5)
-        self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+        self.client = paho.Client(client_id, protocol=paho.MQTTv311)
+        # self.client = paho.Client(client_id)
+        self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLSv1_2)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-        self.client.connect("e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883, 60)
+        self.client.connect("e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.sub_topic)
         self.client.on_message = self.receive
     
     def run(self):
-        while True:
-            type, data = viz_queue.get()
-            # print("[PUBLISH]", data)
-            self.publish(type, data)
+        try:
+            self.client.loop_start()
+            while True:
+                type, data = viz_queue.get()
+                # print("[PUBLISH]", data)
+                self.publish(type, data)
+        except Exception as e:
+            print(e)
+            self.client.loop_stop()        
 
     def publish(self, type, data):
         try:
@@ -1172,33 +1178,37 @@ class MQTT_Client(Process):
             #     else: 
             #         print("[MQTT] Player 2 is not in grenade range")
             #         action_queue.put('grenade_p2_misses')
-            print("[MQTT] " + str(message.payload))
-            if message.payload == b'14_CHECK_grenade_p2_hit':
+            # print("[MQTT] " + str(message.payload))
+            print("[MQTT] " + message.payload.decode("utf-8"))
+            msg = message.payload.decode("utf-8")
+            
+            if msg == "14_CHECK_grenade_p2_hit":
                 # to update grenade damage for player 2
                 print("[MQTT] Player 2 is in grenade range")
                 action_p1_queue.put('grenade_p2_hits') 
                 isPlayerOneGrenadeActivated.clear()
-            elif message.payload == b'15_CHECK_grenade_p2_miss':
+            elif msg == '15_CHECK_grenade_p2_miss':
                 print("[MQTT] Player 2 is not in grenade range")     
                 action_p1_queue.put('grenade_p2_misses') 
                 isPlayerOneGrenadeActivated.clear()
                 # action_queue.put('grenade_p2_misses')
-            elif message.payload == b'14_CHECK_grenade_p1_hit':
+            elif msg == '14_CHECK_grenade_p1_hit':
                 print("[MQTT] Player 1 is in grenade range")
                 action_p2_queue.put('grenade_p1_hits')
                 isPlayerTwoGrenadeActivated.clear()
-            elif message.payload == b'15_CHECK_grenade_p1_miss':
+            elif msg == '15_CHECK_grenade_p1_miss':
                 print("[MQTT] Player 1 is not in grenade range")      
                 action_p2_queue.put('grenade_p1_misses')
                 isPlayerTwoGrenadeActivated.clear() 
-            elif message.payload == b'6_CHECK_update':
-                Player.player_state_copy = deepcopy(Player.player_state)
+            elif msg == '6_CHECK_update':
+                player_state_copy = deepcopy(Player.player_state)
                 player_state_copy['p1']['action'] = 'none'
                 player_state_copy['p2']['action'] = 'none'
                 viz_queue.put(('STATE', player_state_copy))
-        except:
+        except Exception as e:
             print('Error: message not in correct format')
             print(message.payload)
+            print(e)
         
 # Client to send data to the Evaluation Server
 class Evaluation_Client(Process):
@@ -1374,12 +1384,16 @@ def main():
     # mqtt.daemon = True
     mqtt.start()
 
-    # HOST, PORT = "192.168.95.235", 11000
-    HOST, PORT = "localhost", 11000    
+    HOST, PORT = "192.168.95.235", 11000
+    # HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     # server.daemon = True
     server.start()
-
+    # while True:
+    #     try:
+    #         mqtt.client.loop_forever()
+    #     except:
+    #         print('MQTT client loop stopped')
     eval_client.join()
     ai_thread1.join()
     ai_thread2.join()
@@ -1387,7 +1401,6 @@ def main():
     mqtt.join()
     server.join()
 
-    mqtt.client.loop_forever()
 
 if __name__ == "__main__":
     main()
