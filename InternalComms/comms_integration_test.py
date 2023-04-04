@@ -39,6 +39,7 @@ CONNECTION_TIMEOUT = 1
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 dataBuffer = mp.Queue()
+actionDataBuffer = mp.Queue()
 
 gameQueue = mp.Queue()
 
@@ -404,12 +405,12 @@ class BeetleConnectionThread:
             if self.beetleId == VEST_PLAYER_1:
                 print('writing hp to beetle', self.beetleId)
                 hp_p1 = data['p1']['hp']
-                self.serialChar.write(bytes(hp_p1, encoding="utf-8"))
+                self.serialChar.write(bytes(chr(hp_p1), encoding="utf-8"))
 
             if self.beetleId == VEST_PLAYER_2:
                 print('writing hp to beetle', self.beetleId)
                 hp_p2 = data['p2']['hp']
-                self.serialChar.write(bytes(hp_p2, encoding="utf-8"))
+                self.serialChar.write(bytes(chr(hp_p2), encoding="utf-8"))
 
 
     def sendSynMessage(self):
@@ -579,10 +580,11 @@ class Relay_Client_Recv(threading.Thread):
     def run(self):
         try:
             while True:
-                data = self.sock.recv(100)
+                data = self.sock.recv(500)
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
+                    print("DATA GAME:", data)
                     ### UPDATE BULLETS AND HEALTH AFTER EVERY ACTION
                     ### ACTION IS RELOAD IF VALID RELOAD STATE, IGNORE OTHER ACTIONS
                     gameQueue.put(data)

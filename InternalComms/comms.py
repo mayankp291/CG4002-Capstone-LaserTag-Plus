@@ -410,12 +410,12 @@ class BeetleConnectionThread:
             if self.beetleId == VEST_PLAYER_1:
                 print('writing hp to beetle', self.beetleId)
                 hp_p1 = data['p1']['hp']
-                self.serialChar.write(bytes(hp_p1, encoding="utf-8"))
+                self.serialChar.write(bytes(chr(hp_p1), encoding="utf-8"))
 
             if self.beetleId == VEST_PLAYER_2:
                 print('writing hp to beetle', self.beetleId)
                 hp_p2 = data['p2']['hp']
-                self.serialChar.write(bytes(hp_p2, encoding="utf-8"))
+                self.serialChar.write(bytes(chr(hp_p2), encoding="utf-8"))
 
 
     def sendSynMessage(self):
