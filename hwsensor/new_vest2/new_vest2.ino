@@ -189,7 +189,7 @@ int shotsCount = 0;
 int count = 0;
 
 void loop(void) {
-  if(healthPoint <= 0) {
+  if(healthPoint < 0) {
       healthPoint = 100;
   }
 
