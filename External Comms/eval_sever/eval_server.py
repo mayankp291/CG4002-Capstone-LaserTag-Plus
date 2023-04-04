@@ -211,8 +211,9 @@ class Server(threading.Thread):
         if DISABLE_GUI:
             secret_key = "PLSPLSPLSPLSWORK"
         else:
-            print("Enter the secret key: ")
-            secret_key = sys.stdin.readline().strip()
+            secret_key = "PLSPLSPLSPLSWORK"
+            # print("Enter the secret key: ")
+            # secret_key = sys.stdin.readline().strip()
 
         print('connection from', client_address)
         if len(secret_key) == 16 or len(secret_key) == 24 or len(secret_key) == 32:

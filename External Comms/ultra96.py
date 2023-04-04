@@ -22,7 +22,14 @@ from scipy.stats import skew
 from scipy.fftpack import fft
 from pynq import Overlay
 from pynq import allocate
+import atexit
+import os
 
+### kill all child processes on exit
+def cleanup():
+    os.killpg(0, signal.SIGTERM)
+
+atexit.register(cleanup)
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
@@ -57,6 +64,8 @@ viz_queue = Queue()
 eval_queue = Queue()
 intcomms_queue = Queue()
 
+aiflag = threading.Event()
+aiflag.set()
 reloadSendRelayP1 = threading.Event()
 reloadSendRelayP1.clear() 
 reloadSendRelayP2 = threading.Event()
@@ -72,7 +81,8 @@ grenadeSendRelayP2.clear()
 shootGrenadeActivated = threading.Event()
 shootGrenadeActivated.clear()
 evalServerConnected = threading.Event()
-evalServerConnected.clear()
+# evalServerConnected.clear()
+evalServerConnected.set()
 isPlayerOneGrenadeActivated = threading.Event()
 isPlayerOneGrenadeActivated.clear()
 isPlayerTwoGrenadeActivated = threading.Event()
@@ -81,30 +91,30 @@ isPlayerOneShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
 isPlayerTwoShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
-player_state = {
-    "p1":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
-    },
-    "p2":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
-    }
-}
+# player_state = {
+#     "p1":
+#     {
+#         "hp": 100,
+#         "action": "none",
+#         "bullets": 6,
+#         "grenades": 2,
+#         "shield_time": 0,
+#         "shield_health": 0,
+#         "num_deaths": 0,
+#         "num_shield": 3
+#     },
+#     "p2":
+#     {
+#         "hp": 100,
+#         "action": "none",
+#         "bullets": 6,
+#         "grenades": 2,
+#         "shield_time": 0,
+#         "shield_health": 0,
+#         "num_deaths": 0,
+#         "num_shield": 3
+#     }
+# }
 
 player_state_intcomms = {
     "p1":
@@ -121,10 +131,41 @@ player_state_intcomms = {
     }
 }
 
+
+class Player:
+    player_state = {
+    "p1":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    },
+    "p2":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    }
+}
+
+
+
 class Relay_Server_Send(threading.Thread):
     def __init__(self, sock):
         super().__init__()
         self.sock = sock
+        print("[RELAY_SEND] Ready to send data to Relay")
+
     
     def run(self):
         while True:
@@ -146,15 +187,16 @@ class Relay_Server_Send(threading.Thread):
 
     def send(self, data):
         try:
+            data = str(data)
             self.sock.sendall(data.encode("utf-8"))
-            print('Sent to Relay Laptop: {}'.format(data))
+            print('[RELAY_SEND] Sent to Relay Laptop: {}'.format(data))
         except:
             print('Connection to Relay Laptop lost')
             # self.relaySocket.close()
 
 # TCP Server to receive data from the Relay Laptops
 # TODO Spawn thread to handle sending data to the relay laptop
-class Relay_Server(threading.Thread):
+class Relay_Server(Process):
     def __init__(self, host, port):
         super().__init__()
         self.host = host
@@ -164,7 +206,7 @@ class Relay_Server(threading.Thread):
         self.server.bind((self.host, self.port))
 
     def run(self):
-        self.server.listen(5)
+        self.server.listen(1)
         print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
         while True:
             client, address = self.server.accept()
@@ -233,15 +275,14 @@ class Relay_Server(threading.Thread):
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
 
-                    if not data_device=="IMU":
-                        print("====================================")
-                        print("[RELAY SERVER] {} wrote:".format(client_address))
-                        print("====================================\n")
+                    # if not data_device=="IMU1" and not data_device=="IMU2":
+                    #     print("====================================")
+                    #     print("[RELAY SERVER] {} wrote:".format(client_address))
+                    #     print("====================================\n")
 
                     if data_device == "IMU1" or data_device == "IMU2":
-                        arr = data["sensorData"]
                         # convert string to numpy array of ints
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(arr), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
                             imu_queue_p1.put(('p1', new_array))
@@ -254,12 +295,12 @@ class Relay_Server(threading.Thread):
                     
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
-                        action_p1_queue.put("shoot_p2_hits")
+                        action_p2_queue.put("shoot_p1_hits")
                         isPlayerOneShootActivated.clear()
                     
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
-                        action_p2_queue.put("shoot_p1_hits")
+                        action_p1_queue.put("shoot_p2_hits")
                         isPlayerTwoShootActivated.clear()
 
                     elif data_device == "GUN1":
@@ -292,6 +333,7 @@ class Relay_Server(threading.Thread):
                 ### SENDING TO INT COMMS
                 ### TODO: make this new thread
                 # if intcomms_queue.qsize > 0:
+                # if not intcomms_queue.empty():
                 #     send_data = intcomms_queue.get()
                 #     ### send RELOAD only if bullets are 0
                 #     # both reload action and 0 bullets
@@ -316,31 +358,32 @@ class Relay_Server(threading.Thread):
             traceback.print_exc()
 
 
-class Game_Engine(threading.Thread):
+class Game_Engine(Process):
     def __init__(self):
         super().__init__()
     
     def run(self):
+        # global player_state
         isPlayerOneShieldActivated = False
         isPlayerTwoShieldActivated = False
         startTimeOne = 0
         startTimeOneShoot = 0
         startTimeTwoShoot = 0
         startTimeTwo = 0
-        viz_queue.put(('STATE', player_state))
+        viz_queue.put(('STATE', Player.player_state))
         while True:
             if isPlayerOneShieldActivated:
-                player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
-                if player_state['p1']['shield_time'] <= 0:
-                    player_state['p1']['shield_time'] = 0
-                    player_state['p1']['shield_health'] = 0
+                Player.player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
+                if Player.player_state['p1']['shield_time'] <= 0:
+                    Player.player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['shield_health'] = 0
                     isPlayerOneShieldActivated = False
 
             if isPlayerTwoShieldActivated:
-                player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
-                if player_state['p2']['shield_time'] <= 0:
-                    player_state['p2']['shield_time'] = 0
-                    player_state['p2']['shield_health'] = 0
+                Player.player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
+                if Player.player_state['p2']['shield_time'] <= 0:
+                    Player.player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['shield_health'] = 0
                     isPlayerTwoShieldActivated = False
 
             if isPlayerOneShootActivated.is_set():
@@ -378,152 +421,152 @@ class Game_Engine(threading.Thread):
                 print("[PLAYER_2_ACTION]", action_p2)
                 # Update action for player 1 and 2
                 if action_p1 != 'none':
-                    player_state['p1']['action'] = action_p1
+                    Player.player_state['p1']['action'] = action_p1
                 if action_p2 != 'none':
-                    player_state['p2']['action'] = action_p2
+                    Player.player_state['p2']['action'] = action_p2
 
                 # Update shield action for both players
                 if action_p1 == 'shield':
-                    if player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
-                        player_state['p1']['num_shield'] -= 1
-                        player_state['p1']['shield_time'] = 10
-                        player_state['p1']['shield_health'] = 30
+                    if Player.player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
+                        Player.player_state['p1']['num_shield'] -= 1
+                        Player.player_state['p1']['shield_time'] = 10
+                        Player.player_state['p1']['shield_health'] = 30
                         isPlayerOneShieldActivated = True
                         startTimeOne = time.time()
                 if action_p2 == 'shield':
-                    if player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
-                        player_state['p2']['num_shield'] -= 1
-                        player_state['p2']['shield_time'] = 10
-                        player_state['p2']['shield_health'] = 30
+                    if Player.player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
+                        Player.player_state['p2']['num_shield'] -= 1
+                        Player.player_state['p2']['shield_time'] = 10
+                        Player.player_state['p2']['shield_health'] = 30
                         isPlayerTwoShieldActivated = True
                         startTimeTwo = time.time()
                 
                 # Update player 1 state (active player) 
                 if action_p1 == 'reload':
-                    if player_state['p1']['bullets'] <= 0:
-                        player_state['p1']['bullets'] = 6
+                    if Player.player_state['p1']['bullets'] <= 0:
+                        Player.player_state['p1']['bullets'] = 6
                         reloadSendRelayP1.set()
                 elif action_p1 == 'grenade':
                     # update grenade for player 1
-                    if player_state['p1']['grenades'] > 0:
-                        player_state['p1']['grenades'] -= 1
+                    if Player.player_state['p1']['grenades'] > 0:
+                        Player.player_state['p1']['grenades'] -= 1
                         isPlayerOneGrenadeActivated.set()
                     # send check for player 2
                 elif action_p1 == 'grenade_p2_hits':
                     if isPlayerTwoShieldActivated:
-                        player_state['p2']['shield_health'] -= 30
+                        Player.player_state['p2']['shield_health'] -= 30
                     else:
-                        player_state['p2']['hp'] -= 30
+                        Player.player_state['p2']['hp'] -= 30
                 elif action_p1 == 'shoot_p2_hits':
                     if isPlayerTwoShieldActivated:
-                        player_state['p2']['shield_health'] -= 10
+                        Player.player_state['p2']['shield_health'] -= 10
                     else:
-                        player_state['p2']['hp'] -= 10
+                        Player.player_state['p2']['hp'] -= 10
                 elif action_p1 == 'shoot_p2_misses':
                     pass
                 elif action_p1 == 'shoot':
-                    if player_state['p1']['bullets'] > 0:
-                        player_state['p1']['bullets'] -= 1
+                    if Player.player_state['p1']['bullets'] > 0:
+                        Player.player_state['p1']['bullets'] -= 1
                         isPlayerOneShootActivated.set()
                         startTimeOneShoot = time.time()
                 
                 # Update player 2 state (active player) 
                 if action_p2 == 'reload':
-                    if player_state['p2']['bullets'] <= 0:
-                        player_state['p2']['bullets'] = 6
+                    if Player.player_state['p2']['bullets'] <= 0:
+                        Player.player_state['p2']['bullets'] = 6
                         reloadSendRelayP2.set()
                 elif action_p2 == 'grenade':
                     # update grenade for player 2
-                    if player_state['p2']['grenades'] > 0:
-                        player_state['p2']['grenades'] -= 1
+                    if Player.player_state['p2']['grenades'] > 0:
+                        Player.player_state['p2']['grenades'] -= 1
                         isPlayerTwoGrenadeActivated.set()
                     # send check for player 2
                 elif action_p2 == 'grenade_p1_hits':
                     if isPlayerOneShieldActivated:
-                        player_state['p1']['shield_health'] -= 30
+                        Player.player_state['p1']['shield_health'] -= 30
                     else:
-                        player_state['p1']['hp'] -= 30
-                        print("[STATUS] ", player_state)       
+                        Player.player_state['p1']['hp'] -= 30
+                        print("[STATUS] ", Player.player_state)       
                 elif action_p2 == 'shoot_p1_hits':
                     if isPlayerOneShieldActivated:
-                        player_state['p1']['shield_health'] -= 10
+                        Player.player_state['p1']['shield_health'] -= 10
                     else:
-                        player_state['p1']['hp'] -= 10
+                        Player.player_state['p1']['hp'] -= 10
                 elif action_p2 == 'shoot_p2_misses':
                     pass
                 elif action_p2 == 'shoot':
-                    if player_state['p2']['bullets'] > 0:
-                        player_state['p2']['bullets'] -= 1
+                    if Player.player_state['p2']['bullets'] > 0:
+                        Player.player_state['p2']['bullets'] -= 1
                         isPlayerTwoShootActivated.set()
                         startTimeTwoShoot = time.time()
 
-                if player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
+                if Player.player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
                     isPlayerOneShieldActivated = False
-                    player_state['p1']['hp'] += player_state['p1']['shield_health']
-                    player_state['p1']['shield_health'] = 0
-                    player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['hp'] += Player.player_state['p1']['shield_health']
+                    Player.player_state['p1']['shield_health'] = 0
+                    Player.player_state['p1']['shield_time'] = 0
             
-                if player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
+                if Player.player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
                     isPlayerTwoShieldActivated = False
-                    player_state['p2']['hp'] += player_state['p2']['shield_health']
-                    player_state['p2']['shield_health'] = 0
-                    player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['hp'] += Player.player_state['p2']['shield_health']
+                    Player.player_state['p2']['shield_health'] = 0
+                    Player.player_state['p2']['shield_time'] = 0
             
                 # rebirth for player 2
-                if player_state['p2']['hp'] <= 0:
+                if Player.player_state['p2']['hp'] <= 0:
                     # reset player 2 stats
-                    player_state['p2']['hp'] = 100
-                    player_state['p2']['num_deaths'] += 1
-                    player_state['p2']['bullets'] = 6
-                    player_state['p2']['grenades'] = 2
-                    player_state['p2']['num_shield'] = 3
-                    player_state['p2']['shield_time'] = 0
-                    player_state['p2']['shield_health'] = 0
+                    Player.player_state['p2']['hp'] = 100
+                    Player.player_state['p2']['num_deaths'] += 1
+                    Player.player_state['p2']['bullets'] = 6
+                    Player.player_state['p2']['grenades'] = 2
+                    Player.player_state['p2']['num_shield'] = 3
+                    Player.player_state['p2']['shield_time'] = 0
+                    Player.player_state['p2']['shield_health'] = 0
 
                 # rebirth for player 1
-                if player_state['p1']['hp'] <= 0:
+                if Player.player_state['p1']['hp'] <= 0:
                     # reset player 1 stats
-                    player_state['p1']['hp'] = 100
-                    player_state['p1']['num_deaths'] += 1
-                    player_state['p1']['bullets'] = 6
-                    player_state['p1']['grenades'] = 2
-                    player_state['p1']['num_shield'] = 3
-                    player_state['p1']['shield_time'] = 0
-                    player_state['p1']['shield_health'] = 0
+                    Player.player_state['p1']['hp'] = 100
+                    Player.player_state['p1']['num_deaths'] += 1
+                    Player.player_state['p1']['bullets'] = 6
+                    Player.player_state['p1']['grenades'] = 2
+                    Player.player_state['p1']['num_shield'] = 3
+                    Player.player_state['p1']['shield_time'] = 0
+                    Player.player_state['p1']['shield_health'] = 0
                 
-                # print("[PLAYER STATE FROM GAME ENGINE]", player_state)
+                # print("[PLAYER STATE FROM GAME ENGINE]", Player.player_state)
                 if shootGrenadeActivated.is_set():
-                    player_state_cp = deepcopy(player_state)
+                    player_state_cp = deepcopy(Player.player_state)
                     if ((action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses') or (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses')):
                         if (action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses'):
-                            player_state['p1']['action'] = 'shoot'
+                            Player.player_state['p1']['action'] = 'shoot'
                         else:
                             player_state_cp['p1']['action'] = 'none'
                         if (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses'):
-                            player_state['p2']['action'] = 'shoot'
+                            Player.player_state['p2']['action'] = 'shoot'
                         else:
                             player_state_cp['p2']['action'] = 'none'
                     if ((action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses') or (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses')):
                         if (action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses'):
-                            player_state['p1']['action'] = 'grenade'
+                            Player.player_state['p1']['action'] = 'grenade'
                         else:
                             player_state_cp['p1']['action'] = 'none'
                             
                         if (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses'):
-                            player_state['p2']['action'] = 'grenade'
+                            Player.player_state['p2']['action'] = 'grenade'
                         else:
                             player_state_cp['p2']['action'] = 'none'
                     viz_queue.put(('CHECK', player_state_cp))
-                    eval_queue.put(deepcopy(player_state))
+                    eval_queue.put(deepcopy(Player.player_state))
                     shootGrenadeActivated.clear()
-                elif (action_p1 == 'shoot') or (action_p2 == 'shoot') or (action_p1 == 'grenade') or (action_p2 == 'grenade'):
-                    viz_queue.put(('CHECK', deepcopy(player_state)))
+                elif (action_p1 == 'shoot' and isPlayerOneShootActivated.is_set()) or (action_p2 == 'shoot' and isPlayerTwoShootActivated.is_set()) or (action_p1 == 'grenade' and isPlayerOneGrenadeActivated.is_set()) or (action_p2 == 'grenade' and isPlayerTwoGrenadeActivated.is_set()):
+                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
                     shootGrenadeActivated.set()
-                elif (action_p1 == 'logout') and (action_p2 == 'logout'):
-                    eval_queue.put(deepcopy(player_state))
+                # elif (action_p1 == 'logout') and (action_p2 == 'logout'):
+                #     eval_queue.put(deepcopy(Player.player_state))
                 else:
-                    viz_queue.put(('CHECK', deepcopy(player_state)))
-                    eval_queue.put(deepcopy(player_state))
+                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
+                    eval_queue.put(deepcopy(Player.player_state))
                 try:
                     while True:
                         action_p1_queue.get_nowait()
@@ -536,8 +579,7 @@ class Game_Engine(threading.Thread):
                     pass
 
 
-
-class AI_Thread(threading.Thread):
+class AI_Thread_1(Process):
     def __init__(self):
         super().__init__()
         # DMA BUFFER CONFIG
@@ -545,76 +587,94 @@ class AI_Thread(threading.Thread):
         self.dma = self.ol.axi_dma_0
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+        self.imu_data = np.empty((40,6), dtype=np.int32)
+        self.player = None
+        self.features = None
 
-    
+
     def run(self):
         while True:
-            if not imu_queue_p1.empty() and not imu_queue_p2.empty():
-                ### get player id (p1 or p2)
-                player, imu_data = imu_queue_p1.get()
-                self.AI_actual(player, imu_data)
+            # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
+            #     ### get player id (p1 or p2)
+            # try:
+            #     # if aiflag.is_set():
+            #     self.player, self.imu_data = imu_queue_p1.get_nowait()
+            #     self.AI_actual()
+            #     # player, imu_data = imu_queue_p1.get_nowait()
+            #     # self.AI_actual(player, imu_data)
+            # except:
+                # pass
+            # try:
+            #     # if aiflag.is_set():
+            #     self.player, self.imu_data = imu_queue_p2.get_nowait()
+            #     self.AI_actual()
+            #     # player, imu_data = imu_queue_p2.get_nowait()
+            #     # self.AI_actual(player, imu_data)
+            # except:
+            #     pass
+            # if imu_queue_p1.empty
+            self.player, self.imu_data = imu_queue_p1.get()
+            self.AI_actual()
+                
+    def extract_features(self):
 
-                player, imu_data = imu_queue_p2.get()
-                self.AI_actual(player, imu_data)
-    def extract_features(self, input):
+        mean_acc_x = np.mean(self.imu_data[0])
+        mean_acc_y = np.mean(self.imu_data[1])
+        mean_acc_z = np.mean(self.imu_data[2])
+        mean_gyro_x = np.mean(self.imu_data[3])
+        mean_gyro_y = np.mean(self.imu_data[4])
+        mean_gyro_z = np.mean(self.imu_data[5])
 
-        mean_acc_x = np.mean(input[0])
-        mean_acc_y = np.mean(input[1])
-        mean_acc_z = np.mean(input[2])
-        mean_gyro_x = np.mean(input[3])
-        mean_gyro_y = np.mean(input[4])
-        mean_gyro_z = np.mean(input[5])
+        sd_acc_x = np.std(self.imu_data[0])
+        sd_acc_y = np.std(self.imu_data[1])
+        sd_acc_z = np.std(self.imu_data[2])
+        sd_gyro_x = np.std(self.imu_data[3])
+        sd_gyro_y = np.std(self.imu_data[4])
+        sd_gyro_z = np.std(self.imu_data[5])
 
-        sd_acc_x = np.std(input[0])
-        sd_acc_y = np.std(input[1])
-        sd_acc_z = np.std(input[2])
-        sd_gyro_x = np.std(input[3])
-        sd_gyro_y = np.std(input[4])
-        sd_gyro_z = np.std(input[5])
+        max_acc_x = np.amax(self.imu_data[0])
+        max_acc_y = np.amax(self.imu_data[1])
+        max_acc_z = np.amax(self.imu_data[2])
+        max_gyro_x = np.amax(self.imu_data[3])
+        max_gyro_y = np.amax(self.imu_data[4])
+        max_gyro_z = np.amax(self.imu_data[5])
 
-        max_acc_x = np.amax(input[0])
-        max_acc_y = np.amax(input[1])
-        max_acc_z = np.amax(input[2])
-        max_gyro_x = np.amax(input[3])
-        max_gyro_y = np.amax(input[4])
-        max_gyro_z = np.amax(input[5])
+        min_acc_x = np.amin(self.imu_data[0])
+        min_acc_y = np.amin(self.imu_data[1])
+        min_acc_z = np.amin(self.imu_data[2])
+        min_gyro_x = np.amin(self.imu_data[3])
+        min_gyro_y = np.amin(self.imu_data[4])
+        min_gyro_z = np.amin(self.imu_data[5])
 
-        min_acc_x = np.amin(input[0])
-        min_acc_y = np.amin(input[1])
-        min_acc_z = np.amin(input[2])
-        min_gyro_x = np.amin(input[3])
-        min_gyro_y = np.amin(input[4])
-        min_gyro_z = np.amin(input[5])
+        rms_acc_x = np.sqrt(np.mean(self.imu_data[0] ** 2))
+        rms_acc_y = np.sqrt(np.mean(self.imu_data[1] ** 2))
+        rms_acc_z = np.sqrt(np.mean(self.imu_data[2] ** 2))
+        rms_gyro_x = np.sqrt(np.mean(self.imu_data[3] ** 2))
+        rms_gyro_y = np.sqrt(np.mean(self.imu_data[4] ** 2))
+        rms_gyro_z = np.sqrt(np.mean(self.imu_data[5] ** 2))
 
-        rms_acc_x = np.sqrt(np.mean(input[0] ** 2))
-        rms_acc_y = np.sqrt(np.mean(input[1] ** 2))
-        rms_acc_z = np.sqrt(np.mean(input[2] ** 2))
-        rms_gyro_x = np.sqrt(np.mean(input[3] ** 2))
-        rms_gyro_y = np.sqrt(np.mean(input[4] ** 2))
-        rms_gyro_z = np.sqrt(np.mean(input[5] ** 2))
+        skew_acc_x = skew(self.imu_data[0])
+        skew_acc_y = skew(self.imu_data[1])
+        skew_acc_z = skew(self.imu_data[2])
+        skew_gyro_x = skew(self.imu_data[3])
+        skew_gyro_y = skew(self.imu_data[4])
+        skew_gyro_z = skew(self.imu_data[5])
 
-        skew_acc_x = skew(input[0])
-        skew_acc_y = skew(input[1])
-        skew_acc_z = skew(input[2])
-        skew_gyro_x = skew(input[3])
-        skew_gyro_y = skew(input[4])
-        skew_gyro_z = skew(input[5])
+        mag_acc_x = np.amax(np.abs(fft(self.imu_data[0])))
+        mag_acc_y = np.amax(np.abs(fft(self.imu_data[1])))
+        mag_acc_z = np.amax(np.abs(fft(self.imu_data[2])))
+        mag_gyro_x = np.amax(np.abs(fft(self.imu_data[3])))
+        mag_gyro_y = np.amax(np.abs(fft(self.imu_data[4])))
+        mag_gyro_z = np.amax(np.abs(fft(self.imu_data[5])))
 
-        mag_acc_x = np.amax(np.abs(fft(input[0])))
-        mag_acc_y = np.amax(np.abs(fft(input[1])))
-        mag_acc_z = np.amax(np.abs(fft(input[2])))
-        mag_gyro_x = np.amax(np.abs(fft(input[3])))
-        mag_gyro_y = np.amax(np.abs(fft(input[4])))
-        mag_gyro_z = np.amax(np.abs(fft(input[5])))
+        phase_acc_x = np.amax(np.angle(fft(self.imu_data[0])))
+        phase_acc_y = np.amax(np.angle(fft(self.imu_data[1])))
+        phase_acc_z = np.amax(np.angle(fft(self.imu_data[2])))
+        phase_gyro_x = np.amax(np.angle(fft(self.imu_data[3])))
+        phase_gyro_y = np.amax(np.angle(fft(self.imu_data[4])))
+        phase_gyro_z = np.amax(np.angle(fft(self.imu_data[5])))
 
-        phase_acc_x = np.amax(np.angle(fft(input[0])))
-        phase_acc_y = np.amax(np.angle(fft(input[1])))
-        phase_acc_z = np.amax(np.angle(fft(input[2])))
-        phase_gyro_x = np.amax(np.angle(fft(input[3])))
-        phase_gyro_y = np.amax(np.angle(fft(input[4])))
-        phase_gyro_z = np.amax(np.angle(fft(input[5])))
-
-        return np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+        self.features = np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
                                sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
                                max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
                                min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
@@ -622,29 +682,40 @@ class AI_Thread(threading.Thread):
                                skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
                                mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
                                phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
+        
 
-
-    def detect_start_of_move(self, imu_data):
+    def detect_start_of_move(self):
 
         # define threshold values as hard-coded values
-        x_thresh = 18300
-        y_thresh = 11000
-        z_thresh = 17000
+        ## OLD
+        # x_thresh = 18300
+        # y_thresh = 11000
+        # z_thresh = 17000
+        
+        # ## NEW
+        # x_thresh = 19300
+        # y_thresh = 15000
+        # z_thresh = 18000
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
 
         # x_thresh = y_thresh = z_thresh = 9000
 
-        np_imu_data = np.array(imu_data)
+        # np_imu_data = np.array(self.imu_data)
 
         # compare each data point in window to threshold
-        for j in range(np_imu_data.shape[0]):
-            acc_vals = np_imu_data[j, :3]
+        for j in range(self.imu_data.shape[0]):
+            acc_vals = self.imu_data[j, :3]
 
             if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
                 # potential start of move action identified
                 # check next few data points to confirm start of move action
                 for k in range(j+1, j+4):
                     try:
-                        next_acc_vals = np_imu_data[k, :3]
+                        next_acc_vals = self.imu_data[k, :3]
 
                     except IndexError:
                         # if index is out of range, move to next window
@@ -655,31 +726,106 @@ class AI_Thread(threading.Thread):
                         break
                 else:
                     # confirmed start of move action
-                    np_imu_data = np_imu_data[j:]
+                    # np_imu_data = np_imu_data[j:]
+                    # print("Start of move action detected", self.imu_data.shape)
+                    self.imu_data = np.transpose(self.imu_data)
+                    # print(self.imu_data.shape)
+                    return 
+                    # return self.imu_data.T
 
+        # return None
+        self.imu_data = None
+
+
+    def detect_start_of_move2(self, imu_data):
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(imu_data)
+
+        # compare each data point in window to threshold
+        abs_acc_vals = np.abs(np_imu_data[:, :3])
+        mask = (abs_acc_vals > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+        idx = np.argmax(mask)
+        if mask[idx]:
+            # potential start of move action identified
+            # check next few data points to confirm start of move action
+            k = min(idx+4, np_imu_data.shape[0])
+
+            # Try the below two lines for mask and see if either one is correct
+            mask = (abs_acc_vals[idx+1:k] > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+
+            # mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+            if not mask.any():
+                # confirmed start of move action
+                # np_imu_data = np_imu_data[idx:]
+                return np_imu_data.T
+
+        return None
+    
+
+    def detect_start_of_move3(self):
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(self.imu_data)
+
+        # Sliding window approach with window size of 5
+        window_size = 5
+        for j in range(0, np_imu_data.shape[0] - window_size + 1, window_size):
+            acc_vals = np_imu_data[j:j+window_size, :3]
+            
+            # Check if any of the values in the window exceed the threshold
+            if (np.abs(acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                # potential start of move action identified
+                # Check next few windows to confirm start of move action
+                for k in range(j+window_size, j+window_size*4, window_size):
+                    next_acc_vals = np_imu_data[k:k+window_size, :3]
+                    if not (np.abs(next_acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    np_imu_data = np_imu_data[j:]
                     return np_imu_data.T
 
         return None
 
 
-    def AI_actual(self, player, imu_data):
-        global prediction_array, NUM_INPUT
-        
-        parsed_imu_data = self.detect_start_of_move(imu_data)
 
-        if parsed_imu_data is None:
+    def AI_actual(self):
+        global prediction_array, NUM_INPUT
+
+        # parsed_imu_data = self.detect_start_of_move2(imu_data)
+
+        # parsed_imu_data = self.detect_start_of_move3(imu_data)
+        
+        # parsed_imu_data = self.detect_start_of_move()
+        self.detect_start_of_move()
+
+        # if parsed_imu_data is None:
+        #     print("No move detected")
+        #     return None
+        if self.imu_data is None:
+            print("No move detected")
             return None
 
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        features = self.extract_features(parsed_imu_data)
+        self.extract_features()
+        # features = self.extract_features(parsed_imu_data)
 
         for i in range(NUM_INPUT):
-            self.input_buffer[i] = features[i]
+            self.input_buffer[i] = self.features[i]
 
         run = True
 
         while run:
             try:
+                # aiflag.clear()
                 self.dma.sendchannel.transfer(self.input_buffer)
                 self.dma.recvchannel.transfer(self.output_buffer)
                 self.dma.sendchannel.wait()
@@ -687,25 +833,297 @@ class AI_Thread(threading.Thread):
 
                 action = self.output_buffer[0]
 
-                prediction_array.append(action)
-                print('Predicted class:', action, mapping[action])
+                # prediction_array.append(action)
+                print('Predicted class:', self.player, action, mapping[action])
                 
                 run = False
                 if not mapping[action] == 'idle':
-                    if player == 'p1':
+                    if self.player == 'p1':
                         if evalServerConnected.is_set():
                             action_p1_queue.put(mapping[action])
                     else:
                         if evalServerConnected.is_set():
                             action_p2_queue.put(mapping[action])
 
+                # aiflag.set()
             except RuntimeError as e:
                 print(e)
                 print("Error config: ", self.dma.register_map)
 
 
+class AI_Thread_2(Process):
+    def __init__(self):
+        super().__init__()
+        # DMA BUFFER CONFIG
+        self.ol = Overlay('design_1_wrapper.bit')
+        self.dma = self.ol.axi_dma_0
+        self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
+        self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
+        self.imu_data = np.empty((40,6), dtype=np.int32)
+        self.player = None
+        self.features = None
+
+
+    def run(self):
+        while True:
+            # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
+            #     ### get player id (p1 or p2)
+            # try:
+            #     # if aiflag.is_set():
+            #     self.player, self.imu_data = imu_queue_p1.get_nowait()
+            #     self.AI_actual()
+            #     # player, imu_data = imu_queue_p1.get_nowait()
+            #     # self.AI_actual(player, imu_data)
+            # except:
+                # pass
+            # try:
+            #     # if aiflag.is_set():
+            #     self.player, self.imu_data = imu_queue_p2.get_nowait()
+            #     self.AI_actual()
+            #     # player, imu_data = imu_queue_p2.get_nowait()
+            #     # self.AI_actual(player, imu_data)
+            # except:
+            #     pass
+            # if imu_queue_p1.empty
+            self.player, self.imu_data = imu_queue_p2.get()
+            self.AI_actual()
+                
+    def extract_features(self):
+
+        mean_acc_x = np.mean(self.imu_data[0])
+        mean_acc_y = np.mean(self.imu_data[1])
+        mean_acc_z = np.mean(self.imu_data[2])
+        mean_gyro_x = np.mean(self.imu_data[3])
+        mean_gyro_y = np.mean(self.imu_data[4])
+        mean_gyro_z = np.mean(self.imu_data[5])
+
+        sd_acc_x = np.std(self.imu_data[0])
+        sd_acc_y = np.std(self.imu_data[1])
+        sd_acc_z = np.std(self.imu_data[2])
+        sd_gyro_x = np.std(self.imu_data[3])
+        sd_gyro_y = np.std(self.imu_data[4])
+        sd_gyro_z = np.std(self.imu_data[5])
+
+        max_acc_x = np.amax(self.imu_data[0])
+        max_acc_y = np.amax(self.imu_data[1])
+        max_acc_z = np.amax(self.imu_data[2])
+        max_gyro_x = np.amax(self.imu_data[3])
+        max_gyro_y = np.amax(self.imu_data[4])
+        max_gyro_z = np.amax(self.imu_data[5])
+
+        min_acc_x = np.amin(self.imu_data[0])
+        min_acc_y = np.amin(self.imu_data[1])
+        min_acc_z = np.amin(self.imu_data[2])
+        min_gyro_x = np.amin(self.imu_data[3])
+        min_gyro_y = np.amin(self.imu_data[4])
+        min_gyro_z = np.amin(self.imu_data[5])
+
+        rms_acc_x = np.sqrt(np.mean(self.imu_data[0] ** 2))
+        rms_acc_y = np.sqrt(np.mean(self.imu_data[1] ** 2))
+        rms_acc_z = np.sqrt(np.mean(self.imu_data[2] ** 2))
+        rms_gyro_x = np.sqrt(np.mean(self.imu_data[3] ** 2))
+        rms_gyro_y = np.sqrt(np.mean(self.imu_data[4] ** 2))
+        rms_gyro_z = np.sqrt(np.mean(self.imu_data[5] ** 2))
+
+        skew_acc_x = skew(self.imu_data[0])
+        skew_acc_y = skew(self.imu_data[1])
+        skew_acc_z = skew(self.imu_data[2])
+        skew_gyro_x = skew(self.imu_data[3])
+        skew_gyro_y = skew(self.imu_data[4])
+        skew_gyro_z = skew(self.imu_data[5])
+
+        mag_acc_x = np.amax(np.abs(fft(self.imu_data[0])))
+        mag_acc_y = np.amax(np.abs(fft(self.imu_data[1])))
+        mag_acc_z = np.amax(np.abs(fft(self.imu_data[2])))
+        mag_gyro_x = np.amax(np.abs(fft(self.imu_data[3])))
+        mag_gyro_y = np.amax(np.abs(fft(self.imu_data[4])))
+        mag_gyro_z = np.amax(np.abs(fft(self.imu_data[5])))
+
+        phase_acc_x = np.amax(np.angle(fft(self.imu_data[0])))
+        phase_acc_y = np.amax(np.angle(fft(self.imu_data[1])))
+        phase_acc_z = np.amax(np.angle(fft(self.imu_data[2])))
+        phase_gyro_x = np.amax(np.angle(fft(self.imu_data[3])))
+        phase_gyro_y = np.amax(np.angle(fft(self.imu_data[4])))
+        phase_gyro_z = np.amax(np.angle(fft(self.imu_data[5])))
+
+        self.features = np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
+                               sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
+                               max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
+                               min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
+                               rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
+                               skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+                               mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
+        
+
+    def detect_start_of_move(self):
+
+        # define threshold values as hard-coded values
+        ## OLD
+        # x_thresh = 18300
+        # y_thresh = 11000
+        # z_thresh = 17000
+        
+        # ## NEW
+        # x_thresh = 19300
+        # y_thresh = 15000
+        # z_thresh = 18000
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        # x_thresh = y_thresh = z_thresh = 9000
+
+        # np_imu_data = np.array(self.imu_data)
+
+        # compare each data point in window to threshold
+        for j in range(self.imu_data.shape[0]):
+            acc_vals = self.imu_data[j, :3]
+
+            if (abs(acc_vals[0]) > x_thresh) or (abs(acc_vals[1]) > y_thresh) or (abs(acc_vals[2]) > z_thresh):
+                # potential start of move action identified
+                # check next few data points to confirm start of move action
+                for k in range(j+1, j+4):
+                    try:
+                        next_acc_vals = self.imu_data[k, :3]
+
+                    except IndexError:
+                        # if index is out of range, move to next window
+                        break
+
+                    if not ((abs(next_acc_vals[0]) > x_thresh) or (abs(next_acc_vals[1]) > y_thresh) or (abs(next_acc_vals[2]) > z_thresh)):
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    # np_imu_data = np_imu_data[j:]
+                    # print("Start of move action detected", self.imu_data.shape)
+                    self.imu_data = np.transpose(self.imu_data)
+                    # print(self.imu_data.shape)
+                    return 
+                    # return self.imu_data.T
+
+        # return None
+        self.imu_data = None
+
+
+    def detect_start_of_move2(self, imu_data):
+
+        ## TEST
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(imu_data)
+
+        # compare each data point in window to threshold
+        abs_acc_vals = np.abs(np_imu_data[:, :3])
+        mask = (abs_acc_vals > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+        idx = np.argmax(mask)
+        if mask[idx]:
+            # potential start of move action identified
+            # check next few data points to confirm start of move action
+            k = min(idx+4, np_imu_data.shape[0])
+
+            # Try the below two lines for mask and see if either one is correct
+            mask = (abs_acc_vals[idx+1:k] > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+
+            # mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+            if not mask.any():
+                # confirmed start of move action
+                # np_imu_data = np_imu_data[idx:]
+                return np_imu_data.T
+
+        return None
+    
+
+    def detect_start_of_move3(self):
+        x_thresh = 19300
+        y_thresh = 13000
+        z_thresh = 18000   
+
+        np_imu_data = np.array(self.imu_data)
+
+        # Sliding window approach with window size of 5
+        window_size = 5
+        for j in range(0, np_imu_data.shape[0] - window_size + 1, window_size):
+            acc_vals = np_imu_data[j:j+window_size, :3]
+            
+            # Check if any of the values in the window exceed the threshold
+            if (np.abs(acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                # potential start of move action identified
+                # Check next few windows to confirm start of move action
+                for k in range(j+window_size, j+window_size*4, window_size):
+                    next_acc_vals = np_imu_data[k:k+window_size, :3]
+                    if not (np.abs(next_acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
+                        # not the start of move action, move to next window
+                        break
+                else:
+                    # confirmed start of move action
+                    np_imu_data = np_imu_data[j:]
+                    return np_imu_data.T
+
+        return None
+
+
+
+    def AI_actual(self):
+        global prediction_array, NUM_INPUT
+
+        # parsed_imu_data = self.detect_start_of_move2(imu_data)
+
+        # parsed_imu_data = self.detect_start_of_move3(imu_data)
+        
+        # parsed_imu_data = self.detect_start_of_move()
+        self.detect_start_of_move()
+
+        # if parsed_imu_data is None:
+        #     print("No move detected")
+        #     return None
+        if self.imu_data is None:
+            print("No move detected")
+            return None
+
+        mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
+        self.extract_features()
+        # features = self.extract_features(parsed_imu_data)
+
+        for i in range(NUM_INPUT):
+            self.input_buffer[i] = self.features[i]
+
+        run = True
+
+        while run:
+            try:
+                # aiflag.clear()
+                self.dma.sendchannel.transfer(self.input_buffer)
+                self.dma.recvchannel.transfer(self.output_buffer)
+                self.dma.sendchannel.wait()
+                self.dma.recvchannel.wait()
+
+                action = self.output_buffer[0]
+
+                # prediction_array.append(action)
+                print('Predicted class:', self.player, action, mapping[action])
+                
+                run = False
+                if not mapping[action] == 'idle':
+                    if self.player == 'p1':
+                        if evalServerConnected.is_set():
+                            action_p1_queue.put(mapping[action])
+                    else:
+                        if evalServerConnected.is_set():
+                            action_p2_queue.put(mapping[action])
+
+                # aiflag.set()
+            except RuntimeError as e:
+                print(e)
+                print("Error config: ", self.dma.register_map)
+
 # MQTT Client to send data to AWS IOT Core
-class MQTT_Client(threading.Thread):
+class MQTT_Client(Process):
     def __init__(self, pub_topic, sub_topic, client_id, group) -> None:
         super().__init__()
         self.pub_topic = pub_topic
@@ -774,7 +1192,7 @@ class MQTT_Client(threading.Thread):
                 action_p2_queue.put('grenade_p1_misses')
                 isPlayerTwoGrenadeActivated.clear() 
             elif message.payload == b'6_CHECK_update':
-                player_state_copy = deepcopy(player_state)
+                Player.player_state_copy = deepcopy(Player.player_state)
                 player_state_copy['p1']['action'] = 'none'
                 player_state_copy['p2']['action'] = 'none'
                 viz_queue.put(('STATE', player_state_copy))
@@ -783,7 +1201,7 @@ class MQTT_Client(threading.Thread):
             print(message.payload)
         
 # Client to send data to the Evaluation Server
-class Evaluation_Client(threading.Thread):
+class Evaluation_Client(Process):
     
     IV = b'PLSPLSPLSPLSWORK'
     KEY = b'PLSPLSPLSPLSWORK'
@@ -808,7 +1226,8 @@ class Evaluation_Client(threading.Thread):
         try:
             while True:
                 data = eval_queue.get()
-                self.send(json.dumps(data)) 
+                # self.send(json.dumps(data)) 
+                self.send(json.dumps(Player.player_state))
                 self.receive()
         except:
             print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port)
@@ -837,7 +1256,7 @@ class Evaluation_Client(threading.Thread):
     
     def receive(self):
         if self.clientSocket is not None:
-            global player_state
+            # global player_state
             try:
                 # recv length followed by '_' followed by cypher
                 data = b''
@@ -865,10 +1284,21 @@ class Evaluation_Client(threading.Thread):
                     print('no more data from the client')
                     self.stop()
                 msg = data.decode("utf8")  # Decode raw bytes to UTF-8
-                recv_dict = literal_eval(msg)
-                player_state = recv_dict
-                recv_dict['p1']['action'] = 'none'
-                recv_dict['p2']['action'] = 'none'
+                # recv_dict = literal_eval(msg)
+                recv_dict = json.loads(msg)
+                # player_state = recv_dict
+                action_p1 = 'none'
+                action_p2 = 'none'
+                if recv_dict['p1']['action'] == 'shield' and recv_dict['p2']['action'] != 'shield':
+                    action_p1 = 'shield'
+                if recv_dict['p2']['action'] == 'shield' and recv_dict['p1']['action'] != 'shield':
+                    action_p2 = 'shield'
+                # if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
+                #     action_p1 = 'logout'
+                #     action_p2 = 'logout'
+                Player.player_state = deepcopy(recv_dict)
+                recv_dict['p1']['action'] = action_p1
+                recv_dict['p2']['action'] = action_p2
                 viz_queue.put(('STATE', recv_dict))
                 ### UPDATE INT COMMS STATE
                 player_state_intcomms['p1']['action'] = recv_dict['p1']['action']
@@ -883,7 +1313,7 @@ class Evaluation_Client(threading.Thread):
                 print("[EVAL SERVER] Received message from Evaluation Server", msg)
                 print('=====================================')
                 print('=====================================')
-                print("[EVAL UPDATE] Updated player state from Evaluation Server", player_state)
+                print("[EVAL UPDATE] Updated player state from Evaluation Server", Player.player_state)
                 print('=====================================')
                 ### update event flags
                 # if player_state['p1']['action'] == 'grenade':
@@ -893,6 +1323,16 @@ class Evaluation_Client(threading.Thread):
                 try:
                     while True:
                         eval_queue.get_nowait()
+                except queues.Empty:
+                    pass
+                try:
+                    while True:
+                        action_p1_queue.get_nowait()
+                except queues.Empty:
+                    pass
+                try:
+                    while True:
+                        action_p2_queue.get_nowait()
                 except queues.Empty:
                     pass
             except:
@@ -915,26 +1355,37 @@ class Evaluation_Client(threading.Thread):
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
     eval_client = Evaluation_Client('localhost', 11001, 2)
-    eval_client.daemon = True
+    # eval_client.daemon = True
     eval_client.start()
 
-    ai_thread = AI_Thread()
-    ai_thread.daemon = True
-    ai_thread.start()
+    ai_thread1 = AI_Thread_1()
+    # ai_thread.daemon = False
+    ai_thread1.start()
+
+    ai_thread2 = AI_Thread_2()
+    # ai_thread.daemon = False
+    ai_thread2.start()
 
     game_engine = Game_Engine() 
-    game_engine.daemon = True
+    # game_engine.daemon = True
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    mqtt.daemon = True
+    # mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
-    server.daemon = True
+    # server.daemon = True
     server.start()
+
+    eval_client.join()
+    ai_thread1.join()
+    ai_thread2.join()
+    game_engine.join()
+    mqtt.join()
+    server.join()
 
     mqtt.client.loop_forever()
 
