@@ -7,7 +7,7 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import base64
-from multiprocessing import Process, Queue, Lock, queues
+from multiprocessing import Process, Queue, Lock, queues, Event
 import json
 import paho.mqtt.client as paho
 from paho import mqtt
@@ -24,6 +24,9 @@ from pynq import Overlay
 from pynq import allocate
 import atexit
 import os
+import pickle
+import multiprocessing
+from PlayerState import Player
 
 ### kill all child processes on exit
 def cleanup():
@@ -40,6 +43,7 @@ NUM_FEATURES = 8
 NUM_INPUT = NUM_FEATURES * 6
 SAMPLE_SIZE = 40
 SHOOT_MAX_TIME_LIMIT = 1.5
+GRENADE_MAX_TIME_LIMIT = 3
 
 
 beetleID_mapping = {
@@ -63,19 +67,26 @@ action_p2_queue = Queue()
 viz_queue = Queue()
 eval_queue = Queue()
 intcomms_queue = Queue()
+recv_queue = Queue()
 
-relayFlag = threading.Event()
+grenadeP1Miss = Event()
+grenadeP1Miss.clear()
+grenadeP2Miss = Event()
+grenadeP2Miss.clear()
+grenadeP1Hit = Event()
+grenadeP1Hit.clear()
+grenadeP2Hit = Event()
+grenadeP2Hit.clear()
+shootP1Hit = Event()
+shootP1Hit.clear()
+shootP2Hit = Event()
+shootP2Hit.clear()
+relayFlag = Event()
 relayFlag.set()
-aiflag = threading.Event()
-aiflag.set()
-reloadSendRelayP1 = threading.Event()
+reloadSendRelayP1 = Event()
 reloadSendRelayP1.clear() 
-reloadSendRelayP2 = threading.Event()
+reloadSendRelayP2 = Event()
 reloadSendRelayP2.clear()
-grenadeSendRelayP1 = threading.Event()
-grenadeSendRelayP1.clear()
-grenadeSendRelayP2 = threading.Event()
-grenadeSendRelayP2.clear()
 # isPlayerOneActivated = threading.Event()
 # isPlayerOneActivated.clear()
 # isPlayerTwoActivated = threading.Event()
@@ -93,30 +104,31 @@ isPlayerOneShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
 isPlayerTwoShootActivated = threading.Event()
 isPlayerOneShootActivated.clear()
-# player_state = {
-#     "p1":
-#     {
-#         "hp": 100,
-#         "action": "none",
-#         "bullets": 6,
-#         "grenades": 2,
-#         "shield_time": 0,
-#         "shield_health": 0,
-#         "num_deaths": 0,
-#         "num_shield": 3
-#     },
-#     "p2":
-#     {
-#         "hp": 100,
-#         "action": "none",
-#         "bullets": 6,
-#         "grenades": 2,
-#         "shield_time": 0,
-#         "shield_health": 0,
-#         "num_deaths": 0,
-#         "num_shield": 3
-#     }
-# }
+
+player_state = {
+    "p1":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    },
+    "p2":
+    {
+        "hp": 100,
+        "action": "none",
+        "bullets": 6,
+        "grenades": 2,
+        "shield_time": 0,
+        "shield_health": 0,
+        "num_deaths": 0,
+        "num_shield": 3
+    }
+}
 
 player_state_intcomms = {
     "p1":
@@ -134,35 +146,8 @@ player_state_intcomms = {
 }
 
 
-class Player:
-    player_state = {
-    "p1":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
-    },
-    "p2":
-    {
-        "hp": 100,
-        "action": "none",
-        "bullets": 6,
-        "grenades": 2,
-        "shield_time": 0,
-        "shield_health": 0,
-        "num_deaths": 0,
-        "num_shield": 3
-    }
-}
 
-
-
-class Relay_Server_Send(threading.Thread):
+class Relay_Server_Send(Process):
     def __init__(self, sock):
         super().__init__()
         self.sock = sock
@@ -214,7 +199,7 @@ class Relay_Server(Process):
             client, address = self.server.accept()
             # TODO Add client to where it connected to
             print("[RELAY SERVER] Client connected from {} \n".format(address))
-            client_handler = threading.Thread(
+            client_handler = Process(
                 target=self.handle_client,
                 args=(client, address)
             )
@@ -299,13 +284,15 @@ class Relay_Server(Process):
                     
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
-                        action_p2_queue.put("shoot_p1_hits")
-                        isPlayerTwoShootActivated.clear()
+                        shootP1Hit.set()
+                        # action_p2_queue.put("shoot_p1_hits")
+                        # isPlayerTwoShootActivated.clear()
                     
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
-                        action_p1_queue.put("shoot_p2_hits")
-                        isPlayerOneShootActivated.clear()
+                        shootP2Hit.set()
+                        # action_p1_queue.put("shoot_p2_hits")
+                        # isPlayerOneShootActivated.clear()
 
                     elif data_device == "GUN1":
                         # shot by player
@@ -344,7 +331,7 @@ class Relay_Server(Process):
                 #     if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
                 #         reloadSendRelayP1.clear()
                 #         reloadSendRelayP2.clear()
-                #     # p1 0 bullets and p2 non zero bullets
+                #     # p1 0 buisPlayerOneShieldActivatedllets and p2 non zero bullets
                 #     elif reloadSendRelayP1.is_set():
                 #         reloadSendRelayP1.clear()
                 #         send_data['p2']['action'] = 'none'
@@ -362,247 +349,208 @@ class Relay_Server(Process):
             traceback.print_exc()
 
 
-class Game_Engine(threading.Thread):
+class Game_Engine(Process):
     def __init__(self):
         super().__init__()
-    
+        self.p1 = Player()
+        self.p2 = Player() 
+
+    # def send_shield_timeout(self):
+    #     if self.p1.shield_timeout == True:
+    #         temp_gamestate = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+    #         temp_gamestate["p1"]["action"] = "shield_timeout"
+    #         self.gamestate_queue.put(temp_gamestate)
+    #         self.p1.shield_timeout = False
+
+    #     if self.p2.shield_timeout == True:
+    #         temp_gamestate = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+    #         temp_gamestate["p2"]["action"] = "shield_timeout"
+    #         self.gamestate_queue.put(temp_gamestate)
+    #         self.p2.shield_timeout = False
+
     def run(self):
-        # global player_state
-        isPlayerOneShieldActivated = False
-        isPlayerTwoShieldActivated = False
-        startTimeOne = 0
-        startTimeOneShoot = 0
-        startTimeTwoShoot = 0
-        startTimeTwo = 0
-        viz_queue.put(('STATE', Player.player_state))
         while True:
-            if isPlayerOneShieldActivated:
-                Player.player_state['p1']['shield_time'] = 10 - (time.time() - startTimeOne)
-                if Player.player_state['p1']['shield_time'] <= 0:
-                    Player.player_state['p1']['shield_time'] = 0
-                    Player.player_state['p1']['shield_health'] = 0
-                    isPlayerOneShieldActivated = False
+            self.p1.update_shield_time()
+            self.p2.update_shield_time()
+            # self.send_shield_timeout()
 
-            if isPlayerTwoShieldActivated:
-                Player.player_state['p2']['shield_time'] = 10 - (time.time() - startTimeTwo)
-                if Player.player_state['p2']['shield_time'] <= 0:
-                    Player.player_state['p2']['shield_time'] = 0
-                    Player.player_state['p2']['shield_health'] = 0
-                    isPlayerTwoShieldActivated = False
+            action_p1 = action_p1_queue.get()
+            action_p2 = action_p2_queue.get()
 
-            if isPlayerOneShootActivated.is_set():
-                time_elapsed = time.time() - startTimeOneShoot
-                if time_elapsed >= SHOOT_MAX_TIME_LIMIT:
-                    action_p1_queue.put('shoot_p2_misses')
-                    isPlayerOneShootActivated.clear()
+            if action_p1 == "logout" and action_p2 == "logout":
+                self.p1.logout()
+                self.p2.logout()
             
-            if isPlayerTwoShootActivated.is_set():
-                time_elapsed = time.time() - startTimeTwoShoot
-                if time_elapsed >= SHOOT_MAX_TIME_LIMIT:
-                    action_p2_queue.put('shoot_p1_misses')
-                    isPlayerTwoShootActivated.clear()
-
-            # if not imu_queue.empty():
-            #     imu_data = imu_queue.get()
-            #     # self.AI_random(imu_data)
-            #     a = self.AI_actual(imu_data)
-            #     # print("[AI]", a)
-
-            if ((not action_p1_queue.empty()) and (not action_p2_queue.empty())) or (shootGrenadeActivated.is_set() 
-                and (not isPlayerOneGrenadeActivated.is_set()) and (not isPlayerTwoGrenadeActivated.is_set()) 
-                and (not isPlayerOneShootActivated.is_set()) and (not isPlayerTwoShootActivated.is_set()) and (not action_p1_queue.empty() or not action_p2_queue.empty())):
-                action_p1 = 'none'
-                action_p2 = 'none'
-                if shootGrenadeActivated.is_set():
-                    if not action_p1_queue.empty():
-                        action_p1_temp = action_p1_queue.get()
-                    if not action_p2_queue.empty():
-                        action_p2_temp = action_p2_queue.get()
-                else:
-                    action_p1 = action_p1_queue.get()
-                    action_p2 = action_p2_queue.get()
-                print("[PLAYER_1_ACTION]", action_p1)
-                print("[PLAYER_2_ACTION]", action_p2)
-                # Update action for player 1 and 2
-                if action_p1 != 'none':
-                    Player.player_state['p1']['action'] = action_p1
-                if action_p2 != 'none':
-                    Player.player_state['p2']['action'] = action_p2
-
-                # Update shield action for both players
-                if action_p1 == 'shield':
-                    if Player.player_state['p1']['num_shield'] > 0 and (not isPlayerOneShieldActivated):
-                        Player.player_state['p1']['num_shield'] -= 1
-                        Player.player_state['p1']['shield_time'] = 10
-                        Player.player_state['p1']['shield_health'] = 30
-                        isPlayerOneShieldActivated = True
-                        startTimeOne = time.time()
-                if action_p2 == 'shield':
-                    if Player.player_state['p2']['num_shield'] > 0 and (not isPlayerTwoShieldActivated):
-                        Player.player_state['p2']['num_shield'] -= 1
-                        Player.player_state['p2']['shield_time'] = 10
-                        Player.player_state['p2']['shield_health'] = 30
-                        isPlayerTwoShieldActivated = True
-                        startTimeTwo = time.time()
-                
-                # Update player 1 state (active player) 
-                if action_p1 == 'reload':
-                    if Player.player_state['p1']['bullets'] <= 0:
-                        Player.player_state['p1']['bullets'] = 6
-                        reloadSendRelayP1.set()
-                elif action_p1 == 'grenade':
-                    # update grenade for player 1
-                    if Player.player_state['p1']['grenades'] > 0:
-                        Player.player_state['p1']['grenades'] -= 1
-                        isPlayerOneGrenadeActivated.set()
-                    # send check for player 2
-                elif action_p1 == 'grenade_p2_hits':
-                    if isPlayerTwoShieldActivated:
-                        Player.player_state['p2']['shield_health'] -= 30
-                    else:
-                        Player.player_state['p2']['hp'] -= 30
-                elif action_p1 == 'shoot_p2_hits':
-                    if isPlayerTwoShieldActivated:
-                        Player.player_state['p2']['shield_health'] -= 10
-                    else:
-                        Player.player_state['p2']['hp'] -= 10
-                    if not shootGrenadeActivated.is_set():
-                        if Player.player_state['p1']['bullets'] > 0:
-                            Player.player_state['p1']['bullets'] -= 1
-                        shootGrenadeActivated.set()
-                        isPlayerOneShootActivated.clear()
-                        
-                elif action_p1 == 'shoot_p2_misses':
-                    if not shootGrenadeActivated.is_set():
-                        shootGrenadeActivated().set()
-                        isPlayerOneShootActivated.clear()
-
-                elif action_p1 == 'shoot':
-                    if Player.player_state['p1']['bullets'] > 0:
-                        Player.player_state['p1']['bullets'] -= 1
-                        isPlayerOneShootActivated.set()
-                        startTimeOneShoot = time.time()
-                
-                # Update player 2 state (active player) 
-                if action_p2 == 'reload':
-                    if Player.player_state['p2']['bullets'] <= 0:
-                        Player.player_state['p2']['bullets'] = 6
-                        reloadSendRelayP2.set()
-                elif action_p2 == 'grenade':
-                    # update grenade for player 2
-                    if Player.player_state['p2']['grenades'] > 0:
-                        Player.player_state['p2']['grenades'] -= 1
-                        isPlayerTwoGrenadeActivated.set()
-                    # send check for player 2
-                elif action_p2 == 'grenade_p1_hits':
-                    if isPlayerOneShieldActivated:
-                        Player.player_state['p1']['shield_health'] -= 30
-                    else:
-                        Player.player_state['p1']['hp'] -= 30
-                        print("[STATUS] ", Player.player_state)       
-                elif action_p2 == 'shoot_p1_hits':
-                    if isPlayerOneShieldActivated:
-                        Player.player_state['p1']['shield_health'] -= 10
-                    else:
-                        Player.player_state['p1']['hp'] -= 10
-                    if not shootGrenadeActivated.is_set():
-                        if Player.player_state['p2']['bullets'] > 0:
-                            Player.player_state['p2']['bullets'] -= 1
-                        shootGrenadeActivated.set()
-                        isPlayerTwoShootActivated.clear()
-                elif action_p2 == 'shoot_p1_misses':
-                    if not shootGrenadeActivated.is_set():
-                        shootGrenadeActivated.set()
-                        isPlayerTwoShootActivated.clear()
-                elif action_p2 == 'shoot':
-                    if Player.player_state['p2']['bullets'] > 0:
-                        Player.player_state['p2']['bullets'] -= 1
-                        isPlayerTwoShootActivated.set()
-                        startTimeTwoShoot = time.time()
-
-                if Player.player_state['p1']['shield_health'] <= 0 and isPlayerOneShieldActivated:
-                    isPlayerOneShieldActivated = False
-                    Player.player_state['p1']['hp'] += Player.player_state['p1']['shield_health']
-                    Player.player_state['p1']['shield_health'] = 0
-                    Player.player_state['p1']['shield_time'] = 0
+            if action_p1 == "shield":
+                self.p1.shield()
             
-                if Player.player_state['p2']['shield_health'] <= 0 and isPlayerTwoShieldActivated:
-                    isPlayerTwoShieldActivated = False
-                    Player.player_state['p2']['hp'] += Player.player_state['p2']['shield_health']
-                    Player.player_state['p2']['shield_health'] = 0
-                    Player.player_state['p2']['shield_time'] = 0
-            
-                # rebirth for player 2
-                if Player.player_state['p2']['hp'] <= 0:
-                    # reset player 2 stats
-                    Player.player_state['p2']['hp'] = 100
-                    Player.player_state['p2']['num_deaths'] += 1
-                    Player.player_state['p2']['bullets'] = 6
-                    Player.player_state['p2']['grenades'] = 2
-                    Player.player_state['p2']['num_shield'] = 3
-                    Player.player_state['p2']['shield_time'] = 0
-                    Player.player_state['p2']['shield_health'] = 0
+            if action_p2 == "shield":
+                self.p2.shield()
 
-                # rebirth for player 1
-                if Player.player_state['p1']['hp'] <= 0:
-                    # reset player 1 stats
-                    Player.player_state['p1']['hp'] = 100
-                    Player.player_state['p1']['num_deaths'] += 1
-                    Player.player_state['p1']['bullets'] = 6
-                    Player.player_state['p1']['grenades'] = 2
-                    Player.player_state['p1']['num_shield'] = 3
-                    Player.player_state['p1']['shield_time'] = 0
-                    Player.player_state['p1']['shield_health'] = 0
+            if action_p1 == "reload":
+                self.p1.reload()
+                reloadSendRelayP1.set()
+
+            if action_p2 == "reload":
+                self.p2.reload()
+                reloadSendRelayP2.set()
+            
+            # both shoot
+            if action_p1 == "shoot" and action_p2 == "shoot":
+                self.p1.shoot()
+                self.p2.shoot()
+                start_time = time.time()
+                while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
+                    # as both are in range of each other only one needs to be checked
+                    if shootP1Hit.is_set() or shootP2Hit.is_set():
+                        self.p1.shoot_hit()
+                        self.p2.shoot_hit()
+                        shootP1Hit.clear()
+                        shootP2Hit.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "shoot_p2_hits"
+                        temp_dict["p2"]["action"] = "shoot_p1_hits"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                if not shootP1Hit.is_set() and not shootP2Hit.is_set():
+                    temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                    temp_dict["p1"]["action"] = "shoot_p2_misses"
+                    temp_dict["p2"]["action"] = "shoot_p1_misses"
+                    viz_queue.put(('STATE', json.dumps(temp_dict)))
+            elif action_p1 == "shoot":
+                self.p1.shoot()
+                start_time = time.time()
+                while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
+                    if shootP2Hit.is_set():
+                        self.p2.shoot_hit()
+                        shootP2Hit.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "shoot_p2_hits"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                if not shootP2Hit.is_set():
+                    temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                    temp_dict["p1"]["action"] = "shoot_p2_misses"
+                    viz_queue.put(('STATE', json.dumps(temp_dict)))
+            
+            elif action_p2 == "shoot":
+                self.p2.shoot()
+                start_time = time.time()
+                while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
+                    if shootP1Hit.is_set():
+                        self.p1.shoot_hit()
+                        shootP1Hit.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "none"
+                        temp_dict["p2"]["action"] = "shoot_p1_hits"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                if not shootP1Hit.is_set():
+                    temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                    temp_dict["p1"]["action"] = "none"
+                    temp_dict["p2"]["action"] = "shoot_p1_misses"
+                    viz_queue.put(('STATE', json.dumps(temp_dict)))
+            
+            
+            if action_p1 == "grenade" and action_p2 == "grenade":
+                self.p1.grenade()
+                self.p2.grenade()
+                start_time = time.time()
+                send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                send_dict["p1"]["action"] = action_p1
+                send_dict["p2"]["action"] = action_p2
+                viz_queue.put(('CHECK', json.dumps(send_dict)))
+                while time.time() - start_time < GRENADE_MAX_TIME_LIMIT:
+                    # as both are in range of each other only one needs to be checked
+                    if grenadeP1Hit.is_set() or grenadeP2Hit.is_set():
+                        self.p1.grenade_hit()
+                        self.p2.grenade_hit()
+                        grenadeP1Hit.clear()
+                        grenadeP2Hit.clear()
+                        grenadeP1Miss.clear()
+                        grenadeP2Miss.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "grenade_p2_hits"
+                        temp_dict["p2"]["action"] = "grenade_p1_hits"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                    elif grenadeP1Miss.is_set() or grenadeP2Miss.is_set():
+                        grenadeP1Hit.clear()
+                        grenadeP2Hit.clear()
+                        grenadeP1Miss.clear()
+                        grenadeP2Miss.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "grenade_p2_misses"
+                        temp_dict["p2"]["action"] = "grenade_p1_misses"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+            elif action_p1 == "grenade":
+                self.p1.grenade()
+                send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                send_dict["p1"]["action"] = action_p1
+                send_dict["p2"]["action"] = action_p2
+                viz_queue.put(('CHECK', json.dumps(send_dict)))
                 
-                print("[PLAYER STATE FROM GAME ENGINE]", Player.player_state)
-                if shootGrenadeActivated.is_set():
-                    player_state_cp = deepcopy(Player.player_state)
-                    if ((action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses') or (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses')):
-                        if (action_p1 == 'shoot_p2_hits') or (action_p1 == 'shoot_p2_misses'):
-                            Player.player_state['p1']['action'] = 'shoot'
-                        else:
-                            player_state_cp['p1']['action'] = 'none'
-                        if (action_p2 == 'shoot_p1_hits') or (action_p2 == 'shoot_p1_misses'):
-                            Player.player_state['p2']['action'] = 'shoot'
-                        else:
-                            player_state_cp['p2']['action'] = 'none'
-                    if ((action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses') or (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses')):
-                        if (action_p1 == 'grenade_p2_hits') or (action_p1 == 'grenade_p2_misses'):
-                            Player.player_state['p1']['action'] = 'grenade'
-                        else:
-                            player_state_cp['p1']['action'] = 'none'
-                            
-                        if (action_p2 == 'grenade_p1_hits') or (action_p2 == 'grenade_p1_misses'):
-                            Player.player_state['p2']['action'] = 'grenade'
-                        else:
-                            player_state_cp['p2']['action'] = 'none'
-                    viz_queue.put(('CHECK', player_state_cp))
-                    eval_queue.put(deepcopy(Player.player_state))
-                    shootGrenadeActivated.clear()
-                elif (action_p1 == 'shoot' and isPlayerOneShootActivated.is_set()) or (action_p2 == 'shoot' and isPlayerTwoShootActivated.is_set()) or (action_p2 == 'grenade' and isPlayerOneGrenadeActivated.is_set()) or (action_p2 == 'grenade' and isPlayerTwoGrenadeActivated.is_set()):
-                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
-                    shootGrenadeActivated.set()
-                else:
-                    viz_queue.put(('CHECK', deepcopy(Player.player_state)))
-                    eval_queue.put(deepcopy(Player.player_state))
-                
-                try:
-                    while True:
-                        action_p1_queue.get_nowait()
-                except queues.Empty:
-                    pass
-                try:
-                    while True:
-                        action_p2_queue.get_nowait()
-                except queues.Empty:
-                    pass
+                start_time = time.time()
+                while time.time() - start_time < GRENADE_MAX_TIME_LIMIT:
+                    if grenadeP2Hit.is_set():
+                        self.p2.grenade_hit()
+                        grenadeP2Hit.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "grenade_p2_hits"
+                        temp_dict["p2"]["action"] = "none"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                    if grenadeP2Miss.is_set():
+                        grenadeP2Miss.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "grenade_p2_misses"
+                        temp_dict["p2"]["action"] = "none"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break                
+            elif action_p2 == "grenade":
+                self.p2.grenade()
+                send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                send_dict["p1"]["action"] = action_p1
+                send_dict["p2"]["action"] = action_p2
+                viz_queue.put(('CHECK', json.dumps(send_dict)))
+                start_time = time.time()
+                while time.time() - start_time < GRENADE_MAX_TIME_LIMIT:
+                    if grenadeP1Hit.is_set():
+                        self.p1.grenade_hit()
+                        grenadeP1Hit.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "none"
+                        temp_dict["p2"]["action"] = "grenade_p1_hits"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break
+                    if grenadeP1Miss.is_set():
+                        grenadeP1Miss.clear()
+                        temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+                        temp_dict["p1"]["action"] = "none"
+                        temp_dict["p2"]["action"] = "grenade_p1_misses"
+                        viz_queue.put(('STATE', json.dumps(temp_dict)))
+                        break   
+
+            self.p1.update_shield_time()
+            self.p2.update_shield_time()
+            send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+            print("[INTERNAL STATE]", send_dict)
+            eval_queue.put(json.dumps(send_dict))
+
+            # sync states
+            recv_state = recv_queue.get()
+            self.p1.initialize_from_dict(recv_state["p1"])
+            self.p2.initialize_from_dict(recv_state["p2"])
+            send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+            print("[SYNCED STATE]", send_dict)
 
 
 class AI_Thread_1(Process):
     def __init__(self):
         super().__init__()
         # DMA BUFFER CONFIG
-        self.ol = Overlay('design_1_wrapper.bit')
+        self.ol = Overlay('new_design_1_wrapper.bit')
         self.dma = self.ol.axi_dma_0
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
@@ -613,25 +561,6 @@ class AI_Thread_1(Process):
 
     def run(self):
         while True:
-            # if not imu_queue_p1.empty() or not imu_queue_p2.empty():
-            #     ### get player id (p1 or p2)
-            # try:
-            #     # if aiflag.is_set():
-            #     self.player, self.imu_data = imu_queue_p1.get_nowait()
-            #     self.AI_actual()
-            #     # player, imu_data = imu_queue_p1.get_nowait()
-            #     # self.AI_actual(player, imu_data)
-            # except:
-                # pass
-            # try:
-            #     # if aiflag.is_set():
-            #     self.player, self.imu_data = imu_queue_p2.get_nowait()
-            #     self.AI_actual()
-            #     # player, imu_data = imu_queue_p2.get_nowait()
-            #     # self.AI_actual(player, imu_data)
-            # except:
-            #     pass
-            # if imu_queue_p1.empty
             self.player, self.imu_data = imu_queue_p1.get()
             self.AI_actual()
                 
@@ -867,14 +796,14 @@ class AI_Thread_1(Process):
                 # aiflag.set()
             except RuntimeError as e:
                 print(e)
-                print("Error config: ", self.dma.register_map)
+                # print("Error config: ", self.dma.register_map)
 
 
 class AI_Thread_2(Process):
     def __init__(self):
         super().__init__()
         # DMA BUFFER CONFIG
-        self.ol = Overlay('design_1_wrapper.bit')
+        self.ol = Overlay('new_design_1_wrapper.bit')
         self.dma = self.ol.axi_dma_0
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
@@ -1139,7 +1068,7 @@ class AI_Thread_2(Process):
                 # aiflag.set()
             except RuntimeError as e:
                 print(e)
-                print("Error config: ", self.dma.register_map)
+                # print("Error config: ", self.dma.register_map)
 
 # MQTT Client to send data to AWS IOT Core
 class MQTT_Client(Process):
@@ -1164,7 +1093,7 @@ class MQTT_Client(Process):
             while True:
                 type, data = viz_queue.get()
                 # print("[PUBLISH]", data)
-                self.publish(type, data)
+                self.publish(type, json.loads(data))
         except Exception as e:
             print(e)
             self.client.loop_stop()        
@@ -1204,26 +1133,35 @@ class MQTT_Client(Process):
             if msg == "14_CHECK_grenade_p2_hit":
                 # to update grenade damage for player 2
                 print("[MQTT] Player 2 is in grenade range")
-                action_p1_queue.put('grenade_p2_hits') 
-                isPlayerOneGrenadeActivated.clear()
+                # grenadeP1Check.set()
+                grenadeP2Hit.set()
+                # action_p1_queue.put('grenade_p2_hits') 
+                # isPlayerOneGrenadeActivated.clear()
             elif msg == '15_CHECK_grenade_p2_miss':
                 print("[MQTT] Player 2 is not in grenade range")     
-                action_p1_queue.put('grenade_p2_misses') 
-                isPlayerOneGrenadeActivated.clear()
+                grenadeP2Miss.set()
+                # grenadeP2Hit.clear()
+                # action_p1_queue.put('grenade_p2_misses') 
+                # isPlayerOneGrenadeActivated.clear()
                 # action_queue.put('grenade_p2_misses')
             elif msg == '14_CHECK_grenade_p1_hit':
                 print("[MQTT] Player 1 is in grenade range")
-                action_p2_queue.put('grenade_p1_hits')
-                isPlayerTwoGrenadeActivated.clear()
+                # grenadeP2Check.set()
+                grenadeP1Hit.set()
+                # action_p2_queue.put('grenade_p1_hits')
+                # isPlayerTwoGrenadeActivated.clear()
             elif msg == '15_CHECK_grenade_p1_miss':
-                print("[MQTT] Player 1 is not in grenade range")      
-                action_p2_queue.put('grenade_p1_misses')
-                isPlayerTwoGrenadeActivated.clear() 
+                print("[MQTT] Player 1 is not in grenade range")
+                grenadeP1Miss.set()
+                # grenadeP1Hit.clear()      
+                # action_p2_queue.put('grenade_p1_misses')
+                # isPlayerTwoGrenadeActivated.clear() 
             elif msg == '6_CHECK_update':
-                player_state_copy = deepcopy(Player.player_state)
-                player_state_copy['p1']['action'] = 'none'
-                player_state_copy['p2']['action'] = 'none'
-                viz_queue.put(('STATE', player_state_copy))
+                pass
+                # player_state_copy = deepcopy(player_state)
+                # player_state_copy['p1']['action'] = 'none'
+                # player_state_copy['p2']['action'] = 'none'
+                # viz_queue.put(('STATE', json.dumps(player_state_copy)))
         except Exception as e:
             print('Error: message not in correct format')
             print(message.payload)
@@ -1255,11 +1193,12 @@ class Evaluation_Client(Process):
         try:
             while True:
                 data = eval_queue.get()
-                # self.send(json.dumps(data)) 
-                self.send(json.dumps(Player.player_state))
+                # print("[EVAL CLIENT]", player_state)
+                self.send(data)
                 self.receive()
-        except:
+        except Exception as e:
             print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port)
+            print(e)
             self.close()
 
 
@@ -1279,8 +1218,9 @@ class Evaluation_Client(Process):
                 print('=====================================')
                 print('[EVAL CLIENT] Sent message to Evaluation Server', self.eval_ip, self.eval_port, message)
                 print('=====================================')
-            except:
+            except Exception as e:
                 print('[EVAL CLIENT] Failed to send message to Evaluation Server', self.eval_ip, self.eval_port, message)
+                print(e)
                 self.close()
     
     def receive(self):
@@ -1312,48 +1252,39 @@ class Evaluation_Client(Process):
                 if len(data) == 0:
                     print('no more data from the client')
                     self.stop()
-                msg = data.decode("utf8")  # Decode raw bytes to UTF-8
+                recv_dict = data.decode("utf8")  # Decode raw bytes to UTF-8
                 # recv_dict = literal_eval(msg)
-                recv_dict = json.loads(msg)
-                # player_state = recv_dict
-                action_p1 = 'none'
-                action_p2 = 'none'
-                if recv_dict['p1']['action'] == 'shield' and recv_dict['p2']['action'] != 'shield':
-                    action_p1 = 'shield'
-                if recv_dict['p2']['action'] == 'shield' and recv_dict['p1']['action'] != 'shield':
-                    action_p2 = 'shield'
-                # if recv_dict['p1']['action'] == 'logout' and recv_dict['p2']['action'] != 'logout':
-                #     action_p1 = 'logout'
-                #     action_p2 = 'logout'
-                Player.player_state = deepcopy(recv_dict)
-                recv_dict['p1']['action'] = action_p1
-                recv_dict['p2']['action'] = action_p2
-                viz_queue.put(('STATE', recv_dict))
-                ### UPDATE INT COMMS STATE
+                recv_dict = json.loads(recv_dict)
                 player_state_intcomms['p1']['action'] = recv_dict['p1']['action']
                 player_state_intcomms['p2']['action'] = recv_dict['p2']['action']
                 player_state_intcomms['p1']['hp'] = recv_dict['p1']['hp']
                 player_state_intcomms['p2']['hp'] = recv_dict['p2']['hp']
                 player_state_intcomms['p1']['bullets'] = recv_dict['p1']['bullets']
                 player_state_intcomms['p2']['bullets'] = recv_dict['p2']['bullets']
+                # player_state = recv_dict
+                action_p1 = recv_dict['p1']['action']
+                action_p2 = recv_dict['p2']['action']
+                if recv_dict['p1']['action'] != 'shoot' and recv_dict['p2']['action'] != 'shoot' and recv_dict['p1']['action'] != 'grenade' and recv_dict['p2']['action'] != 'grenade':
+                ### TODO CHECK THIS PLACE IN CASE OF ERRORS
+                    viz_queue.put(('STATE', json.dumps(recv_dict)))
+                else:
+                    recv_dict['p1']['action'] = 'none'
+                    recv_dict['p2']['action'] = 'none'
+                    viz_queue.put(('STATE', json.dumps(recv_dict)))
+                ### UPDATE INT COMMS STATE
+
                 intcomms_queue.put(player_state_intcomms)
 
                 print('=====================================')
-                print("[EVAL SERVER] Received message from Evaluation Server", msg)
+                print("[EVAL SERVER] Received message from Evaluation Server", recv_dict)
                 print('=====================================')
-                print('=====================================')
-                print("[EVAL UPDATE] Updated player state from Evaluation Server", Player.player_state)
-                print('=====================================')
-                ### update event flags
-                # if player_state['p1']['action'] == 'grenade':
-                #     grenadeSendRelay.set()
-                # if player_state['p1']['action'] == 'reload':
-                #     reloadSendRelay.set()
-                try:
-                    while True:
-                        eval_queue.get_nowait()
-                except queues.Empty:
-                    pass
+
+                ### purge action queues
+                # try:
+                #     while True:
+                #         eval_queue.get_nowait()
+                # except queues.Empty:
+                #     pass
                 try:
                     while True:
                         action_p1_queue.get_nowait()
@@ -1364,6 +1295,15 @@ class Evaluation_Client(Process):
                         action_p2_queue.get_nowait()
                 except queues.Empty:
                     pass
+                # sync internal state
+                recv_dict['p1']['action'] = action_p1
+                recv_dict['p2']['action'] = action_p2
+                if action_p1 == "reload":
+                    reloadSendRelayP1.set()
+                if action_p2 == "reload":
+                    reloadSendRelayP2.set()
+                recv_queue.put(recv_dict)
+
             except:
                 print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
                 self.close()
@@ -1382,8 +1322,8 @@ class Evaluation_Client(Process):
 
 
 def main():
-    # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
-    eval_client = Evaluation_Client('localhost', 11001, 2)
+    eval_client = Evaluation_Client('137.132.92.184', 8888, 2)
+    # eval_client = Evaluation_Client('localhost', 11001, 2)
     # eval_client.daemon = True
     eval_client.start()
 
@@ -1403,8 +1343,8 @@ def main():
     # mqtt.daemon = True
     mqtt.start()
 
-    HOST, PORT = "192.168.95.235", 11000
-    # HOST, PORT = "localhost", 11000    
+    # HOST, PORT = "192.168.95.235", 11000
+    HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
     # server.daemon = True
     server.start()
