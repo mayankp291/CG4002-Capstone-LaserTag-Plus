@@ -18,6 +18,11 @@ from dotenv import load_dotenv
 import sshtunnel
 
 
+# load environment variables
+load_dotenv()
+
+
+
 import atexit
 import os
 
@@ -47,10 +52,16 @@ PORT_BIND = int(os.getenv("PORT"))
 ULTRA96_USERNAME = os.getenv("ULTRA96_USERNAME")
 ULTRA96_PASSWORD = os.getenv("ULTRA96_PASSWORD")
 ULTRA96_IP = os.getenv("ULTRA96_IP")
+# the peripheral class is used to connect and disconnect
+SAMPLE_SIZE = 40
+
+# timeouts in seconds
+CONNECTION_TIMEOUT = 1
 
 Service_UUID = "0000dfb0-0000-1000-8000-00805f9b34fb"
 Characteristic_UUID = "0000dfb1-0000-1000-8000-00805f9b34fb"
 dataBuffer = mp.Queue()
+actionDataBuffer = mp.Queue()
 imu1Buffer = mp.Queue()
 imu2Buffer = mp.Queue()
 
@@ -329,7 +340,7 @@ class BeetleConnectionThread:
         # while True:
         try:
             self.dev = Peripheral(self.macAddress)
-            print("Connected to Beetle: ", self.macAddress)
+            print("Connected to Beetle: ", self.beetleId)
             self.serialSvc = self.dev.getServiceByUUID(Service_UUID)
             self.serialChar = self.serialSvc.getCharacteristics(Characteristic_UUID)[0]
             deviceDelegate = MyDelegate(self.playerId, self.beetleId, self.dataBuffer, self.lock,
@@ -388,6 +399,47 @@ class BeetleConnectionThread:
                 self.isGrenadeHit = True
                 doesGrenadeHitFlagVest2.clear()
 
+    def checkBulletCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == GUN_PLAYER_1:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p1 = data['p1']['bullets']
+                self.serialChar.write(bytes(chr(bullets_p1), encoding="utf-8"))
+
+            if self.beetleId == GUN_PLAYER_2:
+                print('writing bullets to beetle', self.beetleId)
+                bullets_p2 = data['p2']['bullets']
+                print("bullets were updated", bullets_p2)
+                self.serialChar.write(bytes(chr(bullets_p2), encoding="utf-8"))
+
+        # bullets_p1 = data['p1']['bullets']
+        # hp_p1 = data['p1']['hp']
+        # bullets_p2 = data['p2']['bullets']
+        # hp_p2 = data['p2']['hp']
+
+
+    def checkHealthCount(self):
+        data = None
+
+        if not gameQueue.empty():
+            data = gameQueue.get()
+
+        if data:
+            if self.beetleId == VEST_PLAYER_1:
+                print('writing hp to beetle', self.beetleId)
+                hp_p1 = data['p1']['hp']
+                self.serialChar.write(bytes(chr(hp_p1), encoding="utf-8"))
+
+            if self.beetleId == VEST_PLAYER_2:
+                print('writing hp to beetle', self.beetleId)
+                hp_p2 = data['p2']['hp']
+                self.serialChar.write(bytes(chr(hp_p2), encoding="utf-8"))
+
 
     def sendSynMessage(self):
         # self.dev.waitForNotifications(1.0)
@@ -425,9 +477,11 @@ class BeetleConnectionThread:
                     print('comes here and has handshaked')
                     if self.beetleId == GUN_PLAYER_1 or self.beetleId == GUN_PLAYER_2:
                         self.checkForReload()
+                        self.checkBulletCount()
 
                     if self.beetleId == VEST_PLAYER_1 or self.beetleId == VEST_PLAYER_2:
                         self.checkForGrenadeHit()
+                        self.checkHealthCount()
 
                     self.dev.waitForNotifications(1)
 
@@ -528,6 +582,14 @@ class Relay_Client_Send(mp.Process):
                     self.send(msg)
 
 
+        except:
+            print('Connection to Relay Server lost')
+            # self.relaySocket.close()
+            sys.exit()
+            
+    def send(self, msg):
+        try:
+            self.sock.send(msg.encode("utf-8"))
         except:
             print('Connection to Relay Server lost')
             # self.relaySocket.close()
@@ -650,10 +712,11 @@ class Relay_Client_Recv(mp.Process):
     def run(self):
         try:
             while True:
-                data = self.sock.recv(100)
+                data = self.sock.recv(500)
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
+                    print("DATA GAME:", data)
                     ### UPDATE BULLETS AND HEALTH AFTER EVERY ACTION
                     ### ACTION IS RELOAD IF VALID RELOAD STATE, IGNORE OTHER ACTIONS
                     gameQueue.put(data)
@@ -680,10 +743,34 @@ def testReloadThread():
         isReloadFlagGun1.set()
         print('setting reload flags')
 
+def testGrenadeHitThread():
+    while True:
+        time.sleep(5)
+        doesGrenadeHitFlagVest1.set()
+        doesGrenadeHitFlagVest2.set()
+        print('setting grenade flags')
+
+def testBulletUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'bullets': 6}
+                }
+
+        gameQueue.put(data)
+        # data['p1']['hp']
+def testHealthUpdateThread():
+    while True:
+        time.sleep(10)
+        data = {'p2': {
+            'hp': 100
+        }}
 
 if __name__ == '__main__':
     try:
         lock = mp.Lock()
+
+        # sock.connect(('192.168.95.235', 11000))
 
         # using a multiprocessing queue FIFO
         # dataBuffer = mp.Queue()
@@ -693,29 +780,7 @@ if __name__ == '__main__':
         receivingBuffer4 = b''
         receivingBuffer5 = b''
         receivingBuffer6 = b''
-        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer)
-        # IMU2_Beetle.executeCommunications()
 
-        # Player 1 (IMU)
-        # IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
-        # # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
-        # IMU1_Thread = threading.Thread(target=IMU1_Beetle.executeCommunications, args=())
-
-        # Vest1_Beetle = BeetleConnectionThread(1, VEST_PLAYER_1, macAddresses.get(2), dataBuffer, lock, receivingBuffer2)
-        # Vest1_Thread = threading.Thread(target=Vest1_Beetle.executeCommunications, args=())
-
-        # Gun1_Beetle = BeetleConnectionThread(1, GUN_PLAYER_1, macAddresses.get(3), dataBuffer, lock, receivingBuffer3)
-        # Gun1_Thread = threading.Thread(target=Gun1_Beetle.executeCommunications, args=())
-
-        # # # Player 2
-        # IMU2_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer4)
-        # IMU2_Thread = threading.Thread(target=IMU2_Beetle.executeCommunications, args=())
-
-        # Vest2_Beetle = BeetleConnectionThread(2, VEST_PLAYER_2, macAddresses.get(5), dataBuffer, lock, receivingBuffer5)
-        # Vest2_Thread = threading.Thread(target=Vest2_Beetle.executeCommunications, args=())
-
-        # Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
-        # Gun2_Thread = threading.Thread(target=Gun2_Beetle.executeCommunications, args=())
 
         IMU1_Beetle = BeetleConnectionThread(1, IMU_PLAYER_1, macAddresses.get(1), dataBuffer, lock, receivingBuffer1)
         # IMU1_Beetle = BeetleConnectionThread(2, IMU_PLAYER_2, macAddresses.get(4), dataBuffer, lock, receivingBuffer3)
@@ -737,9 +802,11 @@ if __name__ == '__main__':
         Gun2_Beetle = BeetleConnectionThread(2, GUN_PLAYER_2, macAddresses.get(6), dataBuffer, lock, receivingBuffer6)
         Gun2_Thread = mp.Process(target=Gun2_Beetle.executeCommunications, args=())
 
+
         tunnel_ultra96()
-        HOST, PORT = 'localhost', 11000
-        # HOST, PORT = '192.168.95.235', 11000
+
+        # HOST, PORT = 'localhost', 11000
+        HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)
         sock.connect((HOST, PORT))
 
@@ -786,14 +853,8 @@ if __name__ == '__main__':
         Vest2_Thread.join()
         Gun2_Thread.join()
 
-        # tunnel_ultra96()
+
         # Create a socket and connect to the server
-
-
-        # ReloadThread.join()
-        # Vest2_Thread.join()
-  
-
     except (KeyboardInterrupt, SystemExit):
         print("Ended Comms")
         # sys.exit()
