@@ -91,11 +91,12 @@ reloadSendRelayP2.clear()
 # isPlayerOneActivated.clear()
 # isPlayerTwoActivated = threading.Event()
 # isPlayerTwoActivated.clear()
-shootGrenadeActivated = threading.Event()
-shootGrenadeActivated.clear()
+# shootGrenadeActivated = threading.Event()
+# shootGrenadeActivated.clear()
 evalServerConnected = threading.Event()
 # evalServerConnected.clear()
 evalServerConnected.set()
+### NOT BEING USED NOW
 isPlayerOneGrenadeActivated = threading.Event()
 isPlayerOneGrenadeActivated.clear()
 isPlayerTwoGrenadeActivated = threading.Event()
@@ -409,6 +410,7 @@ class Game_Engine(Process):
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
 
+                # TODO This will always send as flags cleared earlier
                 if not shootP1Hit.is_set() and not shootP2Hit.is_set():
                     temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                     temp_dict["p1"]["action"] = "shoot_p2_misses"
