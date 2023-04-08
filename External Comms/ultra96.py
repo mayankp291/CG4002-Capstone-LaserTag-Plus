@@ -355,44 +355,37 @@ class Game_Engine(Process):
         self.p1 = Player()
         self.p2 = Player() 
 
-    # def send_shield_timeout(self):
-    #     if self.p1.shield_timeout == True:
-    #         temp_gamestate = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
-    #         temp_gamestate["p1"]["action"] = "shield_timeout"
-    #         self.gamestate_queue.put(temp_gamestate)
-    #         self.p1.shield_timeout = False
-
-    #     if self.p2.shield_timeout == True:
-    #         temp_gamestate = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
-    #         temp_gamestate["p2"]["action"] = "shield_timeout"
-    #         self.gamestate_queue.put(temp_gamestate)
-    #         self.p2.shield_timeout = False
-
     def run(self):
+        # flow = get both player actions -> process actions -> send to eval server -> get from eval server and update internal state
         while True:
             self.p1.update_shield_time()
             self.p2.update_shield_time()
-            # self.send_shield_timeout()
 
+            # get both player actions
             action_p1 = action_p1_queue.get()
             action_p2 = action_p2_queue.get()
 
+            # logout
             if action_p1 == "logout" and action_p2 == "logout":
                 self.p1.logout()
                 self.p2.logout()
             
+            # shield
             if action_p1 == "shield":
                 self.p1.shield()
             
             if action_p2 == "shield":
                 self.p2.shield()
-
+            
+            # reload
             if action_p1 == "reload":
                 self.p1.reload()
+                # flag to send back to int comms
                 reloadSendRelayP1.set()
 
             if action_p2 == "reload":
                 self.p2.reload()
+                # flag to send back to int comms
                 reloadSendRelayP2.set()
             
             # both shoot
@@ -400,11 +393,14 @@ class Game_Engine(Process):
                 self.p1.shoot()
                 self.p2.shoot()
                 start_time = time.time()
+                # check until time, if vest not recv send as miss
                 while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
                     # as both are in range of each other only one needs to be checked
                     if shootP1Hit.is_set() or shootP2Hit.is_set():
+                        # udpate internal state for shoot hit
                         self.p1.shoot_hit()
                         self.p2.shoot_hit()
+                        # clear flags
                         shootP1Hit.clear()
                         shootP2Hit.clear()
                         temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
@@ -412,11 +408,13 @@ class Game_Engine(Process):
                         temp_dict["p2"]["action"] = "shoot_p1_hits"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
+
                 if not shootP1Hit.is_set() and not shootP2Hit.is_set():
                     temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                     temp_dict["p1"]["action"] = "shoot_p2_misses"
                     temp_dict["p2"]["action"] = "shoot_p1_misses"
                     viz_queue.put(('STATE', json.dumps(temp_dict)))
+
             elif action_p1 == "shoot":
                 self.p1.shoot()
                 start_time = time.time()
