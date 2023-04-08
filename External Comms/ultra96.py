@@ -380,14 +380,15 @@ class Game_Engine(Process):
             
             # reload
             if action_p1 == "reload":
+                if self.p1.bullets <= 0:
+                    reloadSendRelayP1.set() 
                 self.p1.reload()
-                # flag to send back to int comms
-                reloadSendRelayP1.set()
+
 
             if action_p2 == "reload":
+                if self.p1.bullets <= 0:
+                    reloadSendRelayP2.set() 
                 self.p2.reload()
-                # flag to send back to int comms
-                reloadSendRelayP2.set()
             
             # both shoot
             if action_p1 == "shoot" and action_p2 == "shoot":
@@ -401,17 +402,16 @@ class Game_Engine(Process):
                         # udpate internal state for shoot hit
                         self.p1.shoot_hit()
                         self.p2.shoot_hit()
-                        # clear flags
-                        shootP1Hit.clear()
-                        shootP2Hit.clear()
                         temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                         temp_dict["p1"]["action"] = "shoot_p2_hits"
                         temp_dict["p2"]["action"] = "shoot_p1_hits"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
 
-                # TODO This will always send as flags cleared earlier
                 if not shootP1Hit.is_set() and not shootP2Hit.is_set():
+                    # clear flags
+                    shootP1Hit.clear()
+                    shootP2Hit.clear()
                     temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                     temp_dict["p1"]["action"] = "shoot_p2_misses"
                     temp_dict["p2"]["action"] = "shoot_p1_misses"
@@ -423,12 +423,13 @@ class Game_Engine(Process):
                 while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
                     if shootP2Hit.is_set():
                         self.p2.shoot_hit()
-                        shootP2Hit.clear()
                         temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                         temp_dict["p1"]["action"] = "shoot_p2_hits"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
+
                 if not shootP2Hit.is_set():
+                    shootP2Hit.clear()
                     temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                     temp_dict["p1"]["action"] = "shoot_p2_misses"
                     viz_queue.put(('STATE', json.dumps(temp_dict)))
@@ -439,13 +440,13 @@ class Game_Engine(Process):
                 while time.time() - start_time < SHOOT_MAX_TIME_LIMIT:
                     if shootP1Hit.is_set():
                         self.p1.shoot_hit()
-                        shootP1Hit.clear()
                         temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                         temp_dict["p1"]["action"] = "none"
                         temp_dict["p2"]["action"] = "shoot_p1_hits"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
                 if not shootP1Hit.is_set():
+                    shootP1Hit.clear()
                     temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                     temp_dict["p1"]["action"] = "none"
                     temp_dict["p2"]["action"] = "shoot_p1_misses"
@@ -459,7 +460,9 @@ class Game_Engine(Process):
                 send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                 send_dict["p1"]["action"] = action_p1
                 send_dict["p2"]["action"] = action_p2
+                # send check
                 viz_queue.put(('CHECK', json.dumps(send_dict)))
+                # wait for 3 sec
                 while time.time() - start_time < GRENADE_MAX_TIME_LIMIT:
                     # as both are in range of each other only one needs to be checked
                     if grenadeP1Hit.is_set() or grenadeP2Hit.is_set():
@@ -484,6 +487,7 @@ class Game_Engine(Process):
                         temp_dict["p2"]["action"] = "grenade_p1_misses"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
+
             elif action_p1 == "grenade":
                 self.p1.grenade()
                 send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
@@ -507,7 +511,9 @@ class Game_Engine(Process):
                         temp_dict["p1"]["action"] = "grenade_p2_misses"
                         temp_dict["p2"]["action"] = "none"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
-                        break                
+                        break   
+
+                         
             elif action_p2 == "grenade":
                 self.p2.grenade()
                 send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
@@ -524,6 +530,7 @@ class Game_Engine(Process):
                         temp_dict["p2"]["action"] = "grenade_p1_hits"
                         viz_queue.put(('STATE', json.dumps(temp_dict)))
                         break
+
                     if grenadeP1Miss.is_set():
                         grenadeP1Miss.clear()
                         temp_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
@@ -540,6 +547,7 @@ class Game_Engine(Process):
 
             # sync states
             recv_state = recv_queue.get()
+            # update internal state from eval server
             self.p1.initialize_from_dict(recv_state["p1"])
             self.p2.initialize_from_dict(recv_state["p2"])
             send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
