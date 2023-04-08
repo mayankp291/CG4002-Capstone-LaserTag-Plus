@@ -22,6 +22,7 @@ THRESHOLD_PRECISION_TRAIN_DATA = 10
 PRINT_PRECISION_TEST_DATA = 8
 PRINT_PRECISION_WEIGHTS = 9
 ACTUAL_PRECISION_TRAIN_DATA = 6
+DATA_FOLDER_NAME = "parsedNewData"
 
 
 
@@ -153,7 +154,7 @@ def extract_features(*argsv):
 def get_data_labels():
     labels = []
 
-    with open(f"Dataset/action.txt", "r") as text_file:
+    with open(f"Dataset/{DATA_FOLDER_NAME}/action.txt", "r") as text_file:
         lines = text_file.readlines()
         for line in lines:
             label = int(line.strip())
@@ -233,7 +234,7 @@ def load_data(data_type, *argsv):
 
 
 def get_data_paths():
-    base_path = f"Dataset/"
+    base_path = f"Dataset/{DATA_FOLDER_NAME}/"
     return [f"{base_path}aX.txt", f"{base_path}aY.txt", 
             f"{base_path}aZ.txt", f"{base_path}gX.txt", 
             f"{base_path}gY.txt", f"{base_path}gZ.txt"]
