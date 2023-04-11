@@ -32,11 +32,11 @@ class AI_Process(Process):
 
     def run(self):
         """
-        Runs the AI_Process process, running the AI model on the Ultra96.
+        Runs the AI_Process process, gets imu data from imu_queue and processes it.
         """
         while True:
             self.player, self.imu_data = self.imu_queue.get()
-            self.AI_actual()
+            self.AI()
 
     def extract_features(self):
         """
@@ -161,13 +161,13 @@ class AI_Process(Process):
         # return None
         self.imu_data = None
 
-    def AI_actual(self):
+    def AI(self):
         """
         This function is called by the AI thread. It is responsible for
         extracting features from the IMU data and sending them to the
         AI model for prediction.
         """
-        
+
         global prediction_array, NUM_INPUT
 
         self.detect_start_of_move()

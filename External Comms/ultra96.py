@@ -526,7 +526,7 @@ class Game_Engine(Process):
 
 
 class AI_Process(Process):
-    def __init__(self, q):
+    def __init__(self, player_imu_queue):
         super().__init__()
         # DMA BUFFER CONFIG
         self.ol = Overlay('new_design_1_wrapper.bit')
@@ -534,14 +534,14 @@ class AI_Process(Process):
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
         self.imu_data = np.empty((40, 6), dtype=np.int32)
-        self.imu_queue = q
+        self.imu_queue = player_imu_queue
         self.player = None
         self.features = None
 
     def run(self):
         while True:
             self.player, self.imu_data = self.imu_queue.get()
-            self.AI_actual()
+            self.AI()
 
     def extract_features(self):
 
@@ -724,7 +724,7 @@ class AI_Process(Process):
 
         return None
 
-    def AI_actual(self):
+    def AI(self):
         global prediction_array, NUM_INPUT
 
         self.detect_start_of_move()
@@ -750,17 +750,14 @@ class AI_Process(Process):
 
                 action = self.output_buffer[0]
 
-                # prediction_array.append(action)
                 print('Predicted class:', self.player, action, mapping[action])
 
                 run = False
-                if not mapping[action] == 'idle':
+                if not mapping[action] == 'idle' and evalServerConnected.is_set():
                     if self.player == 'p1':
-                        if evalServerConnected.is_set():
-                            self.imu_queue.put(mapping[action])
+                        action_p1_queue.put(mapping[action])
                     else:
-                        if evalServerConnected.is_set():
-                            self.imu_queue.put(mapping[action])
+                        action_p2_queue.put(mapping[action])
 
             except RuntimeError as e:
                 print(e)
