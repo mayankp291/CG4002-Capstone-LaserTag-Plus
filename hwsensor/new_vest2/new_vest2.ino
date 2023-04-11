@@ -198,7 +198,7 @@ void loop(void) {
     led();
     isGrenadeHit = false;
   }
-
+//  /
   if (IrReceiver.decode()) {
 //     Serial.println("Received something...");
     if(IrReceiver.decodedIRData.address == 0x0102) {

@@ -166,12 +166,12 @@ void loop(void) {
 
 //       Serial.println("Triggered!!!");
       if (bullets > 0 ) {
-          IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent
-          dummy_shot = true;
-          shotsCount +=1;
-          playTone(bullets);
-          bullets = bullets - 1;
+        IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent
+        playTone(bullets);
+        bullets = bullets - 1;
       }
+      shotsCount +=1;
+      dummy_shot = true;
 //       Serial.println(bullets);
       digitalWrite(ledPin, HIGH);  // turn LED OFF
 

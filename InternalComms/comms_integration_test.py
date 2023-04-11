@@ -214,10 +214,10 @@ class MyDelegate(DefaultDelegate):
                 # print(unpackedPacket)
                 # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
-                print("packetType, deviceId, length ", packetType, ",", self.deviceId,
-                      ",", len(self.receivingBuffer))
+                # print("packetType, deviceId, length ", packetType, ",", self.deviceId,
+                #       ",", len(self.receivingBuffer))
                 # , ",", self.transmissionSpeed, "kbps"
-                print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
+                # print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
                 if packetType == 'A':
                     self.handleAckPacket()
                 if packetType == 'M':
@@ -234,8 +234,8 @@ class MyDelegate(DefaultDelegate):
                         }
                     }
                     self.motionPacketsCount += 1
-                    print("MotionPacketsCount: ", self.motionPacketsCount)
-                    print(sendData)
+                    # print("MotionPacketsCount: ", self.motionPacketsCount)
+                    # print(sendData)
                     # self.savedata(sendData)
                     self.lock.acquire()
                     # dataBuffer.put(sendData)
@@ -712,7 +712,7 @@ class Relay_Client_Recv(mp.Process):
     def run(self):
         try:
             while True:
-                data = self.sock.recv(500)
+                data = self.sock.recv(1024)
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
@@ -729,10 +729,11 @@ class Relay_Client_Recv(mp.Process):
                         isReloadFlagGun2.set()
 
 
-        except:
+        except Exception as e:
             print('Connection to Relay Server lost')
+            print(e)
             # self.relaySocket.close()
-            sys.exit()
+            # sys.exit()
 
 
 
@@ -770,7 +771,7 @@ if __name__ == '__main__':
     try:
         lock = mp.Lock()
 
-        # sock.connect(('192.168.95.235', 11000))
+        #sock.connect(('192.168.95.235', 11000))
 
         # using a multiprocessing queue FIFO
         # dataBuffer = mp.Queue()
@@ -805,8 +806,8 @@ if __name__ == '__main__':
 
         tunnel_ultra96()
 
-        # HOST, PORT = 'localhost', 11000
-        HOST, PORT = '192.168.95.235', 11000
+        HOST, PORT = 'localhost', 11000
+        #HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)
         sock.connect((HOST, PORT))
 
@@ -822,10 +823,11 @@ if __name__ == '__main__':
         send_imu1_thread = Relay_Client_Send_IMU1(sock2)
         send_imu2_thread = Relay_Client_Send_IMU2(sock3)
 
-        send_imu1_thread.start()
-        send_imu2_thread.start()
         send_thread.start()
         recv_thread.start()
+
+        send_imu1_thread.start()
+        send_imu2_thread.start()
 
         IMU1_Thread.start()
         Vest1_Thread.start()
@@ -835,15 +837,15 @@ if __name__ == '__main__':
         Vest2_Thread.start()
         Gun2_Thread.start()
 
-        # relay_thread.start()
+        #relay_thread.start()
 
-        # UpdateBulletThread.start()
-        # ReloadThread.start()
-        # GrenadeThread.start()
+        #UpdateBulletThread.start()
+        #ReloadThread.start()
+        #GrenadeThread.start()
         send_thread.join()
         recv_thread.join()
         send_imu1_thread.join()
-        # send_imu2_thread.join()
+        send_imu2_thread.join()
 
         IMU1_Thread.join()
         Vest1_Thread.join()

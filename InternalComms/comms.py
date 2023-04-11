@@ -516,7 +516,7 @@ class Relay_Client(threading.Thread):
 
 def testReloadThread():
     while True:
-        time.sleep(20)
+        time.sleep(5)
         isReloadFlagGun2.set()
         isReloadFlagGun1.set()
         print('setting reload flags')
@@ -586,7 +586,7 @@ if __name__ == '__main__':
 
         # relay_thread = Relay_Client('172.20.10.2', 11000)
 
-        # ReloadThread = threading.Thread(target = testReloadThread, args = ())
+        ReloadThread = threading.Thread(target = testReloadThread, args = ())
         # GrenadeThread = threading.Thread(target = testGrenadeHitThread, args = ())
         UpdateBulletThread = threading.Thread(target = testBulletUpdateThread, args = ())
 
@@ -602,7 +602,7 @@ if __name__ == '__main__':
         # relay_thread.start()
 
         UpdateBulletThread.start()
-        # ReloadThread.start()
+        ReloadThread.start()
         # GrenadeThread.start()
 
         IMU1_Thread.join()
@@ -615,7 +615,7 @@ if __name__ == '__main__':
         Gun2_Thread.join()
 
         UpdateBulletThread.join()
-        # ReloadThread.join()
+        ReloadThread.join()
         # GrenadeThread.join()
         # relay_thread.join()
 

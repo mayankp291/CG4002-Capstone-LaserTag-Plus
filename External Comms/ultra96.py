@@ -432,6 +432,8 @@ class Game_Engine(Process):
     def triggerShoot(self, action_p1, action_p2):
         action_p1_viz = action_p1
         action_p2_viz = action_p2
+        isPlayerOneShootInvalid = (self.p1.bullets <= 0)
+        isPlayerTwoShootInvalid = (self.p2.bullets <= 0)
         # both shoot
         if action_p1 == "shoot" and action_p2 == "shoot":
             self.p1.shoot()
@@ -451,6 +453,10 @@ class Game_Engine(Process):
                 # clear flags
                 action_p1_viz = "shoot_p2_misses"
                 action_p2_viz = "shoot_p1_misses"
+            if isPlayerOneShootInvalid:
+                action_p1_viz = "shoot_p2_invalid"
+            if isPlayerTwoShootInvalid:
+                action_p2_viz = "shoot_p1_invalid"
         elif action_p1 == "shoot":
             self.p1.shoot()
             start_time = time.time()
@@ -460,7 +466,10 @@ class Game_Engine(Process):
                     action_p1_viz = "shoot_p2_hits"
                     break
             if not shootP2Hit.is_set():
-                action_p1_viz = "shoot_p2_misses"
+                if isPlayerOneShootInvalid:
+                    action_p1_viz = "shoot_p2_invalid"
+                else:
+                    action_p1_viz = "shoot_p2_misses"
         else:
             self.p2.shoot()
             start_time = time.time()
@@ -470,15 +479,23 @@ class Game_Engine(Process):
                     action_p2_viz = "shoot_p1_hits"
                     break
             if not shootP1Hit.is_set():
-                action_p2_viz = "shoot_p1_misses"
+                if isPlayerTwoShootInvalid:
+                    action_p2_viz = "shoot_p1_invalid"
+                else:
+                    action_p2_viz = "shoot_p1_misses"
         return action_p1_viz, action_p2_viz
 
     def triggerGrenade(self, action_p1, action_p2):
         action_p1_viz = "none"
         action_p2_viz = "none"
+        isPlayerOneGrenadeInvalid = (self.p1.grenades <= 0)
+        isPlayerTwoGrenadeInvalid = (self.p2.grenades <= 0)
         if action_p1 == "grenade" and action_p2 == "grenade":
             self.p1.grenade()
             self.p2.grenade()
+            if isPlayerOneGrenadeInvalid and isPlayerTwoGrenadeInvalid:
+                # when two players have insufficient number of grenades
+                return action_p1, action_p2
             start_time = time.time()
             send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             send_dict["p1"]["action"] = action_p1
@@ -489,17 +506,24 @@ class Game_Engine(Process):
             while (time.time() - start_time) < GRENADE_MAX_TIME_LIMIT:
                 # as both are in range of each other only one needs to be checked
                 if grenadeP1Hit.is_set() or grenadeP2Hit.is_set():
-                    self.p1.grenade_hit()
-                    self.p2.grenade_hit()
-                    action_p1_viz = "grenade_p2_hits"
-                    action_p2_viz = "grenade_p1_hits"
+                    if not isPlayerOneGrenadeInvalid:
+                        self.p1.grenade_hit()
+                        action_p1_viz = "grenade_p2_hits"
+                    if not isPlayerTwoGrenadeInvalid:
+                        self.p2.grenade_hit()
+                        action_p2_viz = "grenade_p1_hits"
                     break
                 elif grenadeP1Miss.is_set() or grenadeP2Miss.is_set():
-                    action_p1_viz = "grenade_p2_misses"
-                    action_p2_viz = "grenade_p1_misses"
+                    if not isPlayerOneGrenadeInvalid:
+                        action_p1_viz = "grenade_p2_misses"
+                    if not isPlayerTwoGrenadeInvalid:
+                        action_p2_viz = "grenade_p1_misses"
                     break
         elif action_p1 == "grenade":
             self.p1.grenade()
+            if isPlayerOneGrenadeInvalid:
+                # when player one have insufficient number of grenades
+                return action_p1, action_p2
             send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             send_dict["p1"]["action"] = action_p1
             send_dict["p2"]["action"] = action_p2
@@ -509,14 +533,15 @@ class Game_Engine(Process):
                 if grenadeP2Hit.is_set():
                     self.p2.grenade_hit()
                     action_p1_viz = "grenade_p2_hits"
-                    action_p2_viz = "none"
                     break
                 elif grenadeP2Miss.is_set():
                     action_p1_viz = "grenade_p2_misses"
-                    action_p2_viz = "none"
                     break   
         else:
             self.p2.grenade()
+            if isPlayerTwoGrenadeInvalid:
+                # when player two have insufficient number of grenades
+                return action_p1, action_p2
             send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             send_dict["p1"]["action"] = action_p1
             send_dict["p2"]["action"] = action_p2
@@ -525,11 +550,9 @@ class Game_Engine(Process):
             while time.time() - start_time < GRENADE_MAX_TIME_LIMIT:
                 if grenadeP1Hit.is_set():
                     self.p1.grenade_hit()
-                    action_p1_viz = "none"
                     action_p2_viz = "grenade_p1_hits"
                     break
                 elif grenadeP1Miss.is_set():
-                    action_p1_viz = "none"
                     action_p2_viz = "grenade_p1_misses"
                     break  
         return action_p1_viz, action_p2_viz
