@@ -103,18 +103,29 @@ HEALTH_PACKET = 'H'
 RELOAD_PACKET = 'R'
 GRENADE_PACKET = 'G'
 
-isReloadFlagGun1 = threading.Event()
+# isReloadFlagGun1 = threading.Event()
+# isReloadFlagGun1.clear()
+
+# isReloadFlagGun2 = threading.Event()
+# isReloadFlagGun2.clear()
+
+# doesGrenadeHitFlagVest1 = threading.Event()
+# doesGrenadeHitFlagVest1.clear()
+
+# doesGrenadeHitFlagVest2 = threading.Event()
+# doesGrenadeHitFlagVest2.clear()
+
+isReloadFlagGun1 = mp.Event()
 isReloadFlagGun1.clear()
 
-isReloadFlagGun2 = threading.Event()
+isReloadFlagGun2 = mp.Event()
 isReloadFlagGun2.clear()
 
-doesGrenadeHitFlagVest1 = threading.Event()
+doesGrenadeHitFlagVest1 = mp.Event()
 doesGrenadeHitFlagVest1.clear()
 
-doesGrenadeHitFlagVest2 = threading.Event()
+doesGrenadeHitFlagVest2 = mp.Event()
 doesGrenadeHitFlagVest2.clear()
-
 
 class CheckSumFailedError(Exception):
     pass
@@ -813,7 +824,7 @@ if __name__ == '__main__':
         #HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)
         sock.connect((HOST, PORT))
-
+        time.sleep(0.1)
         sock2 = socket(AF_INET, SOCK_STREAM)
         sock2.connect((HOST, PORT))
 
@@ -829,8 +840,7 @@ if __name__ == '__main__':
         send_thread.start()
         recv_thread.start()
 
-        send_imu1_thread.start()
-        send_imu2_thread.start()
+
 
         IMU1_Thread.start()
         Vest1_Thread.start()
@@ -839,6 +849,9 @@ if __name__ == '__main__':
         IMU2_Thread.start()
         Vest2_Thread.start()
         Gun2_Thread.start()
+
+        send_imu1_thread.start()
+        send_imu2_thread.start()
 
         #relay_thread.start()
 
