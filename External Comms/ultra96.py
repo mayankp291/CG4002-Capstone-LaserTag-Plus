@@ -303,11 +303,13 @@ class Game_Engine(Process):
     def run(self):
         # flow = get both player actions -> process actions -> send to visualizer and eval server -> get updated state from eval server
         while True:
+            action_p1, action_p2 = 'none', 'none'
             self.p1.update_shield_time()
             self.p2.update_shield_time()
 
             # get both player actions
             try:
+                print("[DEBUG] Ready to get player actions")
                 action_p1 = action_p1_queue.get(timeout=30)
                 action_p2 = action_p2_queue.get(timeout=30)
             except Exception as e:
@@ -323,7 +325,10 @@ class Game_Engine(Process):
                 except queues.Empty:
                     pass
                 print("Game Engine: Resetting player actions")
-                break
+                processing.clear()
+                continue
+                
+            print("[DEBUG]", processing.is_set(), action_p1, action_p2)
 
             # set flag for processing
             processing.set()
@@ -386,10 +391,14 @@ class Game_Engine(Process):
             grenadeP1Miss.clear()
             grenadeP2Miss.clear()
             # sync states
-            recv_state = recv_queue.get()
+            try:
+                recv_state = recv_queue.get(timeout=5)
+                self.p1.initialize_from_dict(recv_state["p1"])
+                self.p2.initialize_from_dict(recv_state["p2"])
+            except:
+                print("RECV queue is empty")
             # update internal state from eval server
-            self.p1.initialize_from_dict(recv_state["p1"])
-            self.p2.initialize_from_dict(recv_state["p2"])
+
             # send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             # print("[SYNCED STATE]", send_dict)
 
