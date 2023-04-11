@@ -9,7 +9,16 @@ from constants import *
 
 
 class AI_Process(Process):
+    """	
+    A process that runs the AI model on the Ultra96 .
+    """
     def __init__(self, q):
+        """
+        Initializes the AI_Process process.
+
+        Args:
+        q (Queue): The queue used to receive data from the IMU_Process process.
+        """
         super().__init__()
         # DMA BUFFER CONFIG
         self.ol = Overlay('new_design_1_wrapper.bit')
@@ -22,11 +31,17 @@ class AI_Process(Process):
         self.features = None
 
     def run(self):
+        """
+        Runs the AI_Process process, running the AI model on the Ultra96.
+        """
         while True:
             self.player, self.imu_data = self.imu_queue.get()
             self.AI_actual()
 
     def extract_features(self):
+        """
+        Extracts features from the IMU data.
+        """
 
         mean_acc_x = np.mean(self.imu_data[0])
         mean_acc_y = np.mean(self.imu_data[1])
@@ -94,6 +109,9 @@ class AI_Process(Process):
                                   phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
 
     def detect_start_of_move(self):
+        """	
+        Detects the start of a movement by looking for a sudden change in acceleration values.
+        """	
 
         # define threshold values as hard-coded values
         # OLD
@@ -144,6 +162,12 @@ class AI_Process(Process):
         self.imu_data = None
 
     def AI_actual(self):
+        """
+        This function is called by the AI thread. It is responsible for
+        extracting features from the IMU data and sending them to the
+        AI model for prediction.
+        """
+        
         global prediction_array, NUM_INPUT
 
         self.detect_start_of_move()

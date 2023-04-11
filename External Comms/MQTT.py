@@ -5,7 +5,24 @@ from constants import MQTT_USERNAME, MQTT_PASSWORD
 
 
 class MQTT_Client(Process):
+    """
+    A process that handles MQTT communication.
+    """
     def __init__(self, pub_topic, sub_topic, client_id, group, viz_queue, grenadeP1Hit, grenadeP1Miss, grenadeP2Hit, grenadeP2Miss) -> None:
+        """
+        Initializes the MQTT_Client process.
+        
+        Args:
+        pub_topic (str): The topic to publish to.
+        sub_topic (str): The topic to subscribe to.
+        client_id (str): The client ID to use.
+        group (str): The group ID to use.
+        viz_queue (Queue): The queue used to send data to the visualization process.
+        grenadeP1Hit (Event): An event flag indicating that player 1 has been hit by a grenade.
+        grenadeP1Miss (Event): An event flag indicating that player 1 has missed a grenade.
+        grenadeP2Hit (Event): An event flag indicating that player 2 has been hit by a grenade.
+        grenadeP2Miss (Event): An event flag indicating that player 2 has missed a grenade.
+        """
         super().__init__()
         self.pub_topic = pub_topic
         self.sub_topic = sub_topic
@@ -38,6 +55,13 @@ class MQTT_Client(Process):
             self.client.loop_stop()
 
     def publish(self, type, data):
+        """	
+        Publishes a message to the MQTT broker.
+
+        Args:
+        type (str): The type of message to publish.
+        data (str): The data to publish.
+        """
         try:
             data = str(data)
             message = str(len(data)) + '_' + type + '_' + data
@@ -50,6 +74,14 @@ class MQTT_Client(Process):
             print("Error: could not publish message")
 
     def receive(self, client, userdata, message):
+        """
+        Receives a message from the MQTT broker.	
+        
+        Args:
+        client (Client): The client instance for this callback.
+        userdata (object): The private user data as set in Client() or userdata_set().
+        message (MQTTMessage): An instance of MQTTMessage. This is a class with members topic, payload, qos, retain.
+        """
         try:
             print("[MQTT] " + message.payload.decode("utf-8"))
             msg = message.payload.decode("utf-8")
