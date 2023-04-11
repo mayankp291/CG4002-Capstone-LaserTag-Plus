@@ -171,7 +171,6 @@ class Relay_Server_Send(Process):
             # self.relaySocket.close()
 
 # TCP Server to receive data from the Relay Laptops
-# TODO Spawn thread to handle sending data to the relay laptop
 class Relay_Server(Process):
     def __init__(self, host, port):
         super().__init__()
