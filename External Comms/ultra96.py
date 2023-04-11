@@ -1269,6 +1269,7 @@ class Evaluation_Client(Process):
                 player_state_intcomms['p1']['bullets'] = recv_dict['p1']['bullets']
                 player_state_intcomms['p2']['bullets'] = recv_dict['p2']['bullets']
                 # player_state = recv_dict
+                curr_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                 action_p1 = recv_dict['p1']['action']
                 action_p2 = recv_dict['p2']['action']
                 if action_p1 != "logout" and action_p2 != "logout":
