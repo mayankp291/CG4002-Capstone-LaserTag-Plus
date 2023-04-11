@@ -28,11 +28,11 @@ import pickle
 import multiprocessing
 from PlayerState import Player
 
-### kill all child processes on exit
-def cleanup():
-    os.killpg(0, signal.SIGTERM)
+# ### kill all child processes on exit
+# def cleanup():
+#     os.killpg(0, signal.SIGTERM)
 
-atexit.register(cleanup)
+# atexit.register(cleanup)
 
 # data = {"playerID": 1, 2, “beetleID”: 1-6, “sensorData”: {}}
 # len_data
@@ -188,7 +188,14 @@ class Relay_Server_Send(Process):
 # TODO Spawn thread to handle sending data to the relay laptop
 class Relay_Server(Process):
     def __init__(self, host, port):
-        super().__init__()RELAY_SEND
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.server = socket(AF_INET, SOCK_STREAM)
+        self.server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.server.bind((self.host, self.port))
+
+    def run(self):
         self.server.listen(1)
         print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
         while True:
@@ -389,7 +396,7 @@ class Game_Engine(Process):
 
 
             if action_p2 == "reload":
-                if self.p1.bullets <= 0:
+                if self.p2.bullets <= 0:
                     reloadSendRelayP2.set() 
                 self.p2.reload()
             
@@ -1269,7 +1276,6 @@ class Evaluation_Client(Process):
                 player_state_intcomms['p1']['bullets'] = recv_dict['p1']['bullets']
                 player_state_intcomms['p2']['bullets'] = recv_dict['p2']['bullets']
                 # player_state = recv_dict
-                curr_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
                 action_p1 = recv_dict['p1']['action']
                 action_p2 = recv_dict['p2']['action']
                 if action_p1 != "logout" and action_p2 != "logout":
