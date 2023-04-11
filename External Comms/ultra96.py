@@ -158,6 +158,7 @@ class Relay_Server_Send(Process):
     def run(self):
         while True:
             send_data = intcomms_queue.get()
+            send_data = json.loads(send_data)
             ### send RELOAD only if bullets are 0
             # both reload action and 0 bullets
             if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
@@ -178,22 +179,16 @@ class Relay_Server_Send(Process):
             data = str(data)
             self.sock.sendall(data.encode("utf-8"))
             print('[RELAY_SEND] Sent to Relay Laptop: {}'.format(data))
-        except:
+        except Exception as e:
             print('Connection to Relay Laptop lost')
+            print(e)
             # self.relaySocket.close()
 
 # TCP Server to receive data from the Relay Laptops
 # TODO Spawn thread to handle sending data to the relay laptop
 class Relay_Server(Process):
     def __init__(self, host, port):
-        super().__init__()
-        self.host = host
-        self.port = port
-        self.server = socket(AF_INET, SOCK_STREAM)
-        self.server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.server.bind((self.host, self.port))
-
-    def run(self):
+        super().__init__()RELAY_SEND
         self.server.listen(1)
         print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
         while True:
@@ -217,7 +212,7 @@ class Relay_Server(Process):
                 relayFlag.clear()
             while True:
                 # receive data from client
-                # (protocol) len(data)_data
+                # (protocol) len(data)_dataRELAY_SEND
                 data = b''
                 while not data.endswith(b'_'):
                     _d = request.recv(1)
@@ -409,7 +404,7 @@ class Game_Engine(Process):
             viz_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             viz_dict["p1"]["action"] = action_p1_viz
             viz_dict["p2"]["action"] = action_p2_viz
-            viz_queue.put('STATE', viz_dict)
+            viz_queue.put(('STATE', json.dumps(viz_dict)))
             eval_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
             print("[INTERNAL STATE]", eval_dict)
             eval_queue.put(json.dumps(eval_dict))
@@ -1205,6 +1200,7 @@ class Evaluation_Client(Process):
             while True:
                 data = eval_queue.get()
                 # print("[EVAL CLIENT]", player_state)
+                self.player_state = json.loads(data)
                 self.send(data)
                 self.receive()
         except Exception as e:
@@ -1263,7 +1259,7 @@ class Evaluation_Client(Process):
                 if len(data) == 0:
                     print('no more data from the client')
                     self.stop()
-                recv_dict = data.decode("utf8")  # Decode raw bytes to UTF-8
+                recv_dict = data.decode("utf8")  # D1ode raw bytes to UTF-8
                 # recv_dict = literal_eval(msg)
                 recv_dict = json.loads(recv_dict)
                 player_state_intcomms['p1']['action'] = recv_dict['p1']['action']
@@ -1279,9 +1275,9 @@ class Evaluation_Client(Process):
                 if action_p1 != "logout" and action_p2 != "logout":
                     recv_dict['p1']['action'] = 'none'
                     recv_dict['p2']['action'] = 'none'
-                if action_p1 == "shield" and curr_dict['p1']['action'] != "shield":
+                if action_p1 == "shield" and self.player_state['p1']['action'] != "shield":
                     recv_dict['p1']['action'] = 'shield'
-                if action_p2 == "shield" and curr_dict['p2']['action'] != "shield":
+                if action_p2 == "shield" and self.player_state['p2']['action'] != "shield":
                     recv_dict['p2']['action'] = 'shield'
                 viz_queue.put(('STATE', json.dumps(recv_dict)))
                 # if recv_dict['p1']['action'] != 'shoot' and recv_dict['p2']['action'] != 'shoot' and recv_dict['p1']['action'] != 'grenade' and recv_dict['p2']['action'] != 'grenade':
@@ -1293,7 +1289,7 @@ class Evaluation_Client(Process):
                 #     viz_queue.put(('STATE', json.dumps(recv_dict)))
                 # ### UPDATE INT COMMS STATE
 
-                intcomms_queue.put(player_state_intcomms)
+                intcomms_queue.put(json.dumps(player_state_intcomms))
 
                 print('=====================================')
                 print("[EVAL SERVER] Received message from Evaluation Server", recv_dict)
@@ -1342,8 +1338,8 @@ class Evaluation_Client(Process):
 
 
 def main():
-    eval_client = Evaluation_Client('137.132.92.184', 8888, 2)
-    # eval_client = Evaluation_Client('localhost', 11001, 2)
+    # eval_client = Evaluation_Client('137.132.92.184', 8888, 2)
+    eval_client = Evaluation_Client('localhost', 11001, 2)
     # eval_client.daemon = True
     eval_client.start()
 
