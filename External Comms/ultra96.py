@@ -83,6 +83,8 @@ shootP2Hit = Event()
 shootP2Hit.clear()
 relayFlag = Event()
 relayFlag.set()
+# relayFlag = threading.Event()
+# relayFlag.set()
 reloadSendRelayP1 = Event()
 reloadSendRelayP1.clear() 
 reloadSendRelayP2 = Event()
@@ -93,7 +95,7 @@ reloadSendRelayP2.clear()
 # isPlayerTwoActivated.clear()
 # shootGrenadeActivated = threading.Event()
 # shootGrenadeActivated.clear()
-evalServerConnected = threading.Event()
+evalServerConnected = Event()
 # evalServerConnected.clear()
 evalServerConnected.set()
 ### NOT BEING USED NOW
@@ -214,9 +216,10 @@ class Relay_Server(Process):
     def handle_client(self, request, client_address):
         try:
             if relayFlag.is_set():
+                relayFlag.clear()
                 sending_thread = Relay_Server_Send(request)
                 sending_thread.start()
-                relayFlag.clear()
+                
             while True:
                 # receive data from client
                 # (protocol) len(data)_dataRELAY_SEND
@@ -663,6 +666,10 @@ class AI_Thread_1(Process):
         y_thresh = 13000
         z_thresh = 18000   
 
+        # x_thresh = 15300
+        # y_thresh = 9000
+        # z_thresh = 18000 
+
         # x_thresh = y_thresh = z_thresh = 9000
 
         # np_imu_data = np.array(self.imu_data)
@@ -920,7 +927,7 @@ class AI_Thread_2(Process):
     def detect_start_of_move(self):
 
         # define threshold values as hard-coded values
-        ## OLD
+        # ## OLD
         # x_thresh = 18300
         # y_thresh = 11000
         # z_thresh = 17000
@@ -934,6 +941,10 @@ class AI_Thread_2(Process):
         x_thresh = 19300
         y_thresh = 13000
         z_thresh = 18000   
+
+        # x_thresh = 15300
+        # y_thresh = 9000
+        # z_thresh = 18000 
 
         # x_thresh = y_thresh = z_thresh = 9000
 
