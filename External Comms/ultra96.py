@@ -25,7 +25,6 @@ from pynq import allocate
 import atexit
 import os
 import pickle
-import multiprocessing
 from PlayerState import Player
 
 # ### kill all child processes on exit
@@ -69,6 +68,9 @@ eval_queue = Queue()
 intcomms_queue = Queue()
 recv_queue = Queue()
 
+
+processing = Event()
+processing.clear()
 grenadeP1Miss = Event()
 grenadeP1Miss.clear()
 grenadeP2Miss = Event()
@@ -83,30 +85,12 @@ shootP2Hit = Event()
 shootP2Hit.clear()
 relayFlag = Event()
 relayFlag.set()
-# relayFlag = threading.Event()
-# relayFlag.set()
 reloadSendRelayP1 = Event()
 reloadSendRelayP1.clear() 
 reloadSendRelayP2 = Event()
 reloadSendRelayP2.clear()
-# isPlayerOneActivated = threading.Event()
-# isPlayerOneActivated.clear()
-# isPlayerTwoActivated = threading.Event()
-# isPlayerTwoActivated.clear()
-# shootGrenadeActivated = threading.Event()
-# shootGrenadeActivated.clear()
 evalServerConnected = Event()
-# evalServerConnected.clear()
 evalServerConnected.set()
-### NOT BEING USED NOW
-isPlayerOneGrenadeActivated = threading.Event()
-isPlayerOneGrenadeActivated.clear()
-isPlayerTwoGrenadeActivated = threading.Event()
-isPlayerTwoGrenadeActivated.clear()
-isPlayerOneShootActivated = threading.Event()
-isPlayerOneShootActivated.clear()
-isPlayerTwoShootActivated = threading.Event()
-isPlayerOneShootActivated.clear()
 
 player_state = {
     "p1":
@@ -275,7 +259,7 @@ class Relay_Server(Process):
                     #     print("[RELAY SERVER] {} wrote:".format(client_address))
                     #     print("====================================\n")
 
-                    if data_device == "IMU1" or data_device == "IMU2":
+                    if not processing.is_set() and (data_device == "IMU1" or data_device == "IMU2"):
                         # convert string to numpy array of ints
                         new_array = np.frombuffer(base64.binascii.a2b_base64(data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
@@ -312,41 +296,6 @@ class Relay_Server(Process):
                         print("GUN 2 RECV")
                         if evalServerConnected.is_set():
                             action_p2_queue.put("shoot")
-                    
-                    elif data_device == "TEST":
-                        action_p1 = data["sensorData"][0]
-                        action_p2 = data["sensorData"][1]
-                        if action_p1 == 'shoot_p2_hits':
-                            isPlayerOneShootActivated.clear()
-                        if action_p1 == 'grenade_p2_hits':
-                            isPlayerOneGrenadeActivated.clear()
-                        if action_p2 == 'shoot_p1_hits':
-                            isPlayerTwoShootActivated.clear()
-                        if action_p2 == 'grenade_p1_hits':
-                            isPlayerTwoGrenadeActivated.clear()
-                        action_p1_queue.put(action_p1)
-                        action_p2_queue.put(action_p2)
-
-                ### SENDING TO INT COMMS
-                ### TODO: make this new thread
-                # if intcomms_queue.qsize > 0:
-                # if not intcomms_queue.empty():
-                #     send_data = intcomms_queue.get()
-                #     ### send RELOAD only if bullets are 0
-                #     # both reload action and 0 bullets
-                #     if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
-                #         reloadSendRelayP1.clear()
-                #         reloadSendRelayP2.clear()
-                #     # p1 0 buisPlayerOneShieldActivatedllets and p2 non zero bullets
-                #     elif reloadSendRelayP1.is_set():
-                #         reloadSendRelayP1.clear()
-                #         send_data['p2']['action'] = 'none'
-                #     # p2 0 bullets and p1 non zero bullets
-                #     elif reloadSendRelayP2.is_set():
-                #         reloadSendRelayP2.clear()
-                #         send_data['p1']['action'] = 'none'
-                #     request.sendall(send_data.encode("utf8"))
-
 
         except Exception as e:
             print("Client disconnected")
@@ -370,6 +319,9 @@ class Game_Engine(Process):
             # get both player actions
             action_p1 = action_p1_queue.get()
             action_p2 = action_p2_queue.get()
+            # set flag for processing
+            processing.set()
+
             action_p1_viz = action_p1
             action_p2_viz = action_p2
 
@@ -416,7 +368,7 @@ class Game_Engine(Process):
             viz_dict["p2"]["action"] = action_p2_viz
             viz_queue.put(('STATE', json.dumps(viz_dict)))
             eval_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
-            print("[INTERNAL STATE]", eval_dict)
+            # print("[INTERNAL STATE]", eval_dict)
             eval_queue.put(json.dumps(eval_dict))
 
             # clear all the flags
@@ -431,8 +383,11 @@ class Game_Engine(Process):
             # update internal state from eval server
             self.p1.initialize_from_dict(recv_state["p1"])
             self.p2.initialize_from_dict(recv_state["p2"])
-            send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
-            print("[SYNCED STATE]", send_dict)
+            # send_dict = {"p1": self.p1.get_dict(), "p2": self.p2.get_dict()}
+            # print("[SYNCED STATE]", send_dict)
+
+            # clear processing flag
+            processing.clear()
 
     def triggerShoot(self, action_p1, action_p2):
         action_p1_viz = action_p1
