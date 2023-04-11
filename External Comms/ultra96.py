@@ -247,17 +247,11 @@ class Relay_Server(Process):
                 else:
                     # convert data to dict {'playerID':, 'beetleID':, 'sensorData':}
                     data = literal_eval(data)
-                    
 
                     ### process incoming data
                     # playerid, data
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
-
-                    # if not data_device=="IMU1" and not data_device=="IMU2":
-                    #     print("====================================")
-                    #     print("[RELAY SERVER] {} wrote:".format(client_address))
-                    #     print("====================================\n")
 
                     if not processing.is_set() and (data_device == "IMU1" or data_device == "IMU2"):
                         # convert string to numpy array of ints
@@ -275,19 +269,13 @@ class Relay_Server(Process):
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
                         shootP1Hit.set()
-                        # action_p2_queue.put("shoot_p1_hits")
-                        # isPlayerTwoShootActivated.clear()
                     
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
                         shootP2Hit.set()
-                        # action_p1_queue.put("shoot_p2_hits")
-                        # isPlayerOneShootActivated.clear()
 
                     elif data_device == "GUN1":
                         # shot by player
-                        # action_packet = (data["playerID"], "shoot")
-                        # action_queue.put(action_packet)
                         print("GUN 1 RECV")
                         if evalServerConnected.is_set():
                             action_p1_queue.put("shoot")
@@ -317,8 +305,24 @@ class Game_Engine(Process):
             self.p2.update_shield_time()
 
             # get both player actions
-            action_p1 = action_p1_queue.get()
-            action_p2 = action_p2_queue.get()
+            try:
+                action_p1 = action_p1_queue.get(timeout=30)
+                action_p2 = action_p2_queue.get(timeout=30)
+            except Exception as e:
+                print("Game Engine: Timeout waiting for player actions")
+                try:
+                    while True:
+                        action_p1_queue.get_nowait()
+                except queues.Empty:
+                    pass
+                try:
+                    while True:
+                        action_p2_queue.get_nowait()
+                except queues.Empty:
+                    pass
+                print("Game Engine: Resetting player actions")
+                break
+
             # set flag for processing
             processing.set()
 
@@ -1312,35 +1316,24 @@ class Evaluation_Client(Process):
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 8888, 2)
     eval_client = Evaluation_Client('localhost', 11001, 2)
-    # eval_client.daemon = True
     eval_client.start()
 
     ai_thread1 = AI_Thread_1()
-    # ai_thread.daemon = False
     ai_thread1.start()
 
     ai_thread2 = AI_Thread_2()
-    # ai_thread.daemon = False
     ai_thread2.start()
 
     game_engine = Game_Engine() 
-    # game_engine.daemon = True
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
-    # mqtt.daemon = True
     mqtt.start()
 
     # HOST, PORT = "192.168.95.235", 11000
     HOST, PORT = "localhost", 11000    
     server = Relay_Server(HOST, PORT)
-    # server.daemon = True
     server.start()
-    # while True:
-    #     try:
-    #         mqtt.client.loop_forever()
-    #     except:
-    #         print('MQTT client loop stopped')
     eval_client.join()
     ai_thread1.join()
     ai_thread2.join()
