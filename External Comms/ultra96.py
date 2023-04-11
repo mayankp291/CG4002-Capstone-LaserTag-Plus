@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 # Ultra96 Server
 from socket import *
@@ -47,16 +47,16 @@ GRENADE_MAX_TIME_LIMIT = 6
 
 
 beetleID_mapping = {
-    1: "IMU1", #imu1
-    2: "VEST1", #VEST1
-    3: "GUN1", #GUN1
-    4: "IMU2", #IMU2
-    5: "VEST2", #vest2
-    6: "GUN2", #gun2
+    1: "IMU1",  # imu1
+    2: "VEST1",  # VEST1
+    3: "GUN1",  # GUN1
+    4: "IMU2",  # IMU2
+    5: "VEST2",  # vest2
+    6: "GUN2",  # gun2
     7: "TEST"
 }
 
-### try
+# try
 
 MQTT_USERNAME = "capstonekillingus"
 MQTT_PASSWORD = "capstonekillingus"
@@ -87,7 +87,7 @@ shootP2Hit.clear()
 relayFlag = Event()
 relayFlag.set()
 reloadSendRelayP1 = Event()
-reloadSendRelayP1.clear() 
+reloadSendRelayP1.clear()
 reloadSendRelayP2 = Event()
 reloadSendRelayP2.clear()
 evalServerConnected = Event()
@@ -134,19 +134,17 @@ player_state_intcomms = {
 }
 
 
-
 class Relay_Server_Send(Process):
     def __init__(self, sock):
         super().__init__()
         self.sock = sock
         print("[RELAY_SEND] Ready to send data to Relay")
 
-    
     def run(self):
         while True:
             send_data = intcomms_queue.get()
             send_data = json.loads(send_data)
-            ### send RELOAD only if bullets are 0
+            # send RELOAD only if bullets are 0
             # both reload action and 0 bullets
             if reloadSendRelayP1.is_set() and reloadSendRelayP2.is_set():
                 reloadSendRelayP1.clear()
@@ -172,6 +170,8 @@ class Relay_Server_Send(Process):
             # self.relaySocket.close()
 
 # TCP Server to receive data from the Relay Laptops
+
+
 class Relay_Server(Process):
     def __init__(self, host, port):
         super().__init__()
@@ -183,7 +183,8 @@ class Relay_Server(Process):
 
     def run(self):
         self.server.listen(1)
-        print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
+        print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(
+            self.host, self.port))
         while True:
             client, address = self.server.accept()
             # TODO Add client to where it connected to
@@ -203,7 +204,7 @@ class Relay_Server(Process):
                 relayFlag.clear()
                 sending_thread = Relay_Server_Send(request)
                 sending_thread.start()
-                
+
             while True:
                 # receive data from client
                 # (protocol) len(data)_dataRELAY_SEND
@@ -220,7 +221,7 @@ class Relay_Server(Process):
 
                 # Get Length of data
                 data = data.decode("utf-8")
-                length = int(data[:-1])               
+                length = int(data[:-1])
 
                 # Get data
                 data = b''
@@ -235,27 +236,28 @@ class Relay_Server(Process):
 
                 data = data.decode("utf8")  # Decode raw bytes to UTF-8
                 # format string for length and type
-                
+
                 # print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
-                # print("[DATA]", data)                
-                
+                # print("[DATA]", data)
+
                 # check length of data
                 if length != len(data):
                     print("Error", data)
                     print('Error: packet length does not match, packet dropped')
-                
+
                 else:
                     # convert data to dict {'playerID':, 'beetleID':, 'sensorData':}
                     data = literal_eval(data)
 
-                    ### process incoming data
+                    # process incoming data
                     # playerid, data
                     beetleID = data["beetleID"]
                     data_device = beetleID_mapping[beetleID]
 
                     if not processing.is_set() and (data_device == "IMU1" or data_device == "IMU2"):
                         # convert string to numpy array of ints
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(
+                            data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
                             imu_queue_p1.put(('p1', new_array))
@@ -263,13 +265,13 @@ class Relay_Server(Process):
                         else:
                             imu_queue_p2.put(('p2', new_array))
                             # print("IMU 2 RECV")
-                        
+
                         # grenadeSendRelay.set()
-                    
+
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
                         shootP1Hit.set()
-                    
+
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
                         shootP2Hit.set()
@@ -296,7 +298,7 @@ class Game_Engine(Process):
     def __init__(self):
         super().__init__()
         self.p1 = Player()
-        self.p2 = Player() 
+        self.p2 = Player()
 
     def run(self):
         # flow = get both player actions -> process actions -> send to visualizer and eval server -> get updated state from eval server
@@ -339,31 +341,32 @@ class Game_Engine(Process):
             elif action_p2 == "logout":
                 self.p1.logout()
                 action_p2_viz = "none"
-            
+
             # shield
             if action_p1 == "shield":
                 self.p1.shield()
-            
+
             if action_p2 == "shield":
                 self.p2.shield()
-            
+
             # reload
             if action_p1 == "reload":
                 if self.p1.bullets <= 0:
-                    reloadSendRelayP1.set() 
+                    reloadSendRelayP1.set()
                 self.p1.reload()
-
 
             if action_p2 == "reload":
                 if self.p2.bullets <= 0:
-                    reloadSendRelayP2.set() 
+                    reloadSendRelayP2.set()
                 self.p2.reload()
-            
+
             if action_p1 == "shoot" or action_p2 == "shoot":
-                action_p1_viz, action_p2_viz = self.triggerShoot(action_p1, action_p2)
-            
+                action_p1_viz, action_p2_viz = self.triggerShoot(
+                    action_p1, action_p2)
+
             if action_p1 == "grenade" or action_p2 == "grenade":
-                action_p1_viz, action_p2_viz = self.triggerGrenade(action_p1_viz, action_p2_viz)
+                action_p1_viz, action_p2_viz = self.triggerGrenade(
+                    action_p1_viz, action_p2_viz)
 
             self.p1.update_shield_time()
             self.p2.update_shield_time()
@@ -500,7 +503,7 @@ class Game_Engine(Process):
                     break
                 elif grenadeP2Miss.is_set():
                     action_p1_viz = "grenade_p2_misses"
-                    break   
+                    break
         else:
             self.p2.grenade()
             if isPlayerTwoGrenadeInvalid:
@@ -518,8 +521,9 @@ class Game_Engine(Process):
                     break
                 elif grenadeP1Miss.is_set():
                     action_p2_viz = "grenade_p1_misses"
-                    break  
+                    break
         return action_p1_viz, action_p2_viz
+
 
 class AI_Process(Process):
     def __init__(self, q):
@@ -529,17 +533,16 @@ class AI_Process(Process):
         self.dma = self.ol.axi_dma_0
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
-        self.imu_data = np.empty((40,6), dtype=np.int32)
+        self.imu_data = np.empty((40, 6), dtype=np.int32)
         self.imu_queue = q
         self.player = None
         self.features = None
-
 
     def run(self):
         while True:
             self.player, self.imu_data = self.imu_queue.get()
             self.AI_actual()
-                
+
     def extract_features(self):
 
         mean_acc_x = np.mean(self.imu_data[0])
@@ -599,36 +602,35 @@ class AI_Process(Process):
         phase_gyro_z = np.amax(np.angle(fft(self.imu_data[5])))
 
         self.features = np.array([mean_acc_x, mean_acc_y, mean_acc_z, mean_gyro_x, mean_gyro_y, mean_gyro_z, sd_acc_x,
-                               sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
-                               max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
-                               min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
-                               rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
-                               skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
-                               mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
-                               phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
-        
+                                  sd_acc_y, sd_acc_z, sd_gyro_x, sd_gyro_y, sd_gyro_z,
+                                  max_acc_x, max_acc_y, max_acc_z, max_gyro_x, max_gyro_y, max_gyro_z,
+                                  min_acc_x, min_acc_y, min_acc_z, min_gyro_x, min_gyro_y, min_gyro_z,
+                                  rms_acc_x, rms_acc_y, rms_acc_z, rms_gyro_x, rms_gyro_y, rms_gyro_z,
+                                  skew_acc_x, skew_acc_y, skew_acc_z, skew_gyro_x, skew_gyro_y, skew_gyro_z,
+                                  mag_acc_x, mag_acc_y, mag_acc_z, mag_gyro_x, mag_gyro_y, mag_gyro_z,
+                                  phase_acc_x, phase_acc_y, phase_acc_z, phase_gyro_x, phase_gyro_y, phase_gyro_z]).astype(np.int32)
 
     def detect_start_of_move(self):
 
         # define threshold values as hard-coded values
-        ## OLD
+        # OLD
         # x_thresh = 18300
         # y_thresh = 11000
         # z_thresh = 17000
-        
+
         # ## NEW
         # x_thresh = 19300
         # y_thresh = 15000
         # z_thresh = 18000
 
-        ## TEST
+        # TEST
         x_thresh = 19300
         y_thresh = 13000
-        z_thresh = 18000   
+        z_thresh = 18000
 
         # x_thresh = 15300
         # y_thresh = 9000
-        # z_thresh = 18000 
+        # z_thresh = 18000
 
         # x_thresh = y_thresh = z_thresh = 9000
 
@@ -658,19 +660,18 @@ class AI_Process(Process):
                     # print("Start of move action detected", self.imu_data.shape)
                     self.imu_data = np.transpose(self.imu_data)
                     # print(self.imu_data.shape)
-                    return 
+                    return
                     # return self.imu_data.T
 
         # return None
         self.imu_data = None
 
-
     def detect_start_of_move2(self, imu_data):
 
-        ## TEST
+        # TEST
         x_thresh = 19300
         y_thresh = 13000
-        z_thresh = 18000   
+        z_thresh = 18000
 
         np_imu_data = np.array(imu_data)
 
@@ -684,7 +685,8 @@ class AI_Process(Process):
             k = min(idx+4, np_imu_data.shape[0])
 
             # Try the below two lines for mask and see if either one is correct
-            mask = (abs_acc_vals[idx+1:k] > [x_thresh, y_thresh, z_thresh]).any(axis=1)
+            mask = (abs_acc_vals[idx+1:k] >
+                    [x_thresh, y_thresh, z_thresh]).any(axis=1)
 
             # mask = (np.abs(np_imu_data[idx+1:k, :3]) > [x_thresh, y_thresh, z_thresh]).any(axis=1)
             if not mask.any():
@@ -693,12 +695,11 @@ class AI_Process(Process):
                 return np_imu_data.T
 
         return None
-    
 
     def detect_start_of_move3(self):
         x_thresh = 19300
         y_thresh = 13000
-        z_thresh = 18000   
+        z_thresh = 18000
 
         np_imu_data = np.array(self.imu_data)
 
@@ -706,7 +707,7 @@ class AI_Process(Process):
         window_size = 5
         for j in range(0, np_imu_data.shape[0] - window_size + 1, window_size):
             acc_vals = np_imu_data[j:j+window_size, :3]
-            
+
             # Check if any of the values in the window exceed the threshold
             if (np.abs(acc_vals) > [x_thresh, y_thresh, z_thresh]).any():
                 # potential start of move action identified
@@ -723,17 +724,16 @@ class AI_Process(Process):
 
         return None
 
-
-
     def AI_actual(self):
         global prediction_array, NUM_INPUT
-        
+
         self.detect_start_of_move()
 
         if self.imu_data is None:
             return None
 
-        mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
+        mapping = {0: 'logout', 1: 'shield',
+                   2: 'reload', 3: 'grenade', 4: 'idle'}
         self.extract_features()
 
         for i in range(NUM_INPUT):
@@ -752,7 +752,7 @@ class AI_Process(Process):
 
                 # prediction_array.append(action)
                 print('Predicted class:', self.player, action, mapping[action])
-                
+
                 run = False
                 if not mapping[action] == 'idle':
                     if self.player == 'p1':
@@ -779,11 +779,12 @@ class MQTT_Client(Process):
         # self.client = paho.Client(client_id)
         self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLSv1_2)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-        self.client.connect("e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
+        self.client.connect(
+            "e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.sub_topic)
         self.client.on_message = self.receive
-    
+
     def run(self):
         try:
             self.client.loop_start()
@@ -793,7 +794,7 @@ class MQTT_Client(Process):
                 self.publish(type, json.loads(data))
         except Exception as e:
             print(e)
-            self.client.loop_stop()        
+            self.client.loop_stop()
 
     def publish(self, type, data):
         try:
@@ -801,21 +802,23 @@ class MQTT_Client(Process):
             message = str(len(data)) + '_' + type + '_' + data
             self.client.publish(self.pub_topic, message)
             print('====================================')
-            print('[MQTT] Published message to visualiser at', self.pub_topic, message)
+            print('[MQTT] Published message to visualiser at',
+                  self.pub_topic, message)
             print('====================================')
         except:
             print("Error: could not publish message")
+
     def receive(self, client, userdata, message):
         try:
             print("[MQTT] " + message.payload.decode("utf-8"))
             msg = message.payload.decode("utf-8")
-            
+
             if msg == "14_CHECK_grenade_p2_hit":
                 # to update grenade damage for player 2
                 print("[MQTT] Player 2 is in grenade range")
                 grenadeP2Hit.set()
             elif msg == '15_CHECK_grenade_p2_miss':
-                print("[MQTT] Player 2 is not in grenade range")     
+                print("[MQTT] Player 2 is not in grenade range")
                 grenadeP2Miss.set()
 
             elif msg == '14_CHECK_grenade_p1_hit':
@@ -830,10 +833,12 @@ class MQTT_Client(Process):
             print('Error: message not in correct format')
             print(message.payload)
             print(e)
-        
+
 # Client to send data to the Evaluation Server
+
+
 class Evaluation_Client(Process):
-    
+
     IV = b'PLSPLSPLSPLSWORK'
     KEY = b'PLSPLSPLSPLSWORK'
 
@@ -842,16 +847,17 @@ class Evaluation_Client(Process):
         self.eval_ip = gethostbyname(ip)
         self.eval_port = port
         self.group = group
-        
+
         try:
             self.clientSocket = socket(AF_INET, SOCK_STREAM)
             self.clientSocket.connect((self.eval_ip, self.eval_port))
             evalServerConnected.set()
-            print('Connected to Evaluation Server', self.eval_ip, self.eval_port)
+            print('Connected to Evaluation Server',
+                  self.eval_ip, self.eval_port)
         except:
-            print('Failed to connect to Evaluation Server', self.eval_ip, self.eval_port)
+            print('Failed to connect to Evaluation Server',
+                  self.eval_ip, self.eval_port)
             self.clientSocket = None
-    
 
     def run(self):
         try:
@@ -862,12 +868,13 @@ class Evaluation_Client(Process):
                 self.send(data)
                 self.receive()
         except Exception as e:
-            print('Failed to send message to Evaluation Server', self.eval_ip, self.eval_port)
+            print('Failed to send message to Evaluation Server',
+                  self.eval_ip, self.eval_port)
             print(e)
             self.close()
 
-
     # Initialise AES Cipher
+
     @staticmethod
     def AES_Cipher():
         return AES.new(Evaluation_Client.KEY, AES.MODE_CBC, Evaluation_Client.IV)
@@ -881,13 +888,15 @@ class Evaluation_Client(Process):
                 self.clientSocket.send(len_info.encode("utf-8"))
                 self.clientSocket.send(encryted_message)
                 print('=====================================')
-                print('[EVAL CLIENT] Sent message to Evaluation Server', self.eval_ip, self.eval_port, message)
+                print('[EVAL CLIENT] Sent message to Evaluation Server',
+                      self.eval_ip, self.eval_port, message)
                 print('=====================================')
             except Exception as e:
-                print('[EVAL CLIENT] Failed to send message to Evaluation Server', self.eval_ip, self.eval_port, message)
+                print('[EVAL CLIENT] Failed to send message to Evaluation Server',
+                      self.eval_ip, self.eval_port, message)
                 print(e)
                 self.close()
-    
+
     def receive(self):
         if self.clientSocket is not None:
             # global player_state
@@ -949,10 +958,11 @@ class Evaluation_Client(Process):
                 intcomms_queue.put(json.dumps(player_state_intcomms))
 
                 print('=====================================')
-                print("[EVAL SERVER] Received message from Evaluation Server", recv_dict)
+                print(
+                    "[EVAL SERVER] Received message from Evaluation Server", recv_dict)
                 print('=====================================')
 
-                ### purge action queues
+                # purge action queues
                 # try:
                 #     while True:
                 #         eval_queue.get_nowait()
@@ -978,16 +988,17 @@ class Evaluation_Client(Process):
                 recv_queue.put(recv_dict)
 
             except:
-                print('Failed to receive message from Evaluation Server', self.eval_ip, self.eval_port)
+                print('Failed to receive message from Evaluation Server',
+                      self.eval_ip, self.eval_port)
                 self.close()
-
 
     def close(self):
         if self.clientSocket is not None:
             self.clientSocket.close()
-            print('Closed connection to Evaluation Server', self.eval_ip, self.eval_port)
-    
-    def encrypt_AES(self, string):    
+            print('Closed connection to Evaluation Server',
+                  self.eval_ip, self.eval_port)
+
+    def encrypt_AES(self, string):
         msg = pad(string.encode("utf-8"), AES.block_size)
         encrypted_text = Evaluation_Client.AES_Cipher().encrypt(msg)
         ciphertext = base64.b64encode(self.IV + encrypted_text)
@@ -1007,14 +1018,14 @@ def main():
     ai_thread2 = AI_Process(imu_queue_p2)
     ai_thread2.start()
 
-    game_engine = Game_Engine() 
+    game_engine = Game_Engine()
     game_engine.start()
 
     mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
     mqtt.start()
 
     # HOST, PORT = "192.168.95.235", 11000
-    HOST, PORT = "localhost", 11000    
+    HOST, PORT = "localhost", 11000
     server = Relay_Server(HOST, PORT)
     server.start()
     eval_client.join()

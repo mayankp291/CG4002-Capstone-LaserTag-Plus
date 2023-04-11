@@ -1,10 +1,8 @@
 import paho.mqtt.client as mqtt
 import json
 from multiprocessing import Process, Event
+from constants import MQTT_USERNAME, MQTT_PASSWORD
 
-
-MQTT_USERNAME = "capstonekillingus"
-MQTT_PASSWORD = "capstonekillingus"
 
 class MQTT_Client(Process):
     def __init__(self, pub_topic, sub_topic, client_id, group, viz_queue, grenadeP1Hit, grenadeP1Miss, grenadeP2Hit, grenadeP2Miss) -> None:
@@ -17,7 +15,8 @@ class MQTT_Client(Process):
         # self.client = mqtt.Client(client_id)
         self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLSv1_2)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-        self.client.connect("e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
+        self.client.connect(
+            "e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.sub_topic)
         self.client.on_message = self.receive
@@ -36,7 +35,7 @@ class MQTT_Client(Process):
                 self.publish(type, json.loads(data))
         except Exception as e:
             print(e)
-            self.client.loop_stop()        
+            self.client.loop_stop()
 
     def publish(self, type, data):
         try:
@@ -44,7 +43,8 @@ class MQTT_Client(Process):
             message = str(len(data)) + '_' + type + '_' + data
             self.client.publish(self.pub_topic, message)
             print('====================================')
-            print('[MQTT] Published message to visualiser at', self.pub_topic, message)
+            print('[MQTT] Published message to visualiser at',
+                  self.pub_topic, message)
             print('====================================')
         except:
             print("Error: could not publish message")
@@ -53,13 +53,13 @@ class MQTT_Client(Process):
         try:
             print("[MQTT] " + message.payload.decode("utf-8"))
             msg = message.payload.decode("utf-8")
-            
+
             if msg == "14_CHECK_grenade_p2_hit":
                 # to update grenade damage for player 2
                 print("[MQTT] Player 2 is in grenade range")
                 self.grenadeP2Hit.set()
             elif msg == '15_CHECK_grenade_p2_miss':
-                print("[MQTT] Player 2 is not in grenade range")     
+                print("[MQTT] Player 2 is not in grenade range")
                 self.grenadeP2Miss.set()
 
             elif msg == '14_CHECK_grenade_p1_hit':

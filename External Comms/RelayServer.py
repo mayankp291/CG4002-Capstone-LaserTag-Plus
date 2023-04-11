@@ -5,21 +5,24 @@ import base64
 import numpy as np
 import traceback
 import json
+from constants import *
 
-beetleID_mapping = {
-    1: "IMU1", #imu1
-    2: "VEST1", #VEST1
-    3: "GUN1", #GUN1
-    4: "IMU2", #IMU2
-    5: "VEST2", #vest2
-    6: "GUN2", #gun2
-    7: "TEST"
-}
 
-from multiprocessing import Process, Event, Queue
+class RelayServerSend(Process):
+    """
+    A process that sends updated states to the relay laptop.
+    """
 
-class Relay_Server_Send(Process):
     def __init__(self, sock, intcomms_queue, reloadSendRelayP1, reloadSendRelayP2):
+        """
+        Initializes the RelayServerSend process.
+
+        Args:
+        sock (socket.socket): The socket object used to communicate with the server.
+        intcomms_queue (Queue): The queue used to receive updated states from other processes.
+        reloadSendRelayP1 (Event): An event flag indicating that player 1 has reloaded.
+        reloadSendRelayP2 (Event): An event flag indicating that player 2 has reloaded.
+        """
         super().__init__()
         self.sock = sock
         self.intcomms_queue = intcomms_queue
@@ -28,22 +31,35 @@ class Relay_Server_Send(Process):
         print("[RELAY_SEND] Ready to send data to Relay")
 
     def run(self):
+        """
+        Runs the RelayServerSend process, sending data to the relay server.
+        """
         while True:
             send_data = self.intcomms_queue.get()
             send_data = json.loads(send_data)
 
+            # keep action as reload if player has reloaded
             if self.reloadSendRelayP1.is_set() and self.reloadSendRelayP2.is_set():
                 self.reloadSendRelayP1.clear()
                 self.reloadSendRelayP2.clear()
+
             elif self.reloadSendRelayP1.is_set():
                 self.reloadSendRelayP1.clear()
                 send_data['p2']['action'] = 'none'
+
             elif self.reloadSendRelayP2.is_set():
                 self.reloadSendRelayP2.clear()
                 send_data['p1']['action'] = 'none'
+
             self.send(send_data)
 
     def send(self, data):
+        """
+        Sends the given data to the relay laptop.
+
+        Args:
+        data (dict): The data to send to the relay laptop.
+        """
         try:
             data = str(data)
             self.sock.sendall(data.encode("utf-8"))
@@ -56,8 +72,27 @@ class Relay_Server_Send(Process):
 # TCP Server to receive data from the Relay Laptops
 
 class RelayServer(Process):
+    """
+    A process that receives data from the relay laptop.
+    """
+
     def __init__(self, host, port, relay_flag, processing_flag, shoot_p1_hit, shoot_p2_hit, imu_queue_p1, imu_queue_p2,
                  action_p1_queue, action_p2_queue):
+        """
+        Initializes the RelayServer process.
+
+        Args:
+        host (str): The host address of the server.
+        port (int): The port number of the server.
+        relay_flag (Event): An event flag to make sure that only one thread is created to send data to relay laptop.
+        processing_flag (Event): An event flag indicating that the game engine is running and AI needs to be halted.
+        shoot_p1_hit (Event): An event flag indicating that player 1 has been hit.
+        shoot_p2_hit (Event): An event flag indicating that player 2 has been hit.
+        imu_queue_p1 (Queue): The queue used to transfer player 1 IMU data across processes.
+        imu_queue_p2 (Queue): The queue used to transfer player 2 IMU data across processes.
+        action_p1_queue (Queue): The queue used to transfer player 1 actions data across processes.
+        action_p2_queue (Queue): The queue used to transfer player 2 actions data across processes.
+        """
         super().__init__()
         self.host = host
         self.port = port
@@ -74,28 +109,37 @@ class RelayServer(Process):
         self.action_p2_queue = action_p2_queue
 
     def run(self):
+        """
+        Runs the RelayServer process, receiving data from the relay server.
+        """
         self.server.listen(1)
-        print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(self.host, self.port))
+        print("[RELAY SERVER] Listening for connections on host {} port {} \n".format(
+            self.host, self.port))
         while True:
             client, address = self.server.accept()
-            # TODO Add client to where it connected to
             print("[RELAY SERVER] Client connected from {} \n".format(address))
             client_handler = Process(
                 target=self.handle_client,
-                args=(client, address)
+                args=(client)
             )
             client_handler.start()
 
     ###
     # Data flow: get len, get msg, check len == len(msg), convert msg to dict
     ###
-    def handle_client(self, request, client_address):
+    def handle_client(self, request):
+        """
+        Handles a client connection.
+
+        Args:
+        request (socket.socket): The socket object used to communicate with the client.
+        """
         try:
             if self.relay_flag.is_set():
                 self.relay_flag.clear()
-                sending_thread = Relay_Server_Send(request)
+                sending_thread = RelayServerSend(request)
                 sending_thread.start()
-                
+
             while True:
                 # receive data from client
                 # (protocol) len(data)_dataRELAY_SEND
@@ -112,7 +156,7 @@ class RelayServer(Process):
 
                 # Get Length of data
                 data = data.decode("utf-8")
-                length = int(data[:-1])               
+                length = int(data[:-1])
 
                 # Get data
                 data = b''
@@ -127,39 +171,39 @@ class RelayServer(Process):
 
                 data = data.decode("utf8")  # Decode raw bytes to UTF-8
                 # format string for length and type
-                
+
                 # print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
-                # print("[DATA]", data)                
-                
+                # print("[DATA]", data)
+
                 # check length of data
                 if length != len(data):
                     print("Error", data)
                     print('Error: packet length does not match, packet dropped')
-                
+
                 else:
                     # convert data to dict {'playerID':, 'beetleID':, 'sensorData':}
                     data = literal_eval(data)
 
-                    ### process incoming data
+                    # process incoming data
                     # playerid, data
                     beetleID = data["beetleID"]
-
 
                     data_device = beetleID_mapping[beetleID]
 
                     if not self.processing_flag.is_set() and (data_device == "IMU1" or data_device == "IMU2"):
                         # convert string to numpy array of ints
-                        new_array = np.frombuffer(base64.binascii.a2b_base64(data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
+                        new_array = np.frombuffer(base64.binascii.a2b_base64(
+                            data["sensorData"]), dtype=np.int32).reshape(SAMPLE_SIZE, 6)
                         # print(new_array, new_array.shape)
                         if data_device == "IMU1":
                             self.imu_queue_p1.put(('p1', new_array))
                         else:
                             self.imu_queue_p2.put(('p2', new_array))
-                    
+
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
                         self.shoot_p1_hit.set()
-                    
+
                     elif data_device == "VEST2":
                         print("VEST 2 RECV")
                         self.shoot_p2_hit.set()
@@ -178,4 +222,3 @@ class RelayServer(Process):
             request.close()
             print(e)
             traceback.print_exc()
-
