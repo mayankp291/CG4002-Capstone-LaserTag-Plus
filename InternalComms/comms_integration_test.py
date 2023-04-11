@@ -373,13 +373,14 @@ class BeetleConnectionThread:
         print('checking for reload')
         if self.beetleId == GUN_PLAYER_1:
             if isReloadFlagGun1.is_set():
-                print('writing reload to beetle')
+                print('[RELOAD 1] writing reload to beetle')
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = True
                 isReloadFlagGun1.clear()
 
         if self.beetleId == GUN_PLAYER_2:
             if isReloadFlagGun2.is_set():
+                print('[RELOAD 2] writing reload to beetle')
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = True
                 isReloadFlagGun2.clear()
@@ -625,8 +626,9 @@ class Relay_Client_Send_IMU1(mp.Process):
                         msg = str(msg)
                         msg = str(len(msg)) + '_' + msg
                         imu_raw.clear()
-                        print(numpy_imu_raw)
-                        print(msg)
+                        # print(numpy_imu_raw)
+                        # print(msg)
+                        print("IMU 1 SENT")
                         self.send(msg)
                 else:
                     msg = str(msg)
@@ -679,8 +681,9 @@ class Relay_Client_Send_IMU2(mp.Process):
                         msg = str(msg)
                         msg = str(len(msg)) + '_' + msg
                         imu_raw.clear()
-                        print(numpy_imu_raw)
-                        print(msg)
+                        # print(numpy_imu_raw)
+                        # print(msg)
+                        print("IMU 2 SENT")
                         self.send(msg)
                 else:
                     msg = str(msg)
