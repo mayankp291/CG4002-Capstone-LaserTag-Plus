@@ -17,12 +17,12 @@ INPUTS = NUM_FEATURES * 6 #  8 extracted features * 6 sensor reading types
 DATA_LABELS = ["logout", "shield", "reload", "grenade"]
 OUTPUTS = len(DATA_LABELS)
 # EPOCHS = 45
-EPOCHS = 30
+EPOCHS = 10
 THRESHOLD_PRECISION_TRAIN_DATA = 10
 PRINT_PRECISION_TEST_DATA = 8
 PRINT_PRECISION_WEIGHTS = 9
 ACTUAL_PRECISION_TRAIN_DATA = 6
-DATA_FOLDER_NAME = "parsedNewData"
+DATA_FOLDER_NAME = "LatestData"
 
 
 
@@ -249,7 +249,12 @@ def get_raw_data(data_paths):
             lines = text_file.readlines()
             for line in lines:
                 temp_array_row = line.strip().split(",")
-                temp_array.append([int(i) for i in temp_array_row])
+                try:
+                    temp_array.append([int(i) for i in temp_array_row])
+                except ValueError as e:
+                    print(e)
+                    print(data_path, line)
+                    exit(1)
         
         # jagged_array = np.empty((len(temp_array),), dtype=object)
 
@@ -433,21 +438,21 @@ def main():
 
     # answer = input("Do you want to save current params and test data? Y/N:")
     # model.save('my_mlp_model')
-    if model_metrics[1] >= 0.93:
-        # Extract weights and biases to text file
-        extract_params(model, "params.txt")
+    # if model_metrics[1] >= 0.93:
+    # Extract weights and biases to text file
+    extract_params(model, "params.txt")
 
-        # Print testing dataset to text file
-        save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
+    # Print testing dataset to text file
+    save_testing_data(testing_dataset, testing_data_labels, "testing_data.txt")
 
-        print("Data saved!")
+    print("Data saved!")
 
-    return model_metrics[1]
+    # return model_metrics[1]
 
-    # model.save('my_model.h5')
+    model.save('my_model.h5')
 
 
 if __name__ == "__main__":
     accuracy = main()
-    while accuracy < 0.93:
-        accuracy = main()
+    # while accuracy < 0.93:
+    #     accuracy = main()
