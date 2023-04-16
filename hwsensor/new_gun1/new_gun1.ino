@@ -162,16 +162,13 @@ void loop(void) {
     if (buttonState == HIGH) {            // check if the input is HIGH
       lastDebounceTime = millis(); //set the current time
 
-      
-//       Serial.println("Triggered!!!");
-      if (bullets > 0 ) {
-          IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent 
-          dummy_shot = true;
-          shotsCount +=1;
-          playTone(bullets);
-          bullets = bullets - 1;
+        if (bullets > 0 ) {
+        IrSender.sendNEC(0x0102, 0x34, 0); // the address 0x0102 with the command 0x34 is sent 
+        playTone(bullets);
+        bullets = bullets - 1;
       }
-//       Serial.println(bullets);
+      dummy_shot = true;
+      shotsCount +=1;
       digitalWrite(ledPin, HIGH);  // turn LED OFF
 
       delay(500); // wait for one second

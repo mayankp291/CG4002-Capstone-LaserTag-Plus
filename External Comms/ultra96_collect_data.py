@@ -3,14 +3,14 @@
 
 # Ultra96 Server
 from socket import *
-from Crypto import Random
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
+#from Crypto import Random
+#from Crypto.Cipher import AES
+#from Crypto.Util.Padding import pad, unpad
 import base64
 from multiprocessing import Process, Queue, Lock, queues
 import json
-import paho.mqtt.client as paho
-from paho import mqtt
+#import paho.mqtt.client as paho
+#from paho import mqtt
 from ast import literal_eval
 import threading
 import random
@@ -610,7 +610,7 @@ class Collection_Thread(threading.Thread):
             return None
         
         mapping = {0: 'logout', 1: 'shield', 2: 'reload', 3: 'grenade', 4: 'idle'}
-        action = 0
+        action = 3
         print(f"Collected for {mapping[action]}")
 
         print(np.array(parsed_imu_data).shape)
@@ -886,17 +886,17 @@ class Evaluation_Client(threading.Thread):
 
 def main():
     # eval_client = Evaluation_Client('137.132.92.184', 9999, 2)
-    eval_client = Evaluation_Client('localhost', 11001, 2)
-    eval_client.daemon = True
-    eval_client.start()
+    #eval_client = Evaluation_Client('localhost', 11001, 2)
+    #eval_client.daemon = True
+    #eval_client.start()
 
     collection_thread = Collection_Thread()
     collection_thread.daemon = True
     collection_thread.start()
 
-    game_engine = Game_Engine() 
-    game_engine.daemon = True
-    game_engine.start()
+    #game_engine = Game_Engine() 
+    #game_engine.daemon = True
+    #game_engine.start()
 
     # mqtt = MQTT_Client('cg4002/gamestate', 'cg4002/visualizer', 'ultra96', 2)
     # mqtt.daemon = True

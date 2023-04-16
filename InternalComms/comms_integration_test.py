@@ -103,18 +103,29 @@ HEALTH_PACKET = 'H'
 RELOAD_PACKET = 'R'
 GRENADE_PACKET = 'G'
 
-isReloadFlagGun1 = threading.Event()
+# isReloadFlagGun1 = threading.Event()
+# isReloadFlagGun1.clear()
+
+# isReloadFlagGun2 = threading.Event()
+# isReloadFlagGun2.clear()
+
+# doesGrenadeHitFlagVest1 = threading.Event()
+# doesGrenadeHitFlagVest1.clear()
+
+# doesGrenadeHitFlagVest2 = threading.Event()
+# doesGrenadeHitFlagVest2.clear()
+
+isReloadFlagGun1 = mp.Event()
 isReloadFlagGun1.clear()
 
-isReloadFlagGun2 = threading.Event()
+isReloadFlagGun2 = mp.Event()
 isReloadFlagGun2.clear()
 
-doesGrenadeHitFlagVest1 = threading.Event()
+doesGrenadeHitFlagVest1 = mp.Event()
 doesGrenadeHitFlagVest1.clear()
 
-doesGrenadeHitFlagVest2 = threading.Event()
+doesGrenadeHitFlagVest2 = mp.Event()
 doesGrenadeHitFlagVest2.clear()
-
 
 class CheckSumFailedError(Exception):
     pass
@@ -214,10 +225,10 @@ class MyDelegate(DefaultDelegate):
                 # print(unpackedPacket)
                 # print(unpackedPacket[0], len(unpackedPacket))
                 packetType = chr(unpackedPacket[0])
-                print("packetType, deviceId, length ", packetType, ",", self.deviceId,
-                      ",", len(self.receivingBuffer))
+                # print("packetType, deviceId, length ", packetType, ",", self.deviceId,
+                #       ",", len(self.receivingBuffer))
                 # , ",", self.transmissionSpeed, "kbps"
-                print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
+                # print("Fragmented Packets Count for device:", self.deviceId, ":", self.fragPacketsCount)
                 if packetType == 'A':
                     self.handleAckPacket()
                 if packetType == 'M':
@@ -234,8 +245,8 @@ class MyDelegate(DefaultDelegate):
                         }
                     }
                     self.motionPacketsCount += 1
-                    print("MotionPacketsCount: ", self.motionPacketsCount)
-                    print(sendData)
+                    # print("MotionPacketsCount: ", self.motionPacketsCount)
+                    # print(sendData)
                     # self.savedata(sendData)
                     self.lock.acquire()
                     # dataBuffer.put(sendData)
@@ -373,13 +384,14 @@ class BeetleConnectionThread:
         print('checking for reload')
         if self.beetleId == GUN_PLAYER_1:
             if isReloadFlagGun1.is_set():
-                print('writing reload to beetle')
+                print('[RELOAD 1] writing reload to beetle')
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = True
                 isReloadFlagGun1.clear()
 
         if self.beetleId == GUN_PLAYER_2:
             if isReloadFlagGun2.is_set():
+                print('[RELOAD 2] writing reload to beetle')
                 self.serialChar.write(bytes("R", encoding="utf-8"))
                 self.isReload = True
                 isReloadFlagGun2.clear()
@@ -543,6 +555,7 @@ def tunnel_ultra96():
         tunnel_ultra96.start()
         print('Tunnel into Ultra96 successful, local bind port: ' + str(tunnel_ultra96.local_bind_port))
 
+
 class Relay_Client_Send(mp.Process):
     def __init__(self, sock) -> None:
         super().__init__()
@@ -625,8 +638,9 @@ class Relay_Client_Send_IMU1(mp.Process):
                         msg = str(msg)
                         msg = str(len(msg)) + '_' + msg
                         imu_raw.clear()
-                        print(numpy_imu_raw)
-                        print(msg)
+                        # print(numpy_imu_raw)
+                        # print(msg)
+                        print("IMU 1 SENT")
                         self.send(msg)
                 else:
                     msg = str(msg)
@@ -679,8 +693,9 @@ class Relay_Client_Send_IMU2(mp.Process):
                         msg = str(msg)
                         msg = str(len(msg)) + '_' + msg
                         imu_raw.clear()
-                        print(numpy_imu_raw)
-                        print(msg)
+                        # print(numpy_imu_raw)
+                        # print(msg)
+                        print("IMU 2 SENT")
                         self.send(msg)
                 else:
                     msg = str(msg)
@@ -712,7 +727,7 @@ class Relay_Client_Recv(mp.Process):
     def run(self):
         try:
             while True:
-                data = self.sock.recv(500)
+                data = self.sock.recv(1024)
                 if data:
                     data = data.decode("utf-8")
                     data = literal_eval(data)
@@ -729,10 +744,11 @@ class Relay_Client_Recv(mp.Process):
                         isReloadFlagGun2.set()
 
 
-        except:
+        except Exception as e:
             print('Connection to Relay Server lost')
+            print(e)
             # self.relaySocket.close()
-            sys.exit()
+            # sys.exit()
 
 
 
@@ -770,7 +786,7 @@ if __name__ == '__main__':
     try:
         lock = mp.Lock()
 
-        # sock.connect(('192.168.95.235', 11000))
+        #sock.connect(('192.168.95.235', 11000))
 
         # using a multiprocessing queue FIFO
         # dataBuffer = mp.Queue()
@@ -805,11 +821,11 @@ if __name__ == '__main__':
 
         tunnel_ultra96()
 
-        # HOST, PORT = 'localhost', 11000
-        HOST, PORT = '192.168.95.235', 11000
+        HOST, PORT = 'localhost', 11000
+        #HOST, PORT = '192.168.95.235', 11000
         sock = socket(AF_INET, SOCK_STREAM)
         sock.connect((HOST, PORT))
-
+        time.sleep(0.1)
         sock2 = socket(AF_INET, SOCK_STREAM)
         sock2.connect((HOST, PORT))
 
@@ -822,10 +838,10 @@ if __name__ == '__main__':
         send_imu1_thread = Relay_Client_Send_IMU1(sock2)
         send_imu2_thread = Relay_Client_Send_IMU2(sock3)
 
-        send_imu1_thread.start()
-        send_imu2_thread.start()
         send_thread.start()
         recv_thread.start()
+
+
 
         IMU1_Thread.start()
         Vest1_Thread.start()
@@ -835,15 +851,18 @@ if __name__ == '__main__':
         Vest2_Thread.start()
         Gun2_Thread.start()
 
-        # relay_thread.start()
+        send_imu1_thread.start()
+        send_imu2_thread.start()
 
-        # UpdateBulletThread.start()
-        # ReloadThread.start()
-        # GrenadeThread.start()
+        #relay_thread.start()
+
+        #UpdateBulletThread.start()
+        #ReloadThread.start()
+        #GrenadeThread.start()
         send_thread.join()
         recv_thread.join()
         send_imu1_thread.join()
-        # send_imu2_thread.join()
+        send_imu2_thread.join()
 
         IMU1_Thread.join()
         Vest1_Thread.join()
