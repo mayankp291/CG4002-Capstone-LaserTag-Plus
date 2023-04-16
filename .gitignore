@@ -5,6 +5,7 @@ AI/Individual_subsystem/.vs/
 AI/Individual_subsystem/*.cpp
 AI/Individual_subsystem/HLS template files/*.cpp
 AI/Individual_subsystem/HLS template files/*.cpp
+power.py
 venv/
 .env
 .Identifier
