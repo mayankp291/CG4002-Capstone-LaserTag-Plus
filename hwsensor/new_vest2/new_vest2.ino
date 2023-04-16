@@ -200,22 +200,15 @@ void loop(void) {
   }
 //  /
   if (IrReceiver.decode()) {
-//     Serial.println("Received something...");
     if(IrReceiver.decodedIRData.address == 0x0102) {
 //         Serial.println("Shotted!");
         healthPoint = healthPoint - 10;
         led();
-        // tone(buzzer, 1000); // Send 1KHz sound signal...
-        // delay(500);        // ...for 1 sec
-        // noTone(buzzer);     // Stop sound...
-        // delay(500);        // ...for 1sec
         shotsCount += 1;
         dummy_is_shot = true;
     } else {
       dummy_is_shot = false;
     }
-//     IrReceiver.printIRResultShort(&Serial); // Prints a summary of the received data
-//     Serial.println();
     IrReceiver.begin(PIN_RECV); // Important, enables to receive the next IR signal
   }
 
