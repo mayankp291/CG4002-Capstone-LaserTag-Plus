@@ -12,7 +12,8 @@ class AI_Process(Process):
     """	
     A process that runs the AI model on the Ultra96 .
     """
-    def __init__(self, q):
+
+    def __init__(self, imu_queue, action_queue):
         """
         Initializes the AI_Process process.
 
@@ -26,7 +27,8 @@ class AI_Process(Process):
         self.input_buffer = allocate(shape=(NUM_INPUT), dtype=np.int32)
         self.output_buffer = allocate(shape=(NUM_OUTPUT,), dtype=np.int32)
         self.imu_data = np.empty((40, 6), dtype=np.int32)
-        self.imu_queue = q
+        self.imu_queue = imu_queue
+        self.action_queue = action_queue
         self.player = None
         self.features = None
 
@@ -111,29 +113,12 @@ class AI_Process(Process):
     def detect_start_of_move(self):
         """	
         Detects the start of a movement by looking for a sudden change in acceleration values.
-        """	
+        """
 
         # define threshold values as hard-coded values
-        # OLD
-        # x_thresh = 18300
-        # y_thresh = 11000
-        # z_thresh = 17000
-
-        # ## NEW
-        # x_thresh = 19300
-        # y_thresh = 15000
-        # z_thresh = 18000
-
-        # TEST
         x_thresh = 19300
         y_thresh = 13000
         z_thresh = 18000
-
-        # x_thresh = 15300
-        # y_thresh = 9000
-        # z_thresh = 18000
-
-        # x_thresh = y_thresh = z_thresh = 9000
 
         # compare each data point in window to threshold
         for j in range(self.imu_data.shape[0]):
@@ -195,7 +180,7 @@ class AI_Process(Process):
 
                 run = False
                 if not mapping[action] == 'idle':
-                    self.imu_queue.put(mapping[action])
+                    self.action_queue.put(mapping[action])
 
             except RuntimeError as e:
                 print(e)

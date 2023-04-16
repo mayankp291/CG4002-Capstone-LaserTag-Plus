@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 import json
 from multiprocessing import Process, Event
-from constants import MQTT_USERNAME, MQTT_PASSWORD
+from constants import *
 
 
 class MQTT_Client(Process):
@@ -17,7 +17,7 @@ class MQTT_Client(Process):
         sub_topic (str): The topic to subscribe to.
         client_id (str): The client ID to use.
         group (str): The group ID to use.
-        viz_queue (Queue): The queue used to send data to the visualization process.
+        viz_queue (Queue): The queue used to send data to visualiser.
         grenadeP1Hit (Event): An event flag indicating that player 1 has been hit by a grenade.
         grenadeP1Miss (Event): An event flag indicating that player 1 has missed a grenade.
         grenadeP2Hit (Event): An event flag indicating that player 2 has been hit by a grenade.
@@ -29,11 +29,10 @@ class MQTT_Client(Process):
         self.client_id = client_id
         self.group = group
         self.client = mqtt.Client(client_id, protocol=mqtt.MQTTv311)
-        # self.client = mqtt.Client(client_id)
         self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLSv1_2)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
         self.client.connect(
-            "e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud", 8883)
+            MQTT_HOST, 8883)
         print('MQTT Client started on', self.client_id)
         self.client.subscribe(self.sub_topic)
         self.client.on_message = self.receive
@@ -44,11 +43,13 @@ class MQTT_Client(Process):
         self.grenadeP2Miss = grenadeP2Miss
 
     def run(self):
+        """
+        Runs the MQTT_Client process, messages are received using the viz_queue and sent to visualiser.
+        """
         try:
             self.client.loop_start()
             while True:
                 type, data = self.viz_queue.get()
-                # print("[PUBLISH]", data)
                 self.publish(type, json.loads(data))
         except Exception as e:
             print(e)
@@ -78,8 +79,6 @@ class MQTT_Client(Process):
         Receives a message from the MQTT broker.	
         
         Args:
-        client (Client): The client instance for this callback.
-        userdata (object): The private user data as set in Client() or userdata_set().
         message (MQTTMessage): An instance of MQTTMessage. This is a class with members topic, payload, qos, retain.
         """
         try:

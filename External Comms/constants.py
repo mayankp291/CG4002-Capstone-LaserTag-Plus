@@ -1,6 +1,5 @@
 from multiprocessing import Event, Queue, Process
 
-
 prediction_array = []
 NUM_OUTPUT = 1
 NUM_FEATURES = 8
@@ -11,17 +10,18 @@ GRENADE_MAX_TIME_LIMIT = 6
 
 
 beetleID_mapping = {
-    1: "IMU1", #imu1
-    2: "VEST1", #VEST1
-    3: "GUN1", #GUN1
-    4: "IMU2", #IMU2
-    5: "VEST2", #vest2
-    6: "GUN2", #gun2
+    1: "IMU1",  # imu1
+    2: "VEST1",  # VEST1
+    3: "GUN1",  # GUN1
+    4: "IMU2",  # IMU2
+    5: "VEST2",  # vest2
+    6: "GUN2",  # gun2
     7: "TEST"
 }
 
 MQTT_USERNAME = "capstonekillingus"
 MQTT_PASSWORD = "capstonekillingus"
+MQTT_HOST = "e56e6e3e03d54e70bf9cc69a2761fe4c.s1.eu.hivemq.cloud"
 
 imu_queue_p1 = Queue()
 imu_queue_p2 = Queue()
@@ -49,7 +49,7 @@ shootP2Hit.clear()
 relayFlag = Event()
 relayFlag.set()
 reloadSendRelayP1 = Event()
-reloadSendRelayP1.clear() 
+reloadSendRelayP1.clear()
 reloadSendRelayP2 = Event()
 reloadSendRelayP2.clear()
 evalServerConnected = Event()

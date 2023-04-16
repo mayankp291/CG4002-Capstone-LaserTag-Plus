@@ -77,7 +77,7 @@ class RelayServer(Process):
     """
 
     def __init__(self, host, port, relay_flag, processing_flag, shoot_p1_hit, shoot_p2_hit, imu_queue_p1, imu_queue_p2,
-                 action_p1_queue, action_p2_queue):
+                 action_p1_queue, action_p2_queue, intcomms_queue, reloadSendRelayP1, reloadSendRelayP2):
         """
         Initializes the RelayServer process.
 
@@ -107,6 +107,9 @@ class RelayServer(Process):
         self.shoot_p2_hit = shoot_p2_hit
         self.action_p1_queue = action_p1_queue
         self.action_p2_queue = action_p2_queue
+        self.intcomms_queue = intcomms_queue
+        self.reloadSendRelayP1 = reloadSendRelayP1
+        self.reloadSendRelayP2 = reloadSendRelayP2
 
     def run(self):
         """
@@ -135,9 +138,11 @@ class RelayServer(Process):
         request (socket.socket): The socket object used to communicate with the client.
         """
         try:
+            # to start only one thread to send data to relay laptop
             if self.relay_flag.is_set():
                 self.relay_flag.clear()
-                sending_thread = RelayServerSend(request)
+                sending_thread = RelayServerSend(
+                    request, self.intcomms_queue, self.reloadSendRelayP1, self.reloadSendRelayP2)
                 sending_thread.start()
 
             while True:
@@ -172,9 +177,6 @@ class RelayServer(Process):
                 data = data.decode("utf8")  # Decode raw bytes to UTF-8
                 # format string for length and type
 
-                # print("[LENGTH] {}, [DATATYPE] {}".format(length, data_type))
-                # print("[DATA]", data)
-
                 # check length of data
                 if length != len(data):
                     print("Error", data)
@@ -185,11 +187,11 @@ class RelayServer(Process):
                     data = literal_eval(data)
 
                     # process incoming data
-                    # playerid, data
                     beetleID = data["beetleID"]
 
                     data_device = beetleID_mapping[beetleID]
 
+                    # process data according to beetleID
                     if not self.processing_flag.is_set() and (data_device == "IMU1" or data_device == "IMU2"):
                         # convert string to numpy array of ints
                         new_array = np.frombuffer(base64.binascii.a2b_base64(
