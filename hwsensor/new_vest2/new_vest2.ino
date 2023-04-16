@@ -201,7 +201,6 @@ void loop(void) {
 //  /
   if (IrReceiver.decode()) {
     if(IrReceiver.decodedIRData.address == 0x0102) {
-//         Serial.println("Shotted!");
         healthPoint = healthPoint - 10;
         led();
         shotsCount += 1;
