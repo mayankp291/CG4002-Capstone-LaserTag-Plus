@@ -7,6 +7,10 @@ from constants import *
 
 
 class Game_Engine(Process):
+    """
+    The game engine is responsible for processing the actions of both players.
+    It will also send the game state to the visualizer and the evaluation server.
+    """
     def __init__(self, action_p1_queue, action_p2_queue, viz_queue, eval_queue, recv_queue, processing, reloadSendRelayP1, reloadSendRelayP2,
                  grenadeP1Hit, grenadeP1Miss, grenadeP2Hit, grenadeP2Miss, shootP1Hit, shootP2Hit):
         super().__init__()
@@ -28,6 +32,12 @@ class Game_Engine(Process):
         self.shootP2Hit = shootP2Hit
 
     def run(self):
+        """
+        The game engine will run in a loop, waiting for both players actions.
+        Once it gets both actions, it will process them and add the updated state to the respective queues to be sent to evaluation server and visualiser.
+        It waits for recv_queue to get the updated state from the evaluation server.
+        The loop will continue until both players logout.
+        """
         # flow = get both player actions -> process actions -> send to visualizer and eval server -> get updated state from eval server
         while True:
             action_p1, action_p2 = 'none', 'none'
@@ -57,7 +67,7 @@ class Game_Engine(Process):
                 
             print("[DEBUG]", self.processing.is_set(), action_p1, action_p2)
 
-            # set flag for processing
+            # set flag for processing, blocks other processes
             self.processing.set()
 
             action_p1_viz = action_p1
@@ -129,6 +139,9 @@ class Game_Engine(Process):
             self.processing.clear()
 
     def triggerShoot(self, action_p1, action_p2):
+        """
+        Trigger shoot action and update internal state
+        """
         action_p1_viz = action_p1
         action_p2_viz = action_p2
         isPlayerOneShootInvalid = (self.p1.bullets <= 0)
@@ -185,6 +198,9 @@ class Game_Engine(Process):
         return action_p1_viz, action_p2_viz
 
     def triggerGrenade(self, action_p1, action_p2):
+        """
+        Trigger grenade action and update internal state
+        """
         action_p1_viz = "none"
         action_p2_viz = "none"
         isPlayerOneGrenadeInvalid = (self.p1.grenades <= 0)

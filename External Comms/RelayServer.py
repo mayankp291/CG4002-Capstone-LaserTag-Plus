@@ -202,6 +202,7 @@ class RelayServer(Process):
                         else:
                             self.imu_queue_p2.put(('p2', new_array))
 
+                    # set flag if vest is hit
                     elif data_device == "VEST1":
                         print("VEST 1 RECV")
                         self.shoot_p1_hit.set()
@@ -210,6 +211,7 @@ class RelayServer(Process):
                         print("VEST 2 RECV")
                         self.shoot_p2_hit.set()
 
+                    # add shoot action to queue
                     elif data_device == "GUN1":
                         # shot by player
                         print("GUN 1 RECV")
