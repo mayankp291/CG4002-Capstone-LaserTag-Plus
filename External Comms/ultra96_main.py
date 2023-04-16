@@ -2,7 +2,7 @@
 from multiprocessing import Process, Queue, Lock, queues, Event
 from AI import AI_Process
 from MQTT import MQTT_Client
-from RelayServer import Relay_Server
+from RelayServer import RelayServer
 from EvaluationClient import Evaluation_Client
 from GameEngine import Game_Engine
 from constants import *
@@ -10,7 +10,7 @@ from constants import *
 
 def main():
     eval_client = Evaluation_Client('localhost', 11001, 2, eval_queue, intcomms_queue, viz_queue,
-                                    recv_queue, action_p1_queue, action_p2_queue, reloadSendRelayP1. reloadSendRelayP2)
+                                    recv_queue, action_p1_queue, action_p2_queue, reloadSendRelayP1, reloadSendRelayP2)
     eval_client.start()
 
     ai_player_1 = AI_Process(imu_queue_p1, action_p1_queue)
@@ -29,7 +29,7 @@ def main():
 
     # HOST, PORT = "192.168.95.235", 11000
     HOST, PORT = "localhost", 11000
-    server = Relay_Server(HOST, PORT, relayFlag, processing, shootP1Hit, shootP2Hit, imu_queue_p1, imu_queue_p2,
+    server = RelayServer(HOST, PORT, relayFlag, processing, shootP1Hit, shootP2Hit, imu_queue_p1, imu_queue_p2,
                           action_p1_queue, action_p2_queue, intcomms_queue, reloadSendRelayP1, reloadSendRelayP2)
     server.start()
     eval_client.join()

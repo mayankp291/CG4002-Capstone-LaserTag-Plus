@@ -1,4 +1,5 @@
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as paho
+from paho import mqtt
 import json
 from multiprocessing import Process, Event
 from constants import *
@@ -28,7 +29,7 @@ class MQTT_Client(Process):
         self.sub_topic = sub_topic
         self.client_id = client_id
         self.group = group
-        self.client = mqtt.Client(client_id, protocol=mqtt.MQTTv311)
+        self.client = paho.Client(client_id, protocol=paho.MQTTv311)
         self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLSv1_2)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
         self.client.connect(
